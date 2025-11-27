@@ -849,18 +849,21 @@
   </div>
 
   <!-- Load local libraries -->
-  <script src="/lib/eruda.js"></script>
+  <!-- Eruda debug console - only loaded in development (localhost) -->
+  <script>
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      const erudaScript = document.createElement('script');
+      erudaScript.src = '/lib/eruda.js';
+      erudaScript.onload = function() { if (typeof eruda !== 'undefined') eruda.init(); };
+      document.head.appendChild(erudaScript);
+    }
+  </script>
   <script src="/lib/echarts.min.js"></script>
   <script src="/lib/gsap.min.js"></script>
 
   <!-- Main Game Script (ES Module) -->
   <script type="module">
     import * as THREE from 'three';
-
-    // Initialize Eruda for mobile debugging (only if available)
-    if (typeof eruda !== 'undefined') {
-      eruda.init();
-    }
 
     // ============================================
     // MATH UTILITIES

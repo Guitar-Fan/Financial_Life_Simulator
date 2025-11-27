@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "animejs": "^4.2.2",
     "echarts": "^6.0.0",
     "eruda": "^3.4.3",
     "gsap": "^3.13.0",
