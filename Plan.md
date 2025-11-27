@@ -82,3 +82,81 @@ Revolving Credit: Available for emergencies, but carries high, compounding inter
 The ultimate goal remains achieving the highest Net Worth (Assets - Liabilities).
 The game's final screen should display the detailed breakdown of the player's wealth:$$ \text{Net Worth} = \left( \sum \text{Investments} + \sum \text{Cash} + \text{Real Estate Value} \right) - \left( \sum \text{Loans} + \sum \text{Credit Card Debt} \right)$$
 This final summary will clearly demonstrate how the early investment in Skills (ROHC) and Financial Capital (Compounding) directly led to their final wealth position.
+
+
+
+Detailed Player Experience & Visual Design Addendum
+
+1. Player Experience Overview
+- Monthly Turn Loop: Choose actions → resolve outcomes → visualize progress → plan next month.
+- Win Conditions: Highest Net Worth at retirement (65). Optional goals: home ownership, debt-free, FIRE target, happiness threshold. Seeded leaderboards.
+- Difficulty: Casual, Standard, Expert (expert increases volatility, audits, job shocks).
+
+2. Interaction Model
+- Panels: Left Actions, Center Visualization, Right Status.
+- Inputs:
+  - Time (10 TUs): sliders across Tech/Data, Finance/Business, Trade/Labor, Medical/Care, Creative/Social, Networking, Rest.
+  - Money: savings %, debt payments, resource buys (book/course/mentor), lifestyle tier.
+  - Career: apply/interview, negotiate, switch roles, side gigs.
+  - Risk: leverage, start business, relocate (tax/COLA), insurance.
+- Events: Snack-bar prompts for opportunities/setbacks; accept/decline.
+- Autosave/Rewind: Monthly snapshots; limited rewinds per difficulty.
+
+3. Discovery & Progression
+- Aptitudes: Hidden → revealed at milestones; tooltips explain multipliers.
+- Skill Thresholds: Unlock jobs/promotions/certs; badges show requirements met.
+- Interest Evolution: Meter per tree; rises with consistent TUs.
+- Burnout/Happiness: Meters affect TU efficiency; rest/lifestyle tune them.
+
+4. Systems Details
+4.1 Learning (6–15):
+- SP Gain = TUs × ResourceQuality × Aptitude × Interest × RestBonus.
+- Decay: 5%/year if ignored 12+ months; rest mitigates.
+- Networking: reduces setbacks; unlocks internships.
+
+4.2 Career & Finance (18+):
+- Income: job selection by thresholds; promotions via threshold + annual RNG; negotiation risk/reward.
+- Taxes: auto federal/state; UI shows marginal/effective; 401k/IRA sliders.
+- Expenses: housing tier; lifestyle multiplier (0.7x/1.0x/1.5x); inflation.
+- Debt: loans, mortgage, revolving credit; compounding; delinquency events.
+- Investment: allocation stocks/bonds/RE; stochastic returns; rebalance; emergency fund.
+- Business/Side gigs: ROI curves; variance; failure risk; time/capital tradeoffs.
+
+4.3 Happiness & Life Events:
+- Happiness impacts TU efficiency; social/lifestyle tradeoffs.
+- Events: marriage, kids, medical, repairs; insurance reduces variance.
+
+5. UI/Graphics (Appealing & Smooth)
+- Stack: Next.js + Tailwind; ECharts; Three.js accents; Framer Motion for transitions.
+- Layout: responsive 3-column; sticky actions; keyboard shortcuts.
+- Animations: tween chart updates; number counters; subtle 3D cues.
+- Charts: net worth line, income/expense bars, allocation donut, debt amortization.
+- 3D: rotating asset cube mapping risk and net-worth delta; 60fps target; throttle on hidden tab.
+- Performance: rAF loops; debounced inputs; web workers for heavy sims; virtualized lists.
+- Accessibility: ARIA, focus rings, reduced motion honored.
+
+6. Turn Resolution
+- Set Time/Money → RNG (market/events/interviews) → apply formulas → update meters → animate charts/counters → present events → snapshot.
+
+7. Scoring & Victory
+- Primary: Net Worth at retirement.
+- Secondary: Human Capital Index, Risk-Adjusted Return, Debt Discipline, Happiness average.
+- Achievements: First Million, Debt-Free, Homeowner, Negotiator, Frugal Master, Balanced Life.
+
+8. Balancing & RNG
+- Seeded randomness with bounds; difficulty scales volatility/event frequency.
+- Safety: wage floors, bankruptcy rules, comeback events.
+
+9. Technical Notes
+- Deterministic engine core with seed; pure state transitions.
+- Chart pipeline: diff updates, easing animations.
+- Three.js: single low-poly scene; adaptive quality; pause on hidden.
+- Persistence: localStorage; optional backend sync.
+
+10. Tutorial
+- Guided first 12 months with tooltips; explain TUs, savings, debt interest, compounding; unlock sandbox.
+
+Appendix Formulas
+- MonthlyReturn = (1 + AnnualReturn)^(1/12) − 1.
+- NetWorth = Cash + Investments + RE − (Loans + CC Debt).
+- BurnoutPenalty = max(0, 1 − RestTU/2).
