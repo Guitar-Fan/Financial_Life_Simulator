@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financial Life Simulator</title>
+  <link href="/favicon.ico" rel="icon" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@12/dist/math.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>
+  <link href="/styles.css" rel="stylesheet" />
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    .container { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
+    header { grid-column: 1 / -1; padding: 16px; border-bottom: 1px solid #ddd; }
+    .sidebar { padding: 16px; border-right: 1px solid #ddd; }
+    .main { padding: 16px; }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input, select, button { width: 100%; padding: 8px; }
+    #chart { width: 100%; height: 320px; }
+    #scene { width: 100%; height: 240px; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Financial Life Simulator</h1>
+    </header>
+    <aside class="sidebar">
+      <div class="field">
+        <label for="age">Starting Age</label>
+        <input id="age" type="number" min="6" max="70" value="18" />
+      </div>
+      <div class="field">
+        <label for="income">Monthly Income ($)</label>
+        <input id="income" type="number" min="0" value="3000" />
+      </div>
+      <div class="field">
+        <label for="expense">Monthly Expenses ($)</label>
+        <input id="expense" type="number" min="0" value="2000" />
+      </div>
+      <div class="field">
+        <label for="invest">Investment Rate (%)</label>
+        <input id="invest" type="number" min="0" max="100" value="15" />
+      </div>
+      <div class="field">
+        <label for="return">Expected Annual Return (%)</label>
+        <input id="return" type="number" min="-50" max="50" value="5" />
+      </div>
+      <button id="simulate">Simulate 12 Months</button>
+    </aside>
+    <main class="main">
+      <h2>Overview</h2>
+      <div id="chart"></div>
+      <h3>Scene</h3>
+      <div id="scene"></div>
+    </main>
+  </div>
+
+  <script>
+    const chartEl = document.getElementById('chart');
+    const chart = echarts.init(chartEl);
+
+    function simulateMonths() {
+      const income = Number(document.getElementById('income').value);
+      const expense = Number(document.getElementById('expense').value);
+      const investRate = Number(document.getElementById('invest').value) / 100;
+      const annualReturn = Number(document.getElementById('return').value) / 100;
+      const monthlyReturn = math.pow(1 + annualReturn, 1/12) - 1;
+
+      let cash = 0, portfolio = 0;
+      const months = Array.from({ length: 12 }, (_, i) => `M${i+1}`);
+      const netWorth = [];
+
+      for (let i = 0; i < 12; i++) {
+        const save = Math.max(income - expense, 0) * investRate;
+        portfolio = portfolio * (1 + monthlyReturn) + save;
+        cash += Math.max(income - expense, 0) * (1 - investRate);
+        netWorth.push(math.round(cash + portfolio, 2));
+      }
+
+      chart.setOption({
+        grid: { left: 40, right: 16, top: 24, bottom: 24 },
+        xAxis: { type: 'category', data: months },
+        yAxis: { type: 'value', name: 'Net Worth ($)' },
+        series: [{ type: 'line', smooth: true, data: netWorth }],
+        tooltip: { trigger: 'axis' }
+      });
+    }
+
+    document.getElementById('simulate').addEventListener('click', simulateMonths);
+    simulateMonths();
+
+    // Minimal THREE.js scene
+    const sceneEl = document.getElementById('scene');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(sceneEl.clientWidth, sceneEl.clientHeight);
+    sceneEl.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, sceneEl.clientWidth / sceneEl.clientHeight, 0.1, 100);
+    camera.position.set(0, 0, 3);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+    scene.add(box);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(2,2,2); scene.add(dir);
+    function animate(){ box.rotation.y += 0.01; box.rotation.x += 0.005; renderer.render(scene, camera); requestAnimationFrame(animate);} animate();
+    window.addEventListener('resize', () => { 
+      renderer.setSize(sceneEl.clientWidth, sceneEl.clientHeight);
+      camera.aspect = sceneEl.clientWidth / sceneEl.clientHeight; 
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>
