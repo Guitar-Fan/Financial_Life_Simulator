@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Financial Life Simulator - Introduction Phase</title>
+  <link href="/favicon.ico" rel="icon" />
+  
+  <!-- Import Map for ES Modules -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/lib/three.module.min.js",
+      "./three.core.min.js": "/lib/three.core.min.js"
+    }
+  }
+  </script>
+  
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --secondary: #10b981;
+      --accent: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text-light: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Loading Screen */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .loading-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .loading-bar-container {
+      width: 300px;
+      height: 8px;
+      background: var(--bg-card);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .loading-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .loading-text {
+      margin-top: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Main Container */
+    #game-container {
+      display: none;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .game-header {
+      background: var(--bg-card);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .game-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .game-title-icon {
+      font-size: 1.8rem;
+    }
+
+    .header-info {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .info-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .info-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Main Layout */
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 2rem;
+      padding: 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem 1.5rem;
+      background: rgba(59, 130, 246, 0.1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .panel-content {
+      padding: 1.5rem;
+    }
+
+    /* Introduction Panel */
+    .intro-panel {
+      grid-column: 1 / -1;
+    }
+
+    .intro-content {
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+
+    .intro-welcome {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .intro-description {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+      line-height: 1.7;
+    }
+
+    /* Character Creation */
+    .character-section {
+      display: none;
+    }
+
+    .character-section.active {
+      display: block;
+    }
+
+    /* 3D Scene */
+    #character-scene {
+      width: 100%;
+      height: 350px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      background: var(--bg-dark);
+    }
+
+    /* Name Input */
+    .name-input-container {
+      margin-bottom: 1.5rem;
+    }
+
+    .name-input {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.1rem;
+      background: var(--bg-dark);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-light);
+      text-align: center;
+      transition: border-color 0.3s ease;
+    }
+
+    .name-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Aptitude Display */
+    .aptitude-container {
+      margin-bottom: 1.5rem;
+    }
+
+    .aptitude-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: var(--bg-dark);
+      border-radius: 8px;
+    }
+
+    .aptitude-icon {
+      font-size: 2rem;
+      margin-right: 1rem;
+      width: 50px;
+      text-align: center;
+    }
+
+    .aptitude-info {
+      flex: 1;
+    }
+
+    .aptitude-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .aptitude-description {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .aptitude-bar-container {
+      width: 100%;
+      height: 10px;
+      background: var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .aptitude-bar {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 1s ease-out;
+    }
+
+    .aptitude-bar.analytical { background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+    .aptitude-bar.kinesthetic { background: linear-gradient(90deg, #10b981, #14b8a6); }
+    .aptitude-bar.creative { background: linear-gradient(90deg, #f59e0b, #f43f5e); }
+
+    .aptitude-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    /* Interest Modifier */
+    .interest-container {
+      margin-bottom: 1.5rem;
+    }
+
+    .interest-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(135deg, var(--accent), var(--danger));
+      border-radius: 30px;
+      font-weight: 600;
+      gap: 0.5rem;
+    }
+
+    .interest-bonus {
+      background: rgba(255,255,255,0.2);
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+
+    /* Charts */
+    #aptitude-chart {
+      width: 100%;
+      height: 300px;
+    }
+
+    #skill-tree-chart {
+      width: 100%;
+      height: 350px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--bg-dark);
+      color: var(--text-light);
+      border: 2px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--secondary), #059669);
+      color: white;
+    }
+
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-lg {
+      padding: 1.25rem 3rem;
+      font-size: 1.2rem;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+
+    /* Stats Summary */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-dark);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* Skill Trees Preview */
+    .skill-trees-preview {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .skill-tree-card {
+      background: var(--bg-dark);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .skill-tree-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .skill-tree-card.selected {
+      border-color: var(--accent);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .skill-tree-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .skill-tree-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .skill-tree-bonus {
+      font-size: 0.8rem;
+      color: var(--secondary);
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    .float {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .game-header {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .header-info {
+        gap: 1rem;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .skill-trees-preview {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Phase Indicator */
+    .phase-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      padding: 1.5rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .phase-step {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+    }
+
+    .phase-step.active {
+      color: var(--primary);
+    }
+
+    .phase-step.completed {
+      color: var(--secondary);
+    }
+
+    .phase-number {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+
+    .phase-step.active .phase-number {
+      background: var(--primary);
+      color: white;
+    }
+
+    .phase-step.completed .phase-number {
+      background: var(--secondary);
+      color: white;
+    }
+
+    /* DNA Animation Container */
+    .dna-container {
+      position: relative;
+      height: 200px;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .dna-helix {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dna-strand {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dna-node {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 500;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border-radius: 16px;
+      max-width: 500px;
+      width: 90%;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .modal-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .modal-text {
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <h1 class="loading-title">Financial Life Simulator</h1>
+    <div class="loading-bar-container">
+      <div class="loading-bar" id="loading-bar"></div>
+    </div>
+    <p class="loading-text" id="loading-text">Initializing...</p>
+  </div>
+
+  <!-- Main Game Container -->
+  <div id="game-container">
+    <!-- Header -->
+    <header class="game-header">
+      <div class="game-title">
+        <span class="game-title-icon">💰</span>
+        Financial Life Simulator
+      </div>
+      <div class="header-info">
+        <div class="info-item">
+          <span class="info-label">Age</span>
+          <span class="info-value" id="player-age">6</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Phase</span>
+          <span class="info-value" id="current-phase">Introduction</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Net Worth</span>
+          <span class="info-value" id="net-worth">$0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Phase Indicator -->
+    <div class="phase-indicator">
+      <div class="phase-step active" id="phase-1">
+        <span class="phase-number">1</span>
+        <span>Welcome</span>
+      </div>
+      <div class="phase-step" id="phase-2">
+        <span class="phase-number">2</span>
+        <span>Character</span>
+      </div>
+      <div class="phase-step" id="phase-3">
+        <span class="phase-number">3</span>
+        <span>Aptitudes</span>
+      </div>
+      <div class="phase-step" id="phase-4">
+        <span class="phase-number">4</span>
+        <span>Interests</span>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Step 1: Welcome -->
+      <section class="character-section active" id="section-welcome">
+        <div class="panel intro-panel">
+          <div class="intro-content">
+            <h1 class="intro-welcome float">Welcome to Your Financial Journey!</h1>
+            <p class="intro-description">
+              You are about to embark on a life-changing simulation where your decisions shape your financial destiny. 
+              Starting at age 6, you'll develop skills, make investments, and navigate the complex world of personal finance.
+              Your genetic aptitudes and interests will influence your path - but ultimately, your choices determine your success.
+            </p>
+            <div class="dna-container" id="dna-animation">
+              <!-- DNA Animation will be rendered here -->
+            </div>
+            <button class="btn btn-primary btn-lg pulse" id="btn-start">
+              🚀 Begin Your Journey
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2: Character Creation -->
+      <section class="character-section" id="section-character">
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">👤 Create Your Character</h2>
+          </div>
+          <div class="panel-content">
+            <div id="character-scene"></div>
+            <div class="name-input-container">
+              <input type="text" class="name-input" id="character-name" placeholder="Enter your character's name..." maxlength="20" />
+            </div>
+            <div class="action-buttons">
+              <button class="btn btn-secondary" id="btn-randomize-look">🎲 Randomize Look</button>
+              <button class="btn btn-primary" id="btn-continue-aptitude">Continue →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Aptitude Reveal -->
+      <section class="character-section" id="section-aptitude">
+        <div class="panel" style="grid-column: 1;">
+          <div class="panel-header">
+            <h2 class="panel-title">🧬 Your Genetic Aptitudes</h2>
+            <button class="btn btn-secondary" id="btn-reroll" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+              🎲 Reroll
+            </button>
+          </div>
+          <div class="panel-content">
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+              Your character's natural abilities have been determined by genetics. These aptitudes affect how quickly you gain skills in different areas.
+            </p>
+            <div class="aptitude-container" id="aptitude-list">
+              <!-- Aptitudes will be rendered here -->
+            </div>
+          </div>
+        </div>
+        
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">📊 Aptitude Analysis</h2>
+          </div>
+          <div class="panel-content">
+            <div id="aptitude-chart"></div>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-value" id="stat-total">--</div>
+                <div class="stat-label">Total Points</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-value" id="stat-highest">--</div>
+                <div class="stat-label">Highest</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-value" id="stat-potential">--</div>
+                <div class="stat-label">Potential</div>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-continue-interest">Accept & Continue →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: Interest Selection -->
+      <section class="character-section" id="section-interest">
+        <div class="panel" style="grid-column: 1;">
+          <div class="panel-header">
+            <h2 class="panel-title">💡 Your Starting Interest</h2>
+          </div>
+          <div class="panel-content">
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+              Your character has developed an early interest in one skill tree. This provides a bonus to skill gain in that area. 
+              You can develop new interests over time through practice!
+            </p>
+            <div class="interest-container" id="interest-display">
+              <!-- Interest badge will be rendered here -->
+            </div>
+            <h3 style="margin: 1.5rem 0 1rem; font-size: 1rem;">Available Skill Trees:</h3>
+            <div class="skill-trees-preview" id="skill-trees">
+              <!-- Skill trees will be rendered here -->
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">📈 Skill Tree Overview</h2>
+          </div>
+          <div class="panel-content">
+            <div id="skill-tree-chart"></div>
+            <button class="btn btn-success btn-block btn-lg" id="btn-start-game" style="margin-top: 1rem;">
+              🎮 Start Your Life!
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Game Started Summary -->
+      <section class="character-section" id="section-game-started">
+        <div class="panel intro-panel">
+          <div class="intro-content">
+            <h1 class="intro-welcome">🎉 Your Journey Begins!</h1>
+            <p class="intro-description" id="summary-text">
+              Character summary will appear here...
+            </p>
+            <div id="summary-chart" style="width: 100%; height: 400px;"></div>
+            <div class="action-buttons" style="margin-top: 2rem;">
+              <button class="btn btn-primary btn-lg" id="btn-play-turn">
+                ▶️ Play First Turn
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div class="modal-overlay" id="modal-success">
+    <div class="modal">
+      <div class="modal-icon">✨</div>
+      <h2 class="modal-title">Character Created!</h2>
+      <p class="modal-text" id="modal-message">Your character is ready to begin their financial journey.</p>
+      <button class="btn btn-primary" id="modal-close">Continue</button>
+    </div>
+  </div>
+
+  <!-- Load local libraries -->
+  <script src="/lib/eruda.js"></script>
+  <script src="/lib/echarts.min.js"></script>
+  <script src="/lib/gsap.min.js"></script>
+
+  <!-- Main Game Script (ES Module) -->
+  <script type="module">
+    import * as THREE from 'three';
+
+    // Initialize Eruda for mobile debugging (only if available)
+    if (typeof eruda !== 'undefined') {
+      eruda.init();
+    }
+
+    // ============================================
+    // MATH UTILITIES
+    // ============================================
+    const math = {
+      floor: Math.floor,
+      round: (val, decimals = 0) => {
+        const multiplier = Math.pow(10, decimals);
+        return Math.round(val * multiplier) / multiplier;
+      },
+      random: Math.random,
+      max: Math.max,
+      min: Math.min,
+      sin: Math.sin,
+      cos: Math.cos,
+      pow: Math.pow
+    };
+
+    // ============================================
+    // GAME STATE
+    // ============================================
+    const GameState = {
+      currentStep: 1,
+      character: {
+        name: '',
+        age: 6,
+        aptitudes: {
+          analytical: 0,
+          kinesthetic: 0,
+          creative: 0
+        },
+        interest: null,
+        interestBonus: 0,
+        netWorth: 0,
+        color: 0x3b82f6
+      },
+      skillTrees: [
+        { id: 'tech', name: 'Tech/Data', icon: '💻', aptitude: 'analytical', color: '#3b82f6' },
+        { id: 'finance', name: 'Finance/Business', icon: '📊', aptitude: 'analytical', color: '#8b5cf6' },
+        { id: 'trade', name: 'Trade/Labor', icon: '🔧', aptitude: 'kinesthetic', color: '#10b981' },
+        { id: 'medical', name: 'Medical/Care', icon: '🏥', aptitude: 'creative', color: '#ef4444' },
+        { id: 'creative', name: 'Creative Arts', icon: '🎨', aptitude: 'creative', color: '#f59e0b' }
+      ]
+    };
+
+    // ============================================
+    // UTILITY FUNCTIONS
+    // ============================================
+    function randomInt(min, max) {
+      return math.floor(math.random() * (max - min + 1)) + min;
+    }
+
+    function formatCurrency(amount) {
+      return '$' + math.round(amount, 2).toLocaleString();
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // ============================================
+    // LOADING SCREEN
+    // ============================================
+    async function showLoading() {
+      const loadingBar = document.getElementById('loading-bar');
+      const loadingText = document.getElementById('loading-text');
+      const loadingScreen = document.getElementById('loading-screen');
+      const gameContainer = document.getElementById('game-container');
+
+      const steps = [
+        { progress: 20, text: 'Loading graphics engine...' },
+        { progress: 40, text: 'Initializing character system...' },
+        { progress: 60, text: 'Setting up financial models...' },
+        { progress: 80, text: 'Preparing skill trees...' },
+        { progress: 100, text: 'Ready!' }
+      ];
+
+      for (const step of steps) {
+        loadingBar.style.width = step.progress + '%';
+        loadingText.textContent = step.text;
+        await sleep(400);
+      }
+
+      await sleep(300);
+      
+      // Fade out loading screen
+      gsap.to(loadingScreen, {
+        opacity: 0,
+        duration: 0.5,
+        onComplete: () => {
+          loadingScreen.style.display = 'none';
+          gameContainer.style.display = 'block';
+          gsap.from(gameContainer, { opacity: 0, duration: 0.5 });
+          initDNAAnimation();
+        }
+      });
+    }
+
+    // ============================================
+    // DNA ANIMATION (Welcome Screen)
+    // ============================================
+    function initDNAAnimation() {
+      const container = document.getElementById('dna-animation');
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+      
+      // Create DNA helix visualization
+      const helix = document.createElement('div');
+      helix.className = 'dna-helix';
+      
+      for (let strand = 0; strand < 2; strand++) {
+        const strandDiv = document.createElement('div');
+        strandDiv.className = 'dna-strand';
+        
+        for (let i = 0; i < 8; i++) {
+          const node = document.createElement('div');
+          node.className = 'dna-node';
+          node.style.background = colors[math.floor(math.random() * colors.length)];
+          node.style.transform = `translateX(${strand === 0 ? math.sin(i * 0.8) * 30 : -math.sin(i * 0.8) * 30}px)`;
+          strandDiv.appendChild(node);
+        }
+        
+        helix.appendChild(strandDiv);
+      }
+      
+      container.appendChild(helix);
+      
+      // Animate the DNA nodes
+      const nodes = container.querySelectorAll('.dna-node');
+      nodes.forEach((node, i) => {
+        gsap.to(node, {
+          scale: 1.2,
+          duration: 0.5,
+          repeat: -1,
+          yoyo: true,
+          delay: i * 0.1
+        });
+      });
+    }
+
+    // ============================================
+    // 3D CHARACTER SCENE
+    // ============================================
+    let characterScene, characterCamera, characterRenderer, characterMesh;
+
+    function init3DScene() {
+      const container = document.getElementById('character-scene');
+      if (!container) return;
+
+      // Scene setup
+      characterScene = new THREE.Scene();
+      characterScene.background = new THREE.Color(0x0f172a);
+
+      // Camera
+      characterCamera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
+      characterCamera.position.set(0, 1, 4);
+
+      // Renderer
+      characterRenderer = new THREE.WebGLRenderer({ antialias: true });
+      characterRenderer.setSize(container.clientWidth, container.clientHeight);
+      characterRenderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(characterRenderer.domElement);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      characterScene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(2, 2, 2);
+      characterScene.add(directionalLight);
+
+      const backLight = new THREE.DirectionalLight(0x3b82f6, 0.3);
+      backLight.position.set(-2, 1, -2);
+      characterScene.add(backLight);
+
+      // Create character (simple stylized human figure)
+      createCharacter();
+
+      // Add ground
+      const groundGeometry = new THREE.CircleGeometry(2, 32);
+      const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -1;
+      characterScene.add(ground);
+
+      // Animation loop
+      animate3D();
+
+      // Handle resize
+      window.addEventListener('resize', () => {
+        if (!container.clientWidth) return;
+        characterCamera.aspect = container.clientWidth / container.clientHeight;
+        characterCamera.updateProjectionMatrix();
+        characterRenderer.setSize(container.clientWidth, container.clientHeight);
+      });
+    }
+
+    function createCharacter() {
+      // Remove old character if exists
+      if (characterMesh) {
+        characterScene.remove(characterMesh);
+      }
+
+      const group = new THREE.Group();
+      const color = GameState.character.color;
+
+      // Body
+      const bodyGeometry = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: color, metalness: 0.1, roughness: 0.5 });
+      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      body.position.y = 0;
+      group.add(body);
+
+      // Head
+      const headGeometry = new THREE.SphereGeometry(0.35, 16, 16);
+      const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffd699, metalness: 0.1, roughness: 0.6 });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 0.9;
+      group.add(head);
+
+      // Eyes
+      const eyeGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+      const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      leftEye.position.set(-0.12, 0.95, 0.28);
+      group.add(leftEye);
+
+      const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      rightEye.position.set(0.12, 0.95, 0.28);
+      group.add(rightEye);
+
+      // Arms
+      const armGeometry = new THREE.CapsuleGeometry(0.1, 0.4, 4, 8);
+      const armMaterial = new THREE.MeshStandardMaterial({ color: color });
+
+      const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+      leftArm.position.set(-0.5, 0.1, 0);
+      leftArm.rotation.z = 0.3;
+      group.add(leftArm);
+
+      const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+      rightArm.position.set(0.5, 0.1, 0);
+      rightArm.rotation.z = -0.3;
+      group.add(rightArm);
+
+      // Legs
+      const legGeometry = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);
+      const legMaterial = new THREE.MeshStandardMaterial({ color: 0x334155 });
+
+      const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+      leftLeg.position.set(-0.18, -0.75, 0);
+      group.add(leftLeg);
+
+      const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+      rightLeg.position.set(0.18, -0.75, 0);
+      group.add(rightLeg);
+
+      group.position.y = 0;
+      characterScene.add(group);
+      characterMesh = group;
+
+      // Entrance animation
+      gsap.from(group.position, { y: -2, duration: 1, ease: 'bounce.out' });
+      gsap.from(group.scale, { x: 0, y: 0, z: 0, duration: 0.5, ease: 'back.out' });
+    }
+
+    function randomizeCharacterLook() {
+      const colors = [0x3b82f6, 0x10b981, 0xf59e0b, 0xef4444, 0x8b5cf6, 0x06b6d4, 0xec4899];
+      GameState.character.color = colors[math.floor(math.random() * colors.length)];
+      createCharacter();
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      
+      if (characterMesh) {
+        characterMesh.rotation.y += 0.005;
+        characterMesh.position.y = math.sin(Date.now() * 0.002) * 0.05;
+      }
+      
+      characterRenderer.render(characterScene, characterCamera);
+    }
+
+    // ============================================
+    // APTITUDE SYSTEM
+    // ============================================
+    function generateAptitudes() {
+      GameState.character.aptitudes = {
+        analytical: randomInt(1, 100),
+        kinesthetic: randomInt(1, 100),
+        creative: randomInt(1, 100)
+      };
+      renderAptitudes();
+      renderAptitudeChart();
+      updateStats();
+    }
+
+    function renderAptitudes() {
+      const container = document.getElementById('aptitude-list');
+      const aptitudes = [
+        { 
+          key: 'analytical', 
+          name: 'Analytical', 
+          icon: '🧠', 
+          description: 'Affects Tech/Data and Finance/Business skill gain',
+          class: 'analytical'
+        },
+        { 
+          key: 'kinesthetic', 
+          name: 'Kinesthetic', 
+          icon: '💪', 
+          description: 'Affects Trade/Labor skills and reduces burnout',
+          class: 'kinesthetic'
+        },
+        { 
+          key: 'creative', 
+          name: 'Creative/Social', 
+          icon: '🎭', 
+          description: 'Affects Medical/Care and Creative skills, boosts interviews',
+          class: 'creative'
+        }
+      ];
+
+      container.innerHTML = aptitudes.map(apt => `
+        <div class="aptitude-item">
+          <div class="aptitude-icon">${apt.icon}</div>
+          <div class="aptitude-info">
+            <div class="aptitude-name">${apt.name}</div>
+            <div class="aptitude-description">${apt.description}</div>
+            <div class="aptitude-bar-container">
+              <div class="aptitude-bar ${apt.class}" style="width: 0%" data-target="${GameState.character.aptitudes[apt.key]}"></div>
+            </div>
+          </div>
+          <div class="aptitude-value">${GameState.character.aptitudes[apt.key]}</div>
+        </div>
+      `).join('');
+
+      // Animate bars
+      setTimeout(() => {
+        document.querySelectorAll('.aptitude-bar').forEach(bar => {
+          bar.style.width = bar.dataset.target + '%';
+        });
+      }, 100);
+    }
+
+    function renderAptitudeChart() {
+      const chart = echarts.init(document.getElementById('aptitude-chart'));
+      const { analytical, kinesthetic, creative } = GameState.character.aptitudes;
+
+      chart.setOption({
+        animation: true,
+        animationDuration: 1500,
+        radar: {
+          indicator: [
+            { name: 'Analytical', max: 100 },
+            { name: 'Kinesthetic', max: 100 },
+            { name: 'Creative/Social', max: 100 }
+          ],
+          shape: 'polygon',
+          splitNumber: 5,
+          axisName: {
+            color: '#94a3b8'
+          },
+          splitLine: {
+            lineStyle: { color: '#334155' }
+          },
+          splitArea: {
+            areaStyle: { color: ['rgba(30, 41, 59, 0.5)'] }
+          },
+          axisLine: {
+            lineStyle: { color: '#334155' }
+          }
+        },
+        series: [{
+          type: 'radar',
+          data: [{
+            value: [analytical, kinesthetic, creative],
+            name: 'Aptitudes',
+            areaStyle: {
+              color: 'rgba(59, 130, 246, 0.4)'
+            },
+            lineStyle: {
+              color: '#3b82f6',
+              width: 2
+            },
+            itemStyle: {
+              color: '#3b82f6'
+            }
+          }]
+        }]
+      });
+
+      window.addEventListener('resize', () => chart.resize());
+    }
+
+    function updateStats() {
+      const { analytical, kinesthetic, creative } = GameState.character.aptitudes;
+      const total = analytical + kinesthetic + creative;
+      const highest = math.max(analytical, kinesthetic, creative);
+      const potential = math.round((total / 300) * 100);
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-highest').textContent = highest;
+      document.getElementById('stat-potential').textContent = potential + '%';
+    }
+
+    // ============================================
+    // INTEREST SYSTEM
+    // ============================================
+    function generateInterest() {
+      const skillTree = GameState.skillTrees[math.floor(math.random() * GameState.skillTrees.length)];
+      GameState.character.interest = skillTree;
+      GameState.character.interestBonus = randomInt(10, 30);
+      renderInterest();
+      renderSkillTrees();
+      renderSkillTreeChart();
+    }
+
+    function renderInterest() {
+      const container = document.getElementById('interest-display');
+      const interest = GameState.character.interest;
+      
+      container.innerHTML = `
+        <div class="interest-badge">
+          <span style="font-size: 1.5rem;">${interest.icon}</span>
+          <span>${interest.name}</span>
+          <span class="interest-bonus">+${GameState.character.interestBonus}% SP Gain</span>
+        </div>
+      `;
+
+      gsap.from(container.querySelector('.interest-badge'), {
+        scale: 0,
+        duration: 0.5,
+        ease: 'back.out'
+      });
+    }
+
+    function renderSkillTrees() {
+      const container = document.getElementById('skill-trees');
+      
+      container.innerHTML = GameState.skillTrees.map(tree => `
+        <div class="skill-tree-card ${tree.id === GameState.character.interest.id ? 'selected' : ''}" data-tree="${tree.id}">
+          <div class="skill-tree-icon">${tree.icon}</div>
+          <div class="skill-tree-name">${tree.name}</div>
+          <div class="skill-tree-bonus" style="color: ${tree.color}">
+            ${tree.id === GameState.character.interest.id ? `+${GameState.character.interestBonus}% Interest Bonus` : `Uses ${tree.aptitude.charAt(0).toUpperCase() + tree.aptitude.slice(1)}`}
+          </div>
+        </div>
+      `).join('');
+
+      // Add stagger animation
+      gsap.from(container.querySelectorAll('.skill-tree-card'), {
+        y: 30,
+        opacity: 0,
+        duration: 0.4,
+        stagger: 0.1
+      });
+    }
+
+    function renderSkillTreeChart() {
+      const chart = echarts.init(document.getElementById('skill-tree-chart'));
+      
+      const data = GameState.skillTrees.map(tree => {
+        const aptValue = GameState.character.aptitudes[tree.aptitude];
+        const interestBonus = tree.id === GameState.character.interest.id ? GameState.character.interestBonus : 0;
+        return {
+          name: tree.name,
+          value: aptValue,
+          bonus: interestBonus,
+          itemStyle: { color: tree.color }
+        };
+      });
+
+      chart.setOption({
+        animation: true,
+        animationDuration: 1000,
+        tooltip: {
+          trigger: 'axis',
+          formatter: function(params) {
+            const item = params[0];
+            const skillTree = GameState.skillTrees.find(t => t.name === item.name);
+            const bonus = skillTree.id === GameState.character.interest.id ? GameState.character.interestBonus : 0;
+            return `${item.name}<br/>Base Aptitude: ${item.value}<br/>Interest Bonus: +${bonus}%`;
+          }
+        },
+        xAxis: {
+          type: 'category',
+          data: data.map(d => d.name),
+          axisLabel: { 
+            color: '#94a3b8',
+            rotate: 30,
+            fontSize: 10
+          },
+          axisLine: { lineStyle: { color: '#334155' } }
+        },
+        yAxis: {
+          type: 'value',
+          name: 'Skill Potential',
+          max: 130,
+          axisLabel: { color: '#94a3b8' },
+          axisLine: { lineStyle: { color: '#334155' } },
+          splitLine: { lineStyle: { color: '#334155' } }
+        },
+        series: [
+          {
+            name: 'Base Aptitude',
+            type: 'bar',
+            data: data.map(d => ({
+              value: d.value,
+              itemStyle: d.itemStyle
+            })),
+            barWidth: '40%'
+          },
+          {
+            name: 'Interest Bonus',
+            type: 'bar',
+            data: data.map(d => ({
+              value: d.bonus,
+              itemStyle: { color: '#f59e0b', opacity: 0.8 }
+            })),
+            barWidth: '40%',
+            stack: 'total'
+          }
+        ],
+        legend: {
+          data: ['Base Aptitude', 'Interest Bonus'],
+          textStyle: { color: '#94a3b8' },
+          bottom: 0
+        }
+      });
+
+      window.addEventListener('resize', () => chart.resize());
+    }
+
+    // ============================================
+    // GAME SUMMARY
+    // ============================================
+    function renderGameSummary() {
+      const name = GameState.character.name || 'Adventurer';
+      const { analytical, kinesthetic, creative } = GameState.character.aptitudes;
+      const interest = GameState.character.interest;
+      
+      document.getElementById('summary-text').innerHTML = `
+        <strong>${name}</strong>, age 6, is ready to begin their financial journey!<br><br>
+        <strong>Aptitudes:</strong> Analytical (${analytical}), Kinesthetic (${kinesthetic}), Creative (${creative})<br>
+        <strong>Initial Interest:</strong> ${interest.icon} ${interest.name} (+${GameState.character.interestBonus}% SP Gain)
+      `;
+
+      // Summary chart
+      const chart = echarts.init(document.getElementById('summary-chart'));
+      
+      chart.setOption({
+        animation: true,
+        title: {
+          text: 'Your Starting Profile',
+          textStyle: { color: '#f1f5f9' },
+          left: 'center'
+        },
+        tooltip: { trigger: 'item' },
+        legend: {
+          orient: 'horizontal',
+          bottom: 10,
+          textStyle: { color: '#94a3b8' }
+        },
+        series: [
+          {
+            name: 'Aptitudes',
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['50%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+              borderRadius: 10,
+              borderColor: '#1e293b',
+              borderWidth: 2
+            },
+            label: {
+              show: true,
+              color: '#f1f5f9'
+            },
+            data: [
+              { value: analytical, name: 'Analytical', itemStyle: { color: '#3b82f6' } },
+              { value: kinesthetic, name: 'Kinesthetic', itemStyle: { color: '#10b981' } },
+              { value: creative, name: 'Creative', itemStyle: { color: '#f59e0b' } }
+            ]
+          }
+        ]
+      });
+
+      window.addEventListener('resize', () => chart.resize());
+    }
+
+    // ============================================
+    // NAVIGATION & STEPS
+    // ============================================
+    function goToStep(step) {
+      // Hide all sections
+      document.querySelectorAll('.character-section').forEach(section => {
+        section.classList.remove('active');
+      });
+
+      // Update phase indicators
+      for (let i = 1; i <= 4; i++) {
+        const phaseEl = document.getElementById(`phase-${i}`);
+        phaseEl.classList.remove('active', 'completed');
+        if (i < step) {
+          phaseEl.classList.add('completed');
+        } else if (i === step) {
+          phaseEl.classList.add('active');
+        }
+      }
+
+      // Show current section
+      let sectionId;
+      switch(step) {
+        case 1: sectionId = 'section-welcome'; break;
+        case 2: sectionId = 'section-character'; break;
+        case 3: sectionId = 'section-aptitude'; break;
+        case 4: sectionId = 'section-interest'; break;
+        case 5: sectionId = 'section-game-started'; break;
+      }
+
+      const section = document.getElementById(sectionId);
+      section.classList.add('active');
+
+      gsap.from(section, {
+        opacity: 0,
+        y: 30,
+        duration: 0.5
+      });
+
+      GameState.currentStep = step;
+
+      // Initialize step-specific content
+      if (step === 2) {
+        init3DScene();
+      } else if (step === 3) {
+        generateAptitudes();
+      } else if (step === 4) {
+        generateInterest();
+      } else if (step === 5) {
+        renderGameSummary();
+      }
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    function initEventListeners() {
+      // Start button
+      document.getElementById('btn-start').addEventListener('click', () => {
+        goToStep(2);
+      });
+
+      // Randomize look
+      document.getElementById('btn-randomize-look').addEventListener('click', () => {
+        randomizeCharacterLook();
+      });
+
+      // Character name input
+      document.getElementById('character-name').addEventListener('input', (e) => {
+        GameState.character.name = e.target.value;
+      });
+
+      // Continue to aptitude
+      document.getElementById('btn-continue-aptitude').addEventListener('click', () => {
+        if (!GameState.character.name.trim()) {
+          GameState.character.name = 'Player';
+        }
+        goToStep(3);
+      });
+
+      // Reroll aptitudes
+      document.getElementById('btn-reroll').addEventListener('click', () => {
+        generateAptitudes();
+        
+        // Animation
+        gsap.from('#aptitude-list', {
+          x: -20,
+          opacity: 0,
+          duration: 0.3
+        });
+      });
+
+      // Continue to interest
+      document.getElementById('btn-continue-interest').addEventListener('click', () => {
+        goToStep(4);
+      });
+
+      // Start game
+      document.getElementById('btn-start-game').addEventListener('click', () => {
+        showSuccessModal();
+      });
+
+      // Modal close
+      document.getElementById('modal-close').addEventListener('click', () => {
+        document.getElementById('modal-success').classList.remove('active');
+        goToStep(5);
+      });
+
+      // Play turn (placeholder)
+      document.getElementById('btn-play-turn').addEventListener('click', () => {
+        alert('Turn-based gameplay coming soon! This completes the Introduction Phase.');
+      });
+    }
+
+    function showSuccessModal() {
+      const modal = document.getElementById('modal-success');
+      const name = GameState.character.name || 'Adventurer';
+      document.getElementById('modal-message').textContent = 
+        `${name} is ready to start their financial journey at age 6!`;
+      modal.classList.add('active');
+      
+      gsap.from('.modal', {
+        scale: 0.8,
+        opacity: 0,
+        duration: 0.3,
+        ease: 'back.out'
+      });
+    }
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      initEventListeners();
+      showLoading();
+    });
+  </script>
+</body>
+</html>
