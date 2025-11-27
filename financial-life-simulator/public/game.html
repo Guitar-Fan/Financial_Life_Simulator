@@ -882,6 +882,13 @@
       pow: Math.pow
     };
 
+    // HTML escape function to prevent XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
     // ============================================
     // GAME STATE
     // ============================================
@@ -1407,7 +1414,7 @@
     // GAME SUMMARY
     // ============================================
     function renderGameSummary() {
-      const name = GameState.character.name || 'Adventurer';
+      const name = escapeHtml(GameState.character.name || 'Adventurer');
       const { analytical, kinesthetic, creative } = GameState.character.aptitudes;
       const interest = GameState.character.interest;
       
