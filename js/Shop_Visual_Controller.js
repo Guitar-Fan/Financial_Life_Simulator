@@ -63,6 +63,9 @@ class ShopVisualController extends Phaser.Scene {
         this.load.svg('baker_left', 'assets/images/characters/baker_left.svg', { width: 64, height: 80 });
         this.load.svg('baker_right', 'assets/images/characters/baker_right.svg', { width: 64, height: 80 });
         this.load.svg('main_character', 'assets/images/main_character.svg', { width: 128, height: 128 });
+        
+        // Load bakery background image
+        this.load.svg('bakery_background', 'assets/images/bakery_interior.svg', { width: 1024, height: 768 });
     }
     
     init(data) {
@@ -117,6 +120,9 @@ class ShopVisualController extends Phaser.Scene {
         // Create objectives display
         this.createObjectivesDisplay();
         
+        // Create controls help text
+        this.createControlsHelp();
+        
         // Set up state change listener
         this.gameState.onStateChange((newState, oldState) => {
             this.handleStateChange(newState, oldState);
@@ -135,14 +141,43 @@ class ShopVisualController extends Phaser.Scene {
     }
     
     /**
+     * Create controls help overlay
+     */
+    createControlsHelp() {
+        const helpText = this.add.text(20, this.scale.height - 80, 
+            'Controls: WASD/Arrows=Move | E=Interact | TAB=Stats | F=Fullscreen', {
+            fontSize: '14px',
+            color: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        helpText.setDepth(600);
+        helpText.setScrollFactor(0);
+        helpText.setAlpha(0.7);
+        
+        // Fade out after 10 seconds
+        this.time.delayedCall(10000, () => {
+            this.tweens.add({
+                targets: helpText,
+                alpha: 0,
+                duration: 1000,
+                onComplete: () => helpText.destroy()
+            });
+        });
+    }
+    
+    /**
      * Create player character with movement
      */
     createPlayer() {
-        // Create player sprite with physics
-        this.player = this.physics.add.sprite(512, 384, 'baker_down');
+        // Create player sprite with physics (centered on screen)
+        const centerX = this.scale.width / 2;
+        const centerY = this.scale.height / 2;
+        
+        this.player = this.physics.add.sprite(centerX, centerY, 'baker_down');
         this.player.setDepth(10);
         this.player.currentDirection = 'down';
-        this.player.speed = 150;
+        this.player.speed = 250;
         this.player.isMoving = false;
         
         // Configure physics body
@@ -153,10 +188,13 @@ class ShopVisualController extends Phaser.Scene {
         // Setup camera to follow player
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
         this.cameras.main.setZoom(1);
-        this.cameras.main.setBounds(0, 0, 1024, 768);
+        this.cameras.main.setBounds(0, 0, this.scale.width, this.scale.height);
         
         // Add smooth camera effects
         this.cameras.main.setRoundPixels(true);
+        
+        // Update world bounds for physics
+        this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
     }
     
     /**
@@ -170,6 +208,112 @@ class ShopVisualController extends Phaser.Scene {
             left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
             right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
         };
+        
+        // Stats menu toggle (Tab key)
+        this.tabKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TAB);
+        
+        // Fullscreen toggle (F key)
+        this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        
+        // Create in-game stats panel
+        this.createStatsPanel();
+    }
+    
+    /**
+     * Create in-game stats panel
+     */
+    createStatsPanel() {
+        this.statsPanel = this.add.container(0, 0);
+        this.statsPanel.setDepth(500);
+        this.statsPanel.setScrollFactor(0);
+        
+        // Semi-transparent background
+        const panelBg = this.add.rectangle(0, 0, 400, 600, 0x000000, 0.9);
+        panelBg.setOrigin(0, 0);
+        this.statsPanel.add(panelBg);
+        
+        // Border
+        const border = this.add.graphics();
+        border.lineStyle(3, 0x7c3aed);
+        border.strokeRect(0, 0, 400, 600);
+        this.statsPanel.add(border);
+        
+        // Title
+        const title = this.add.text(200, 30, 'BUSINESS STATS', {
+            fontSize: '28px',
+            fontStyle: 'bold',
+            color: '#7c3aed',
+            align: 'center'
+        }).setOrigin(0.5);
+        this.statsPanel.add(title);
+        
+        // Stats text area
+        this.statsText = this.add.text(20, 80, '', {
+            fontSize: '16px',
+            color: '#ffffff',
+            lineSpacing: 8
+        });
+        this.statsPanel.add(this.statsText);
+        
+        // Close instruction
+        const closeText = this.add.text(200, 560, 'Press TAB to close', {
+            fontSize: '14px',
+            color: '#888888',
+            align: 'center'
+        }).setOrigin(0.5);
+        this.statsPanel.add(closeText);
+        
+        // Position panel (right side of screen)
+        this.statsPanel.setPosition(this.scale.width - 420, 20);
+        this.statsPanel.setVisible(false);
+        
+        // Handle screen resize
+        this.scale.on('resize', (gameSize) => {
+            this.statsPanel.setPosition(gameSize.width - 420, 20);
+        });
+    }
+    
+    /**
+     * Update stats panel content
+     */
+    updateStatsPanel() {
+        if (!this.statsText) return;
+        
+        const snapshot = this.ledger.getFinancialSnapshot();
+        const products = this.costing.getProductInventory();
+        const ingredients = this.costing.getIngredientInventory();
+        
+        let statsContent = `📊 FINANCIAL OVERVIEW\n`;
+        statsContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        statsContent += `💰 Cash on Hand: $${snapshot.cashOnHand.toFixed(2)}\n`;
+        statsContent += `📦 Inventory Value: $${snapshot.inventoryValue.toFixed(2)}\n`;
+        statsContent += `💎 Net Worth: $${snapshot.netWorth.toFixed(2)}\n`;
+        statsContent += `\n`;
+        statsContent += `📈 PERFORMANCE METRICS\n`;
+        statsContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        statsContent += `📊 Gross Margin: ${snapshot.grossMargin.toFixed(1)}%\n`;
+        statsContent += `🔄 Inventory Turnover: ${snapshot.inventoryTurnover.toFixed(2)}x\n`;
+        statsContent += `💸 Total Revenue: $${snapshot.totalRevenue.toFixed(2)}\n`;
+        statsContent += `🧾 Total COGS: $${snapshot.totalCOGS.toFixed(2)}\n`;
+        statsContent += `🗑️ Shrinkage: $${snapshot.totalShrinkage.toFixed(2)}\n`;
+        statsContent += `\n`;
+        statsContent += `📦 INVENTORY STATUS\n`;
+        statsContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        statsContent += `🍞 Products: ${products.length} types\n`;
+        products.slice(0, 3).forEach(p => {
+            statsContent += `  • ${p.type}: ${p.quantity} units\n`;
+        });
+        if (products.length > 3) {
+            statsContent += `  ... and ${products.length - 3} more\n`;
+        }
+        statsContent += `\n`;
+        statsContent += `🌾 Ingredients: ${ingredients.length} types\n`;
+        statsContent += `\n`;
+        statsContent += `⏰ TIME\n`;
+        statsContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        statsContent += `${this.gameState.getTimeString()}\n`;
+        
+        this.statsText.setText(statsContent);
     }
     
     /**
@@ -221,6 +365,24 @@ class ShopVisualController extends Phaser.Scene {
         
         this.player.isMoving = moving;
         
+        // Toggle stats panel with TAB
+        if (Phaser.Input.Keyboard.JustDown(this.tabKey)) {
+            const isVisible = this.statsPanel.visible;
+            this.statsPanel.setVisible(!isVisible);
+            if (!isVisible) {
+                this.updateStatsPanel();
+            }
+        }
+        
+        // Toggle fullscreen with F
+        if (Phaser.Input.Keyboard.JustDown(this.fKey)) {
+            if (this.scale.isFullscreen) {
+                this.scale.stopFullscreen();
+            } else {
+                this.scale.startFullscreen();
+            }
+        }
+        
         // Check for nearby interactive zones
         this.checkProximityInteractions();
         
@@ -237,11 +399,490 @@ class ShopVisualController extends Phaser.Scene {
     }
     
     /**
-     * Create bakery floor background
+     * Create bakery floor background with interactive elements
      */
     createBackground() {
-        this.background = this.spriteFactory.createFloorBackground(1024, 768);
-        this.background.setDepth(0);
+        // Create layered background with Phaser graphics
+        this.createFloorAndWalls();
+        this.createWindows();
+        this.createLighting();
+        this.createEquipment();
+        this.createFurniture();
+        this.createAmbientEffects();
+    }
+    
+    /**
+     * Create floor and wall graphics
+     */
+    createFloorAndWalls() {
+        const graphics = this.add.graphics();
+        const width = this.scale.width;
+        const height = this.scale.height;
+        const wallHeight = Math.min(height * 0.35, 300);
+        
+        // Checkered floor tiles
+        for (let y = wallHeight; y < height; y += 40) {
+            for (let x = 0; x < width; x += 40) {
+                const isEven = ((x / 40) + (y / 40)) % 2 === 0;
+                graphics.fillStyle(isEven ? 0xe8dcc8 : 0xdfd3bf);
+                graphics.fillRect(x, y, 40, 40);
+                graphics.lineStyle(1, 0xc9b89a);
+                graphics.strokeRect(x, y, 40, 40);
+            }
+        }
+        
+        // Brick wall pattern
+        for (let y = 0; y < wallHeight; y += 30) {
+            for (let x = 0; x < width; x += 60) {
+                const offsetX = (y / 30) % 2 === 0 ? 0 : -30;
+                graphics.fillStyle(0xb8856d);
+                graphics.fillRect(x + offsetX, y, 60, 30);
+                graphics.lineStyle(2, 0x8b5a3c);
+                graphics.strokeRect(x + offsetX, y, 60, 30);
+            }
+        }
+        
+        // Ceiling trim
+        graphics.fillStyle(0x4a4a4a);
+        graphics.fillRect(0, 0, width, 20);
+        graphics.fillStyle(0x6d5637);
+        graphics.fillRect(0, 20, width, 10);
+        
+        // Baseboards
+        graphics.fillStyle(0x4a3428);
+        graphics.fillRect(0, height - 23, width, 23);
+        
+        graphics.setDepth(0);
+    }
+    
+    /**
+     * Create interactive windows with lighting
+     */
+    createWindows() {
+        // Left window
+        this.createWindow(50, 40, 280, 200);
+        
+        // Right window
+        this.createWindow(694, 40, 280, 200);
+    }
+    
+    createWindow(x, y, width, height) {
+        const graphics = this.add.graphics();
+        
+        // Sky/outside
+        graphics.fillGradientStyle(0x87ceeb, 0x87ceeb, 0xb0d4f1, 0xb0d4f1, 0.6);
+        graphics.fillRect(x, y, width, height);
+        
+        // Sun rays effect
+        const rays = this.add.graphics();
+        rays.fillGradientStyle(0xfffacd, 0xfffacd, 0xfffacd, 0xfffacd, 0, 0.2, 0, 0.1);
+        rays.fillRect(x, y, width, height);
+        rays.setDepth(1);
+        
+        // Window frame
+        graphics.lineStyle(8, 0x4a4a4a);
+        graphics.strokeRect(x, y, width, height);
+        
+        // Cross dividers
+        graphics.lineStyle(6, 0x4a4a4a);
+        graphics.lineBetween(x + width / 2, y, x + width / 2, y + height);
+        graphics.lineBetween(x, y + height / 2, x + width, y + height / 2);
+        
+        // Window sill
+        graphics.fillStyle(0x6d5637);
+        graphics.fillRect(x - 10, y + height, width + 20, 15);
+        graphics.fillStyle(0x8b6f47);
+        graphics.fillRect(x - 10, y + height + 15, width + 20, 5);
+        
+        graphics.setDepth(1);
+        
+        // Animated light particles through window
+        this.time.addEvent({
+            delay: 3000,
+            callback: () => this.createDustParticle(x + Math.random() * width, y + height - 20),
+            loop: true
+        });
+    }
+    
+    /**
+     * Create ceiling lights with glow
+     */
+    createLighting() {
+        this.createCeilingLight(256, 55);
+        this.createCeilingLight(768, 55);
+        
+        // Pendant lamp over display
+        this.createPendantLamp(512, 320);
+    }
+    
+    createCeilingLight(x, y) {
+        // Light glow
+        const glow = this.add.circle(x, y, 50, 0xfffacd, 0.2);
+        glow.setDepth(5);
+        
+        // Pulsing animation
+        this.tweens.add({
+            targets: glow,
+            alpha: 0.3,
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        // Light fixture
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0x2a2a2a);
+        graphics.fillEllipse(x, 15, 30, 8);
+        graphics.fillRect(x - 10, 15, 20, 40);
+        
+        graphics.fillStyle(0xfffacd);
+        graphics.fillCircle(x, y, 25);
+        
+        graphics.lineStyle(2, 0xd4af37);
+        graphics.strokeCircle(x, y, 25);
+        graphics.setDepth(5);
+    }
+    
+    createPendantLamp(x, y) {
+        const graphics = this.add.graphics();
+        
+        // Cord
+        graphics.lineStyle(2, 0x2a2a2a);
+        graphics.lineBetween(x, 30, x, y - 30);
+        
+        // Lampshade
+        graphics.fillStyle(0xc41e3a);
+        graphics.beginPath();
+        graphics.moveTo(x - 30, y - 30);
+        graphics.lineTo(x - 40, y);
+        graphics.lineTo(x + 40, y);
+        graphics.lineTo(x + 30, y - 30);
+        graphics.closePath();
+        graphics.fillPath();
+        
+        // Light cone
+        const lightCone = this.add.graphics();
+        lightCone.fillGradientStyle(0xfffacd, 0xfffacd, 0xfffacd, 0xfffacd, 0.3, 0.3, 0, 0);
+        lightCone.fillTriangle(x, y, x - 100, y + 200, x + 100, y + 200);
+        lightCone.setDepth(2);
+        
+        // Subtle swing animation
+        this.tweens.add({
+            targets: [graphics, lightCone],
+            angle: 2,
+            duration: 3000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        graphics.setDepth(5);
+    }
+    
+    /**
+     * Create interactive equipment
+     */
+    createEquipment() {
+        // Industrial oven (animated)
+        this.createOven(60, 280);
+        
+        // Stand mixer
+        this.createMixer(120, 460);
+    }
+    
+    createOven(x, y) {
+        const graphics = this.add.graphics();
+        
+        // Oven body with metallic gradient
+        graphics.fillGradientStyle(0xc0c0c0, 0xe8e8e8, 0xc0c0c0, 0xa8a8a8);
+        graphics.fillRect(x, y, 200, 180);
+        
+        graphics.fillStyle(0xd0d0d0);
+        graphics.fillRect(x + 5, y + 5, 190, 170);
+        
+        // Door window (dark)
+        graphics.fillStyle(0x1a1a1a);
+        graphics.fillRect(x + 20, y + 20, 80, 100);
+        
+        // Heat shimmer effect inside oven
+        const shimmer = this.add.rectangle(x + 60, y + 70, 80, 100, 0xff4500, 0.1);
+        shimmer.setDepth(3);
+        this.tweens.add({
+            targets: shimmer,
+            alpha: 0.2,
+            scaleX: 1.02,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        // Door handle
+        graphics.fillStyle(0x4a4a4a);
+        graphics.fillRoundedRect(x + 105, y + 60, 30, 8, 4);
+        
+        // Control panel
+        graphics.fillStyle(0x3a3a3a);
+        graphics.fillRect(x + 110, y + 20, 75, 140);
+        
+        // Dials
+        for (let i = 0; i < 2; i++) {
+            for (let j = 0; j < 2; j++) {
+                const cx = x + 135 + (j * 25);
+                const cy = y + 50 + (i * 30);
+                graphics.fillStyle(0x4a4a4a);
+                graphics.fillCircle(cx, cy, 12);
+                graphics.lineStyle(2, 0x2a2a2a);
+                graphics.strokeCircle(cx, cy, 12);
+            }
+        }
+        
+        // Digital display
+        graphics.fillStyle(0x000000);
+        graphics.fillRoundedRect(x + 120, y + 105, 55, 25, 2);
+        
+        const displayText = this.add.text(x + 147, y + 117, '350°F', {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#00ff00'
+        }).setOrigin(0.5);
+        displayText.setDepth(4);
+        
+        // Blinking display
+        this.tweens.add({
+            targets: displayText,
+            alpha: 0.7,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1
+        });
+        
+        // Indicator lights (animated)
+        const redLight = this.add.circle(x + 130, y + 140, 4, 0xff0000, 0.8);
+        const greenLight = this.add.circle(x + 147, y + 140, 4, 0x00ff00, 0.8);
+        const orangeLight = this.add.circle(x + 164, y + 140, 4, 0xffaa00, 0.6);
+        
+        [redLight, greenLight, orangeLight].forEach(light => light.setDepth(4));
+        
+        // Pulsing lights
+        this.tweens.add({
+            targets: greenLight,
+            alpha: 0.3,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1
+        });
+        
+        graphics.setDepth(3);
+    }
+    
+    createMixer(x, y) {
+        const graphics = this.add.graphics();
+        
+        // Base
+        graphics.fillStyle(0x2a2a2a);
+        graphics.fillEllipse(x, y + 45, 35, 8);
+        graphics.fillStyle(0xc41e3a);
+        graphics.fillRoundedRect(x - 35, y + 30, 70, 15, 3);
+        
+        // Body
+        graphics.fillStyle(0xc41e3a);
+        graphics.fillRect(x - 15, y + 5, 30, 25);
+        graphics.fillEllipse(x, y + 5, 15, 5);
+        
+        // Bowl
+        graphics.fillGradientStyle(0xe0e0e0, 0xe0e0e0, 0xc0c0c0, 0xc0c0c0);
+        graphics.fillEllipse(x, y + 35, 25, 6);
+        graphics.beginPath();
+        graphics.arc(x, y + 35, 25, 0, Math.PI, false);
+        graphics.lineTo(x, y + 55);
+        graphics.arc(x, y + 55, 15, Math.PI, 0, true);
+        graphics.closePath();
+        graphics.fillPath();
+        
+        graphics.setDepth(3);
+        
+        // Rotating animation hint
+        const beater = this.add.graphics();
+        beater.lineStyle(2, 0x888888);
+        beater.lineBetween(x - 5, y + 30, x - 5, y + 45);
+        beater.lineBetween(x + 5, y + 30, x + 5, y + 45);
+        beater.setDepth(4);
+        
+        this.tweens.add({
+            targets: beater,
+            angle: 360,
+            duration: 2000,
+            repeat: -1,
+            ease: 'Linear'
+        });
+    }
+    
+    /**
+     * Create furniture elements
+     */
+    createFurniture() {
+        // Menu board
+        this.createMenuBoard(380, 60);
+        
+        // Work counter (left)
+        this.createCounter(60, 500, 250);
+        
+        // Work table (right)
+        this.createWorkTable(720, 500, 260);
+    }
+    
+    createMenuBoard(x, y) {
+        const graphics = this.add.graphics();
+        
+        // Frame
+        graphics.lineStyle(8, 0x6d5637);
+        graphics.strokeRect(x, y, 260, 180);
+        
+        // Chalkboard
+        graphics.fillStyle(0x1a1a1a);
+        graphics.fillRect(x + 5, y + 5, 250, 170);
+        
+        graphics.setDepth(2);
+        
+        // Make it interactive
+        const board = this.add.rectangle(x + 130, y + 90, 260, 180, 0x000000, 0);
+        board.setInteractive({ useHandCursor: true });
+        board.on('pointerover', () => {
+            this.add.text(x + 130, y + 90, 'MENU', {
+                fontSize: '24px',
+                color: '#ffffff',
+                fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(10).setAlpha(0).setScale(0.8)
+            .setData('isTemporary', true);
+            
+            this.tweens.add({
+                targets: board.scene.children.list.filter(c => c.getData('isTemporary')),
+                alpha: 1,
+                scale: 1,
+                duration: 200
+            });
+        });
+        
+        board.on('pointerout', () => {
+            const temp = board.scene.children.list.filter(c => c.getData('isTemporary'));
+            this.tweens.add({
+                targets: temp,
+                alpha: 0,
+                duration: 200,
+                onComplete: () => temp.forEach(t => t.destroy())
+            });
+        });
+        
+        board.setDepth(2);
+    }
+    
+    createCounter(x, y, width) {
+        const graphics = this.add.graphics();
+        
+        // Counter top (metallic)
+        graphics.fillGradientStyle(0xc0c0c0, 0xe8e8e8, 0xa8a8a8, 0xc0c0c0);
+        graphics.fillRect(x, y, width, 30);
+        graphics.fillStyle(0xa0a0a0);
+        graphics.fillRect(x, y + 30, width, 5);
+        
+        // Wood cabinet
+        graphics.fillStyle(0x8b6f47);
+        graphics.fillRect(x, y + 35, width, 180);
+        
+        // Drawer handles
+        for (let i = 0; i < 3; i++) {
+            const handleY = y + 80 + (i * 50);
+            graphics.fillStyle(0x4a4a4a);
+            graphics.fillRoundedRect(x + width / 2 - 35, handleY, 70, 4, 2);
+        }
+        
+        // Door lines
+        graphics.lineStyle(2, 0x6d5637);
+        graphics.lineBetween(x + width / 3, y + 40, x + width / 3, y + 215);
+        graphics.lineBetween(x + (2 * width / 3), y + 40, x + (2 * width / 3), y + 215);
+        
+        graphics.setDepth(3);
+    }
+    
+    createWorkTable(x, y, width) {
+        const graphics = this.add.graphics();
+        
+        // Table top
+        graphics.fillGradientStyle(0xc0c0c0, 0xe8e8e8, 0xa8a8a8, 0xc0c0c0);
+        graphics.fillRect(x, y, width, 25);
+        graphics.fillStyle(0xa0a0a0);
+        graphics.fillRect(x, y + 25, width, 5);
+        
+        // Legs
+        graphics.fillStyle(0x6d5637);
+        graphics.fillRect(x + 10, y + 30, 20, 185);
+        graphics.fillRect(x + width - 30, y + 30, 20, 185);
+        
+        // Lower shelf
+        graphics.fillStyle(0x8b6f47);
+        graphics.fillRect(x + 10, y + 180, width - 20, 15);
+        
+        graphics.setDepth(3);
+    }
+    
+    /**
+     * Create ambient effects
+     */
+    createAmbientEffects() {
+        // Dust particles floating in light
+        this.time.addEvent({
+            delay: 2000,
+            callback: () => {
+                const x = 100 + Math.random() * 824;
+                const y = 50 + Math.random() * 200;
+                this.createDustParticle(x, y);
+            },
+            loop: true
+        });
+        
+        // Steam from oven occasionally
+        this.time.addEvent({
+            delay: 5000,
+            callback: () => this.createSteamPuff(160, 280),
+            loop: true
+        });
+    }
+    
+    createDustParticle(x, y) {
+        const particle = this.add.circle(x, y, 1.5, 0xffffff, 0.3);
+        particle.setDepth(6);
+        
+        this.tweens.add({
+            targets: particle,
+            y: y + 100 + Math.random() * 100,
+            x: x + (Math.random() - 0.5) * 50,
+            alpha: 0,
+            duration: 3000 + Math.random() * 2000,
+            ease: 'Sine.easeInOut',
+            onComplete: () => particle.destroy()
+        });
+    }
+    
+    createSteamPuff(x, y) {
+        for (let i = 0; i < 5; i++) {
+            const steam = this.add.circle(x + Math.random() * 40, y, 8, 0xffffff, 0.4);
+            steam.setDepth(4);
+            
+            this.tweens.add({
+                targets: steam,
+                y: y - 50 - Math.random() * 50,
+                x: steam.x + (Math.random() - 0.5) * 30,
+                scaleX: 2,
+                scaleY: 2,
+                alpha: 0,
+                duration: 1500 + Math.random() * 1000,
+                delay: i * 100,
+                ease: 'Cubic.easeOut',
+                onComplete: () => steam.destroy()
+            });
+        }
     }
     
     /**

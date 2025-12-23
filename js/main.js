@@ -18,8 +18,8 @@ let simulation = null;
 // Phaser game configuration
 const config = {
     type: Phaser.AUTO,
-    width: 1024,
-    height: 768,
+    width: 1920,
+    height: 1080,
     parent: 'game-container',
     backgroundColor: '#1f2937',
     scene: ShopVisualController,
@@ -37,8 +37,12 @@ const config = {
         roundPixels: false
     },
     scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: '100%',
+        height: '100%',
+        parent: 'game-container',
+        fullscreenTarget: 'game-container'
     },
     callbacks: {
         preBoot: function(game) {
