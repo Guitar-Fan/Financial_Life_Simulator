@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Life Simulator - Bakery Business Game</title>
+    
+    <!-- Eruda CDN for Mobile Debugging -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        #hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .dashboard {
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            pointer-events: all;
+        }
+        
+        .dashboard-section {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .dashboard-label {
+            font-size: 11px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .dashboard-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .cash {
+            color: #4ade80;
+        }
+        
+        .inventory {
+            color: #fbbf24;
+        }
+        
+        .margin {
+            color: #60a5fa;
+        }
+        
+        .turnover {
+            color: #a78bfa;
+        }
+        
+        .time {
+            color: #f87171;
+        }
+        
+        .phase-indicator {
+            background: #7c3aed;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .help-button {
+            background: #3b82f6;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            pointer-events: all;
+            transition: background 0.2s;
+        }
+        
+        .help-button:hover {
+            background: #2563eb;
+        }
+        
+        #modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            pointer-events: all;
+        }
+        
+        #modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #7c3aed;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #7c3aed;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #6d28d9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- Phaser game canvas will be inserted here -->
+        
+        <!-- HUD Overlay -->
+        <div id="hud-overlay">
+            <div class="dashboard">
+                <div class="dashboard-section">
+                    <div class="dashboard-label">Cash</div>
+                    <div class="dashboard-value cash" id="hud-cash">$50,000</div>
+                </div>
+                <div class="dashboard-section">
+                    <div class="dashboard-label">Inventory Value</div>
+                    <div class="dashboard-value inventory" id="hud-inventory">$0</div>
+                </div>
+                <div class="dashboard-section">
+                    <div class="dashboard-label">Gross Margin</div>
+                    <div class="dashboard-value margin" id="hud-margin">0%</div>
+                </div>
+                <div class="dashboard-section">
+                    <div class="dashboard-label">Inventory Turnover</div>
+                    <div class="dashboard-value turnover" id="hud-turnover">0.0x</div>
+                </div>
+                <div class="dashboard-section">
+                    <div class="dashboard-label">Game Time</div>
+                    <div class="dashboard-value time" id="hud-time">Day 1, 6:00 AM</div>
+                </div>
+                <div class="phase-indicator" id="phase-indicator">MENU</div>
+                <button class="help-button" id="help-btn">? Tutorial</button>
+            </div>
+        </div>
+        
+        <!-- Modal Overlay -->
+        <div id="modal-overlay">
+            <div class="modal" id="modal-content">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Game Modules -->
+    <script src="js/Realistic_Parameters.js"></script>
+    <script src="js/Game_State_Manager.js"></script>
+    <script src="js/Financial_Ledger_System.js"></script>
+    <script src="js/Product_Costing_Engine.js"></script>
+    <script src="js/Supply_Chain_Manager.js"></script>
+    <script src="js/Geometric_Sprite_Factory.js"></script>
+    <script src="js/Tutorial_Manager.js"></script>
+    <script src="js/Shop_Visual_Controller.js"></script>
+    <script src="js/Economic_Simulation_Core.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

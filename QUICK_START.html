@@ -1,0 +1,206 @@
+<!-- QUICK START GUIDE -->
+<!-- Open this file in a browser to play the game -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bakery Business Simulator - Quick Start</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f3f4f6;
+        }
+        h1 { color: #7c3aed; }
+        h2 { color: #3b82f6; margin-top: 30px; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            display: inline-block;
+            background: #7c3aed;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .button:hover { background: #6d28d9; }
+        code {
+            background: #e5e7eb;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .feature {
+            background: #f0fdf4;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍞 Bakery Business Simulator</h1>
+    <p><strong>Educational Financial Literacy Game</strong></p>
+    
+    <div class="card">
+        <h2>🚀 Quick Start</h2>
+        <a href="index.html" class="button">▶ PLAY GAME</a>
+        <p style="margin-top: 20px;">
+            Click the button above to launch the game, or open <code>index.html</code> directly in your browser.
+        </p>
+    </div>
+    
+    <div class="card">
+        <h2>🎯 Your Mission</h2>
+        <div class="feature">
+            <strong>Starting Capital:</strong> $50,000<br>
+            <strong>Goal:</strong> Survive 12 months with net worth ≥ $20,000<br>
+            <strong>Bankruptcy:</strong> Game Over if net worth < $5,000
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>📚 What You'll Learn</h2>
+        <ul>
+            <li><strong>COGS (Cost of Goods Sold)</strong> - Calculate exact production costs</li>
+            <li><strong>FIFO Inventory</strong> - First-In, First-Out stock management</li>
+            <li><strong>JIT Ordering</strong> - Just-In-Time procurement with lead times</li>
+            <li><strong>Shrinkage</strong> - Manage waste from expired inventory</li>
+            <li><strong>Financial KPIs</strong> - Gross Margin, Inventory Turnover, Cash Flow</li>
+            <li><strong>Double-Entry Accounting</strong> - Track assets vs. liquid cash</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>🎮 How to Play</h2>
+        
+        <h3>1. Tutorial (Recommended)</h3>
+        <p>First-time players: Take the 5-minute tutorial to learn core mechanics</p>
+        
+        <h3>2. Game Phases</h3>
+        <ul>
+            <li><strong>Purchasing</strong> - Order ingredients (paused time)</li>
+            <li><strong>Production</strong> - Bake products (paused time, instant)</li>
+            <li><strong>Sales Floor</strong> - Open shop (⚠️ TIME FLOWS HERE)</li>
+            <li><strong>Day Summary</strong> - Review performance at 8 PM</li>
+        </ul>
+        
+        <h3>3. Time System</h3>
+        <div class="warning">
+            <strong>Important:</strong> Time only flows during Sales Floor phase!<br>
+            1 game day = 90 real seconds<br>
+            Shop auto-closes at 8 PM with summary report
+        </div>
+        
+        <h3>4. Supply Chain</h3>
+        <ul>
+            <li>All ingredients have <strong>Minimum Order Quantities (MOQ)</strong></li>
+            <li>Deliveries take 2-3 days - <strong>you cannot skip waiting!</strong></li>
+            <li>Plan ahead to avoid stockouts</li>
+            <li>Bulk orders get discounts (8-15%)</li>
+        </ul>
+        
+        <h3>5. Manage Shrinkage</h3>
+        <ul>
+            <li>Bread expires in 1 day</li>
+            <li>Pastries last 2 days</li>
+            <li>Cookies last 5 days</li>
+            <li>Expired items = pure financial loss!</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>💰 Key Metrics to Watch</h2>
+        <ul>
+            <li><strong>Cash On Hand</strong> - Your liquid funds (need for purchases)</li>
+            <li><strong>Inventory Value</strong> - Raw materials + finished goods</li>
+            <li><strong>Gross Margin</strong> - Target 75%+ (industry standard: 78%)</li>
+            <li><strong>Inventory Turnover</strong> - Target 1x per month (12x/year)</li>
+            <li><strong>Monthly Expenses</strong> - $6,645 deducted every 30 days</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>🧪 Developer Tools</h2>
+        <p>Open browser console (F12) and use these commands:</p>
+        <ul>
+            <li><code>GAME.getStatus()</code> - View current state</li>
+            <li><code>GAME.addTestInventory()</code> - Add starter inventory</li>
+            <li><code>GAME.addCash(10000)</code> - Add money (cheat)</li>
+            <li><code>GAME.orderFlour(200)</code> - Order 200 lbs flour</li>
+            <li><code>GAME.produceBread(20)</code> - Produce 20 loaves</li>
+            <li><code>GAME.openShop()</code> - Start sales floor</li>
+            <li><code>GAME.reset()</code> - New game</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>📱 Mobile Support</h2>
+        <p>
+            Game includes <strong>Eruda</strong> debugging console for mobile testing.
+            Look for the debug icon in the bottom-right corner on mobile devices.
+        </p>
+    </div>
+    
+    <div class="card">
+        <h2>🎓 Educational Value</h2>
+        <p>This game teaches real-world business concepts used in:</p>
+        <ul>
+            <li>Accounting courses (COGS, FIFO, asset valuation)</li>
+            <li>Business management (inventory control, cash flow)</li>
+            <li>Economics (supply/demand, margins, KPIs)</li>
+            <li>Operations (JIT, shrinkage, efficiency metrics)</li>
+        </ul>
+        <div class="feature">
+            All prices and parameters based on <strong>2024-2025 actual bakery industry data</strong>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>🏆 Tips for Success</h2>
+        <ol>
+            <li>Complete the tutorial - it's only 5 minutes!</li>
+            <li>Order supplies 3+ days before you need them</li>
+            <li>Produce based on demand to minimize waste</li>
+            <li>Watch peak hours: 6-8 AM and 4-6 PM</li>
+            <li>Saturday is busiest day (22% of weekly sales)</li>
+            <li>Keep $15,000+ cash reserve for monthly expenses</li>
+            <li>Monitor gross margin - below 70% is trouble</li>
+            <li>Bread expires fast - don't overproduce!</li>
+        </ol>
+    </div>
+    
+    <div class="card" style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h2 style="color: white;">Ready to Start Your Bakery? 🎉</h2>
+        <a href="index.html" class="button" style="background: white; color: #7c3aed; font-size: 18px;">
+            🍰 LAUNCH GAME 🍰
+        </a>
+        <p style="margin-top: 20px; opacity: 0.9;">
+            Learn business. Make profit. Have fun!
+        </p>
+    </div>
+    
+    <footer style="text-align: center; margin-top: 50px; color: #6b7280;">
+        <p>Financial Life Simulator - Educational Game Project</p>
+        <p>Built with Phaser 3 • No installation required • Works offline</p>
+    </footer>
+</body>
+</html>
