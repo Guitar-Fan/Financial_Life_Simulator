@@ -10,6 +10,61 @@ class ShopVisualController extends Phaser.Scene {
         super({ key: 'ShopScene' });
     }
     
+    preload() {
+        // Load all product sprites
+        this.load.svg('product_bread_basic', 'assets/images/products/bread_basic.svg', { width: 64, height: 64 });
+        this.load.svg('product_bread_sourdough', 'assets/images/products/bread_sourdough.svg', { width: 64, height: 64 });
+        this.load.svg('product_baguette', 'assets/images/products/baguette.svg', { width: 64, height: 64 });
+        this.load.svg('product_croissant', 'assets/images/products/croissant.svg', { width: 64, height: 64 });
+        this.load.svg('product_pain_au_chocolat', 'assets/images/products/pain_au_chocolat.svg', { width: 64, height: 64 });
+        this.load.svg('product_muffin', 'assets/images/products/muffin.svg', { width: 64, height: 64 });
+        this.load.svg('product_cookie_chocolate', 'assets/images/products/cookie_chocolate.svg', { width: 64, height: 64 });
+        this.load.svg('product_cookie_sugar', 'assets/images/products/cookie_sugar.svg', { width: 64, height: 64 });
+        this.load.svg('product_cake_layer', 'assets/images/products/cake_layer.svg', { width: 64, height: 64 });
+        this.load.svg('product_cupcake', 'assets/images/products/cupcake.svg', { width: 64, height: 64 });
+        
+        // Load all ingredient sprites
+        this.load.svg('ingredient_flour', 'assets/images/ingredients/flour.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_butter', 'assets/images/ingredients/butter.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_eggs', 'assets/images/ingredients/eggs.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_sugar', 'assets/images/ingredients/sugar.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_yeast', 'assets/images/ingredients/yeast.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_chocolate', 'assets/images/ingredients/chocolate.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_milk', 'assets/images/ingredients/milk.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_cream', 'assets/images/ingredients/cream.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_bread_flour', 'assets/images/ingredients/bread_flour.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_brown_sugar', 'assets/images/ingredients/brown_sugar.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_baking_powder', 'assets/images/ingredients/baking_powder.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_salt', 'assets/images/ingredients/salt.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_vanilla', 'assets/images/ingredients/vanilla.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_cocoa', 'assets/images/ingredients/cocoa.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_honey', 'assets/images/ingredients/honey.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_bread_bag', 'assets/images/ingredients/bread_bag.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_box_small', 'assets/images/ingredients/box_small.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_box_medium', 'assets/images/ingredients/box_medium.svg', { width: 48, height: 48 });
+        this.load.svg('ingredient_box_large', 'assets/images/ingredients/box_large.svg', { width: 48, height: 48 });
+        
+        // Load zone backgrounds
+        this.load.svg('zone_storage', 'assets/images/zones/storage_zone.svg', { width: 200, height: 150 });
+        this.load.svg('zone_waste', 'assets/images/zones/waste_bin.svg', { width: 100, height: 120 });
+        this.load.svg('zone_display', 'assets/images/zones/display_case.svg', { width: 300, height: 200 });
+        this.load.svg('zone_production', 'assets/images/zones/production_area.svg', { width: 250, height: 200 });
+        
+        // Load customer characters
+        this.load.svg('customer_teen', 'assets/images/characters/customer_teen.svg', { width: 60, height: 80 });
+        this.load.svg('customer_woman', 'assets/images/characters/customer_woman.svg', { width: 60, height: 80 });
+        this.load.svg('customer_man', 'assets/images/characters/customer_man.svg', { width: 60, height: 80 });
+        this.load.svg('customer_elder', 'assets/images/characters/customer_elder.svg', { width: 60, height: 80 });
+        this.load.svg('customer_child', 'assets/images/characters/customer_child.svg', { width: 60, height: 80 });
+        
+        // Load main character (4 directions)
+        this.load.svg('baker_down', 'assets/images/characters/baker_down.svg', { width: 64, height: 80 });
+        this.load.svg('baker_up', 'assets/images/characters/baker_up.svg', { width: 64, height: 80 });
+        this.load.svg('baker_left', 'assets/images/characters/baker_left.svg', { width: 64, height: 80 });
+        this.load.svg('baker_right', 'assets/images/characters/baker_right.svg', { width: 64, height: 80 });
+        this.load.svg('main_character', 'assets/images/main_character.svg', { width: 128, height: 128 });
+    }
+    
     init(data) {
         // References to game systems (from Phaser registry)
         this.gameState = this.game.registry.get('gameState');
@@ -30,6 +85,25 @@ class ShopVisualController extends Phaser.Scene {
         // Create interactive zones
         this.createInteractiveZones();
         
+        // Create player character
+        this.createPlayer();
+        
+        // Setup keyboard controls
+        this.setupControls();
+        
+        // Interaction system
+        this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        this.interactionPrompt = null;
+        this.nearestZone = null;
+        
+        // Customer management
+        this.customers = [];
+        this.customerSpawnTimer = 0;
+        this.floatingTexts = [];
+        
+        // Particles setup (for production/sales effects)
+        this.particleEmitters = [];
+        
         // Initialize UI screens (hidden by default)
         this.createMenuScreen();
         this.createPurchasingScreen();
@@ -37,18 +111,129 @@ class ShopVisualController extends Phaser.Scene {
         this.createSalesFloorScreen();
         this.createDaySummaryScreen();
         
+        // Create interaction prompt
+        this.createInteractionPrompt();
+        
+        // Create objectives display
+        this.createObjectivesDisplay();
+        
         // Set up state change listener
         this.gameState.onStateChange((newState, oldState) => {
             this.handleStateChange(newState, oldState);
         });
         
+        // Set up simulation events for visual feedback
+        this.setupSimulationEvents();
+        
         // Show initial screen
         this.showMenuScreen();
         
-        // Check for tutorial
+        // Check for tutorial - auto-start for new games
         if (this.tutorial && this.tutorial.shouldShowOnLaunch()) {
             this.showTutorialModal();
         }
+    }
+    
+    /**
+     * Create player character with movement
+     */
+    createPlayer() {
+        // Create player sprite with physics
+        this.player = this.physics.add.sprite(512, 384, 'baker_down');
+        this.player.setDepth(10);
+        this.player.currentDirection = 'down';
+        this.player.speed = 150;
+        this.player.isMoving = false;
+        
+        // Configure physics body
+        this.player.setCollideWorldBounds(true);
+        this.player.body.setSize(48, 64);
+        this.player.body.setOffset(8, 8);
+        
+        // Setup camera to follow player
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        this.cameras.main.setZoom(1);
+        this.cameras.main.setBounds(0, 0, 1024, 768);
+        
+        // Add smooth camera effects
+        this.cameras.main.setRoundPixels(true);
+    }
+    
+    /**
+     * Setup keyboard controls for movement
+     */
+    setupControls() {
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+        };
+    }
+    
+    /**
+     * Update player movement
+     */
+    update(time, delta) {
+        if (!this.player || !this.player.body) return;
+        
+        let velocityX = 0;
+        let velocityY = 0;
+        let moving = false;
+        let newDirection = this.player.currentDirection;
+        
+        // Check arrow keys and WASD
+        if (this.cursors.left.isDown || this.wasd.left.isDown) {
+            velocityX = -this.player.speed;
+            newDirection = 'left';
+            moving = true;
+        } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
+            velocityX = this.player.speed;
+            newDirection = 'right';
+            moving = true;
+        }
+        
+        if (this.cursors.up.isDown || this.wasd.up.isDown) {
+            velocityY = -this.player.speed;
+            newDirection = 'up';
+            moving = true;
+        } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
+            velocityY = this.player.speed;
+            newDirection = 'down';
+            moving = true;
+        }
+        
+        // Normalize diagonal movement
+        if (velocityX !== 0 && velocityY !== 0) {
+            velocityX *= 0.707;
+            velocityY *= 0.707;
+        }
+        
+        // Apply velocity to physics body
+        this.player.body.setVelocity(velocityX, velocityY);
+        
+        // Update sprite direction if changed
+        if (newDirection !== this.player.currentDirection) {
+            this.player.currentDirection = newDirection;
+            this.player.setTexture('baker_' + newDirection);
+        }
+        
+        this.player.isMoving = moving;
+        
+        // Check for nearby interactive zones
+        this.checkProximityInteractions();
+        
+        // Handle interaction key press
+        if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.nearestZone) {
+            this.handleZoneInteraction(this.nearestZone);
+        }
+        
+        // Update customers
+        this.updateCustomers(delta);
+        
+        // Update floating texts
+        this.updateFloatingTexts(delta);
     }
     
     /**
@@ -245,22 +430,37 @@ class ShopVisualController extends Phaser.Scene {
         switch (newState) {
             case this.gameState.STATES.MENU:
                 this.showMenuScreen();
+                this.updateObjectives('Welcome! Start a New Game or Continue');
                 break;
             case this.gameState.STATES.PURCHASING:
                 this.showPurchasingScreen();
+                this.updateObjectives('📦 PURCHASING\n• Walk to Storage Zone (blue)\n• Press E to buy ingredients\n• Plan for 3-day delivery times');
                 break;
             case this.gameState.STATES.PRODUCTION:
                 this.showProductionScreen();
+                this.updateObjectives('🍞 PRODUCTION\n• Walk to Production Zone (orange)\n• Press E to make products\n• Check ingredient availability');
                 break;
             case this.gameState.STATES.SALES_FLOOR:
                 this.showSalesFloorScreen();
+                this.updateObjectives('💰 SALES FLOOR\n• Shop is OPEN (6 AM - 8 PM)\n• Customers buying automatically\n• Watch profits roll in!');
                 break;
             case this.gameState.STATES.DAY_SUMMARY:
                 this.showDaySummaryScreen();
+                this.updateObjectives('📊 DAY SUMMARY\n• Review performance\n• Check KPIs\n• Plan tomorrow');
                 break;
         }
         
         this.updatePhaseIndicator(newState);
+    }
+    
+    /**
+     * Update objectives display
+     */
+    updateObjectives(text) {
+        if (this.objectivesText) {
+            this.objectivesText.setText(text);
+            this.objectivesText.setVisible(text.length > 0);
+        }
     }
     
     /**
@@ -464,6 +664,8 @@ class ShopVisualController extends Phaser.Scene {
     startNewGame() {
         this.gameState.resetGame();
         this.gameState.setState(this.gameState.STATES.PURCHASING);
+        // Show objectives immediately
+        this.updateObjectives('📦 PURCHASING\n• Walk to Storage Zone (blue)\n• Press E to buy ingredients\n• Plan for 3-day delivery times');
     }
     
     continueGame() {
@@ -491,19 +693,40 @@ class ShopVisualController extends Phaser.Scene {
     }
     
     openStorageRoom() {
-        console.log('Storage room clicked');
+        // Open purchasing interface
+        this.gameState.setState(this.gameState.STATES.PURCHASING);
+        this.spawnParticles(this.storageZone.x, this.storageZone.y, 0x3b82f6);
     }
     
     showWasteDetails() {
-        console.log('Waste bin clicked');
+        // Show waste summary in floating text
+        const snapshot = this.ledger.getFinancialSnapshot();
+        this.showFloatingText(
+            this.wasteBin.x, 
+            this.wasteBin.y - 50,
+            `Waste: $${snapshot.totalShrinkage.toFixed(0)}`,
+            '#ef4444'
+        );
     }
     
     showDisplayCaseContents() {
-        console.log('Display case clicked');
+        // Show available products for sale
+        const products = this.costing.getProductInventory();
+        let text = 'Products:';
+        products.forEach(p => {
+            text += `\n${p.type}: ${p.quantity}`;
+        });
+        this.showFloatingText(
+            this.displayCase.x,
+            this.displayCase.y - 100,
+            text || 'No products',
+            '#10b981'
+        );
     }
     
     openProductionMenu() {
         this.gameState.setState(this.gameState.STATES.PRODUCTION);
+        this.spawnParticles(this.productionZone.x, this.productionZone.y, 0xf59e0b);
     }
     
     /**
@@ -517,6 +740,220 @@ class ShopVisualController extends Phaser.Scene {
         
         // Update HUD
         this.updateHUD();
+    }
+    
+    
+    /**
+     * Create interaction prompt display
+     */
+    createInteractionPrompt() {
+        this.interactionPrompt = this.add.container(0, 0);
+        this.interactionPrompt.setDepth(150);
+        
+        const bg = this.add.rectangle(0, 0, 120, 40, 0x000000, 0.8);
+        const text = this.add.text(0, 0, 'Press E', {
+            fontSize: '16px',
+            fontStyle: 'bold',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        
+        this.interactionPrompt.add([bg, text]);
+        this.interactionPrompt.setVisible(false);
+    }
+    
+    /**
+     * Create objectives display
+     */
+    createObjectivesDisplay() {
+        this.objectivesText = this.add.text(20, 100, '', {
+            fontSize: '14px',
+            color: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 8 }
+        });
+        this.objectivesText.setDepth(150);
+        this.objectivesText.setVisible(false);
+    }
+    
+    /**
+     * Check for nearby interactive zones
+     */
+    checkProximityInteractions() {
+        if (!this.player) return;
+        
+        const interactionDistance = 80;
+        const zones = [
+            { obj: this.storageZone, name: 'Storage\n(Purchase)' },
+            { obj: this.productionZone, name: 'Production\n(Make Items)' },
+            { obj: this.displayCase, name: 'Display Case\n(View Stock)' },
+            { obj: this.wasteBin, name: 'Waste Bin\n(View Waste)' }
+        ];
+        
+        let nearest = null;
+        let minDist = Infinity;
+        
+        zones.forEach(zone => {
+            const dist = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y,
+                zone.obj.x, zone.obj.y
+            );
+            
+            if (dist < interactionDistance && dist < minDist) {
+                minDist = dist;
+                nearest = zone;
+            }
+        });
+        
+        if (nearest) {
+            this.nearestZone = nearest;
+            this.interactionPrompt.setPosition(nearest.obj.x, nearest.obj.y - 100);
+            this.interactionPrompt.list[1].setText(`Press E\n${nearest.name}`);
+            this.interactionPrompt.setVisible(true);
+        } else {
+            this.nearestZone = null;
+            this.interactionPrompt.setVisible(false);
+        }
+    }
+    
+    /**
+     * Handle zone interaction
+     */
+    handleZoneInteraction(zone) {
+        if (zone.obj === this.storageZone) {
+            this.openStorageRoom();
+        } else if (zone.obj === this.productionZone) {
+            this.openProductionMenu();
+        } else if (zone.obj === this.displayCase) {
+            this.showDisplayCaseContents();
+        } else if (zone.obj === this.wasteBin) {
+            this.showWasteDetails();
+        }
+    }
+    
+    /**
+     * Setup simulation events for visual feedback
+     */
+    setupSimulationEvents() {
+        // Listen for sales to spawn customer visuals
+        this.events.on('customer-purchase', (data) => {
+            this.spawnCustomerVisual(data);
+        });
+    }
+    
+    /**
+     * Spawn customer visual for purchase
+     */
+    spawnCustomerVisual(purchaseData) {
+        if (this.gameState.currentState !== this.gameState.STATES.SALES_FLOOR) return;
+        
+        const customerSprite = this.spriteFactory.createCustomer(50, 300 + Math.random() * 200);
+        customerSprite.setDepth(8);
+        
+        // Animate customer walking to counter
+        this.tweens.add({
+            targets: customerSprite,
+            x: 400,
+            duration: 1500,
+            ease: 'Linear',
+            onComplete: () => {
+                // Show purchase
+                this.showFloatingText(
+                    customerSprite.x,
+                    customerSprite.y - 30,
+                    `+$${purchaseData.revenue ? purchaseData.revenue.toFixed(2) : '0.00'}`,
+                    '#10b981'
+                );
+                this.spawnParticles(customerSprite.x, customerSprite.y, 0x10b981);
+                
+                // Customer leaves
+                this.tweens.add({
+                    targets: customerSprite,
+                    x: 1074,
+                    duration: 1500,
+                    delay: 500,
+                    ease: 'Linear',
+                    onComplete: () => customerSprite.destroy()
+                });
+            }
+        });
+        
+        this.customers.push(customerSprite);
+    }
+    
+    /**
+     * Update customer animations
+     */
+    updateCustomers(delta) {
+        // Customers are handled by tweens
+        this.customers = this.customers.filter(c => c.active);
+    }
+    
+    /**
+     * Show floating text
+     */
+    showFloatingText(x, y, message, color = '#ffffff') {
+        const text = this.add.text(x, y, message, {
+            fontSize: '18px',
+            fontStyle: 'bold',
+            color: color,
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5);
+        text.setDepth(200);
+        
+        this.floatingTexts.push({
+            text: text,
+            lifetime: 0
+        });
+        
+        // Animate float up
+        this.tweens.add({
+            targets: text,
+            y: y - 50,
+            alpha: 0,
+            duration: 2000,
+            ease: 'Cubic.easeOut'
+        });
+    }
+    
+    /**
+     * Update floating texts
+     */
+    updateFloatingTexts(delta) {
+        this.floatingTexts = this.floatingTexts.filter(ft => {
+            ft.lifetime += delta;
+            if (ft.lifetime > 2000) {
+                ft.text.destroy();
+                return false;
+            }
+            return true;
+        });
+    }
+    
+    /**
+     * Spawn particle effect
+     */
+    spawnParticles(x, y, color = 0xffffff) {
+        // Create simple particle burst
+        const particles = [];
+        for (let i = 0; i < 10; i++) {
+            const p = this.add.circle(x, y, 4, color);
+            p.setDepth(100);
+            particles.push(p);
+            
+            const angle = (Math.PI * 2 * i) / 10;
+            const speed = 50 + Math.random() * 50;
+            
+            this.tweens.add({
+                targets: p,
+                x: x + Math.cos(angle) * speed,
+                y: y + Math.sin(angle) * speed,
+                alpha: 0,
+                duration: 500,
+                ease: 'Cubic.easeOut',
+                onComplete: () => p.destroy()
+            });
+        }
     }
     
     /**

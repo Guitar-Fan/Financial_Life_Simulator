@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="sourdough-crust">
+      <stop offset="0%" stop-color="#d4a574"/>
+      <stop offset="70%" stop-color="#b8845a"/>
+      <stop offset="100%" stop-color="#8b6f47"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="42" rx="28" ry="18" fill="#8b6f47" opacity="0.3"/>
+  <circle cx="32" cy="32" r="26" fill="url(#sourdough-crust)"/>
+  <path d="M20 26 Q24 22 28 24 Q30 20 32 20 Q34 20 36 24 Q40 22 44 26" stroke="#9d7a54" stroke-width="2" fill="none"/>
+  <path d="M18 34 Q22 30 26 32" stroke="#9d7a54" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <path d="M38 32 Q42 30 46 34" stroke="#9d7a54" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <circle cx="24" cy="30" r="1.5" fill="#7a5c3f" opacity="0.6"/>
+  <circle cx="40" cy="30" r="1.5" fill="#7a5c3f" opacity="0.6"/>
+  <circle cx="32" cy="36" r="1.5" fill="#7a5c3f" opacity="0.6"/>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="muffin-top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4a574"/>
+      <stop offset="100%" stop-color="#a67c52"/>
+    </linearGradient>
+    <linearGradient id="muffin-wrapper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e8e8e8"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 42 L20 36 L44 36 L46 42 Q46 48 32 48 Q18 48 18 42" fill="url(#muffin-wrapper)"/>
+  <line x1="22" y1="36" x2="20" y2="46" stroke="#d0d0d0" stroke-width="0.5"/>
+  <line x1="28" y1="36" x2="26" y2="46" stroke="#d0d0d0" stroke-width="0.5"/>
+  <line x1="36" y1="36" x2="38" y2="46" stroke="#d0d0d0" stroke-width="0.5"/>
+  <line x1="42" y1="36" x2="44" y2="46" stroke="#d0d0d0" stroke-width="0.5"/>
+  <ellipse cx="32" cy="26" rx="18" ry="14" fill="url(#muffin-top)"/>
+  <circle cx="26" cy="24" r="3" fill="#4a90e2" opacity="0.8"/>
+  <circle cx="36" cy="28" r="3" fill="#4a90e2" opacity="0.8"/>
+  <circle cx="32" cy="20" r="2.5" fill="#4a90e2" opacity="0.8"/>
+  <circle cx="38" cy="22" r="2" fill="#4a90e2" opacity="0.8"/>
+</svg>

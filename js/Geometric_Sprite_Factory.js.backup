@@ -48,14 +48,37 @@ class GeometricSpriteFactory {
         
         // Color palette (fallback for geometric shapes)
         this.colors = {
-            storage: 0x3b82f6, waste: 0xef4444, display: 0x10b981, production: 0xf59e0b,
-            flour: 0xfef3c7, butter: 0xfde047, sugar: 0xffffff, eggs: 0xfcd34d,
-            yeast: 0xd4d4d4, chocolate: 0x78350f, bread: 0xd97706, pastry: 0xfbbf24,
-            cookie: 0xfbbf24, cake: 0xfecaca, button: 0x7c3aed, panel: 0x1f2937,
-            text: 0xffffff, highlight: 0xfde68a
+            // Interactive zones
+            storage: 0x3b82f6,      // Blue
+            waste: 0xef4444,        // Red
+            display: 0x10b981,      // Green
+            production: 0xf59e0b,   // Orange
+            
+            // Ingredients
+            flour: 0xfef3c7,        // Light yellow
+            butter: 0xfde047,       // Yellow
+            sugar: 0xffffff,        // White
+            eggs: 0xfcd34d,         // Golden
+            yeast: 0xd4d4d4,        // Gray
+            chocolate: 0x78350f,    // Dark brown
+            
+            // Products
+            bread: 0xd97706,        // Brown
+            pastry: 0xfbbf24,       // Light brown
+            cookie: 0xfbbf24,       // Tan
+            cake: 0xfecaca,         // Pink
+            
+            // UI
+            button: 0x7c3aed,       // Purple
+            panel: 0x1f2937,        // Dark gray
+            text: 0xffffff,         // White
+            highlight: 0xfde68a     // Yellow highlight
         };
     }
     
+    /**
+     * Create storage room sprite using loaded asset
+     */
     createStorageZone(x, y, width = 200, height = 150) {
         const sprite = this.scene.add.image(x, y, 'zone_storage');
         sprite.setDisplaySize(width, height);
@@ -63,6 +86,9 @@ class GeometricSpriteFactory {
         return sprite;
     }
     
+    /**
+     * Create waste bin sprite using loaded asset
+     */
     createWasteBin(x, y, radius = 50) {
         const sprite = this.scene.add.image(x, y, 'zone_waste');
         sprite.setDisplaySize(radius * 2, radius * 2.4);
@@ -70,6 +96,9 @@ class GeometricSpriteFactory {
         return sprite;
     }
     
+    /**
+     * Create display case sprite using loaded asset
+     */
     createDisplayCase(x, y, width = 300, height = 200) {
         const sprite = this.scene.add.image(x, y, 'zone_display');
         sprite.setDisplaySize(width, height);
@@ -77,6 +106,9 @@ class GeometricSpriteFactory {
         return sprite;
     }
     
+    /**
+     * Create production area sprite using loaded asset
+     */
     createProductionZone(x, y, width = 250, height = 200) {
         const sprite = this.scene.add.image(x, y, 'zone_production');
         sprite.setDisplaySize(width, height);
@@ -84,21 +116,37 @@ class GeometricSpriteFactory {
         return sprite;
     }
     
+    /**
+     * Create interactive button
+     */
     createButton(x, y, text, width = 120, height = 40) {
         const container = this.scene.add.container(x, y);
+        
         const graphics = this.scene.add.graphics();
         graphics.fillStyle(this.colors.button, 1);
         graphics.fillRoundedRect(0, 0, width, height, 8);
         graphics.lineStyle(2, 0xffffff, 1);
         graphics.strokeRoundedRect(0, 0, width, height, 8);
+        
         container.add(graphics);
+        
         const label = this.scene.add.text(width / 2, height / 2, text, {
-            fontFamily: 'Arial', fontSize: '14px', fontStyle: 'bold',
-            color: '#ffffff', align: 'center'
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            align: 'center'
         }).setOrigin(0.5);
+        
         container.add(label);
+        
         container.setSize(width, height);
-        container.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, height), Phaser.Geom.Rectangle.Contains);
+        container.setInteractive(
+            new Phaser.Geom.Rectangle(0, 0, width, height),
+            Phaser.Geom.Rectangle.Contains
+        );
+        
+        // Hover effect
         container.on('pointerover', () => {
             graphics.clear();
             graphics.fillStyle(this.colors.highlight, 1);
@@ -106,6 +154,7 @@ class GeometricSpriteFactory {
             graphics.lineStyle(2, 0xffffff, 1);
             graphics.strokeRoundedRect(0, 0, width, height, 8);
         });
+        
         container.on('pointerout', () => {
             graphics.clear();
             graphics.fillStyle(this.colors.button, 1);
@@ -113,116 +162,179 @@ class GeometricSpriteFactory {
             graphics.lineStyle(2, 0xffffff, 1);
             graphics.strokeRoundedRect(0, 0, width, height, 8);
         });
+        
         return container;
     }
     
+    /**
+     * Create info panel background
+     */
     createPanel(x, y, width = 300, height = 200) {
         const container = this.scene.add.container(x, y);
+        
         const graphics = this.scene.add.graphics();
         graphics.fillStyle(this.colors.panel, 0.9);
         graphics.fillRoundedRect(0, 0, width, height, 10);
         graphics.lineStyle(2, 0xffffff, 1);
         graphics.strokeRoundedRect(0, 0, width, height, 10);
+        
         container.add(graphics);
+        
         return container;
     }
     
-    createIngredientIcon(ingredientName, size = 48) {
-        const assetKey = this.ingredientAssets[ingredientName];
-        if (assetKey && this.scene.textures.exists(assetKey)) {
-            const sprite = this.scene.add.image(0, 0, assetKey);
-            sprite.setDisplaySize(size, size);
-            return sprite;
-        }
+    /**
+     * Create ingredient icon (small colored square)
+     */
+    createIngredientIcon(ingredientType, size = 30) {
         const container = this.scene.add.container(0, 0);
-        const color = this.colors.flour;
+        
+        const color = this.colors[ingredientType] || 0xcccccc;
+        
         const graphics = this.scene.add.graphics();
         graphics.fillStyle(color, 1);
         graphics.fillRect(0, 0, size, size);
         graphics.lineStyle(1, 0x000000, 1);
         graphics.strokeRect(0, 0, size, size);
+        
         container.add(graphics);
-        const label = this.scene.add.text(size / 2, size / 2, ingredientName.substring(0, 3).toUpperCase(), {
-            fontFamily: 'Arial', fontSize: '10px', fontStyle: 'bold',
-            color: '#000000', align: 'center'
+        
+        const label = this.scene.add.text(size / 2, size / 2, ingredientType.substring(0, 3).toUpperCase(), {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            fontStyle: 'bold',
+            color: '#000000',
+            align: 'center'
         }).setOrigin(0.5);
+        
         container.add(label);
+        
         return container;
     }
     
-    createProductIcon(productName, size = 64) {
-        const assetKey = this.productAssets[productName];
-        if (assetKey && this.scene.textures.exists(assetKey)) {
-            const sprite = this.scene.add.image(0, 0, assetKey);
-            sprite.setDisplaySize(size, size);
-            return sprite;
-        }
+    /**
+     * Create product icon (small colored circle)
+     */
+    createProductIcon(productType, size = 35) {
         const container = this.scene.add.container(0, 0);
-        const color = this.colors.bread;
+        
+        const color = this.colors[productType] || 0xcccccc;
         const radius = size / 2;
+        
         const graphics = this.scene.add.graphics();
         graphics.fillStyle(color, 1);
         graphics.fillCircle(radius, radius, radius);
         graphics.lineStyle(1, 0x000000, 1);
         graphics.strokeCircle(radius, radius, radius);
+        
         container.add(graphics);
-        const label = this.scene.add.text(radius, radius, productName.substring(0, 3).toUpperCase(), {
-            fontFamily: 'Arial', fontSize: '10px', fontStyle: 'bold',
-            color: '#000000', align: 'center'
+        
+        const label = this.scene.add.text(radius, radius, productType.substring(0, 3).toUpperCase(), {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            fontStyle: 'bold',
+            color: '#000000',
+            align: 'center'
         }).setOrigin(0.5);
+        
         container.add(label);
+        
         return container;
     }
     
+    /**
+     * Create freshness indicator bar
+     */
     createFreshnessBar(x, y, width = 100, height = 12, percentage = 100) {
         const container = this.scene.add.container(x, y);
+        
+        // Background
         const bgGraphics = this.scene.add.graphics();
         bgGraphics.fillStyle(0x444444, 1);
         bgGraphics.fillRect(0, 0, width, height);
+        
         container.add(bgGraphics);
+        
+        // Foreground bar (color based on percentage)
         const fgGraphics = this.scene.add.graphics();
-        let barColor = percentage > 60 ? 0x10b981 : percentage > 30 ? 0xf59e0b : 0xef4444;
+        let barColor;
+        if (percentage > 60) {
+            barColor = 0x10b981; // Green
+        } else if (percentage > 30) {
+            barColor = 0xf59e0b; // Orange
+        } else {
+            barColor = 0xef4444; // Red
+        }
+        
         fgGraphics.fillStyle(barColor, 1);
         fgGraphics.fillRect(0, 0, width * (percentage / 100), height);
+        
         container.add(fgGraphics);
+        
+        // Store graphics for updates
         container.bgGraphics = bgGraphics;
         container.fgGraphics = fgGraphics;
         container.maxWidth = width;
         container.barHeight = height;
+        
         return container;
     }
     
+    /**
+     * Update freshness bar percentage
+     */
     updateFreshnessBar(container, percentage) {
         percentage = Math.max(0, Math.min(100, percentage));
-        let barColor = percentage > 60 ? 0x10b981 : percentage > 30 ? 0xf59e0b : 0xef4444;
+        
+        let barColor;
+        if (percentage > 60) {
+            barColor = 0x10b981;
+        } else if (percentage > 30) {
+            barColor = 0xf59e0b;
+        } else {
+            barColor = 0xef4444;
+        }
+        
         container.fgGraphics.clear();
         container.fgGraphics.fillStyle(barColor, 1);
         container.fgGraphics.fillRect(0, 0, container.maxWidth * (percentage / 100), container.barHeight);
     }
     
+    /**
+     * Create customer sprite (simple geometric person)
+     */
     createCustomer(x, y) {
-        const customerTypes = ['customer_teen', 'customer_woman', 'customer_man', 'customer_elder', 'customer_child'];
-        const randomType = customerTypes[Math.floor(Math.random() * customerTypes.length)];
-        if (this.scene.textures.exists(randomType)) {
-            const sprite = this.scene.add.image(x, y, randomType);
-            sprite.setScale(0.8);
-            return sprite;
-        }
         const container = this.scene.add.container(x, y);
+        
         const graphics = this.scene.add.graphics();
+        
+        // Head (circle)
         graphics.fillStyle(0xfbbf24, 1);
         graphics.fillCircle(0, -15, 10);
+        
+        // Body (rectangle)
         graphics.fillStyle(0x3b82f6, 1);
         graphics.fillRect(-8, -5, 16, 20);
+        
+        // Legs (two rectangles)
         graphics.fillStyle(0x1e3a8a, 1);
         graphics.fillRect(-7, 15, 6, 15);
         graphics.fillRect(1, 15, 6, 15);
+        
         container.add(graphics);
+        
         return container;
     }
     
-    createFloorBackground(width, height) {
+    /**
+     * Create floor tile background
+     */
+    createFloorBackground(x, y, width, height) {
+        const container = this.scene.add.container(x, y);
+        
         const graphics = this.scene.add.graphics();
+        
+        // Checkerboard pattern
         const tileSize = 40;
         for (let row = 0; row < Math.ceil(height / tileSize); row++) {
             for (let col = 0; col < Math.ceil(width / tileSize); col++) {
@@ -231,8 +343,12 @@ class GeometricSpriteFactory {
                 graphics.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
             }
         }
-        return graphics;
+        
+        container.add(graphics);
+        
+        return container;
     }
 }
 
+// Export for use in other files
 window.GeometricSpriteFactory = GeometricSpriteFactory;

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 200 150">
+  <defs>
+    <linearGradient id="storage-wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a8aa8"/>
+      <stop offset="100%" stop-color="#4a7a98"/>
+    </linearGradient>
+    <linearGradient id="shelf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b6f47"/>
+      <stop offset="100%" stop-color="#6a5537"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="150" rx="8" fill="url(#storage-wall)"/>
+  <rect x="10" y="30" width="180" height="8" rx="2" fill="url(#shelf)"/>
+  <rect x="10" y="30" width="180" height="3" fill="#a67c52"/>
+  <rect x="10" y="70" width="180" height="8" rx="2" fill="url(#shelf)"/>
+  <rect x="10" y="70" width="180" height="3" fill="#a67c52"/>
+  <rect x="10" y="110" width="180" height="8" rx="2" fill="url(#shelf)"/>
+  <rect x="10" y="110" width="180" height="3" fill="#a67c52"/>
+  <rect x="20" y="12" width="30" height="16" fill="#f8f5e8" opacity="0.7" rx="2"/>
+  <rect x="55" y="12" width="30" height="16" fill="#fef08a" opacity="0.7" rx="2"/>
+  <rect x="90" y="12" width="30" height="16" fill="#f8f5e8" opacity="0.7" rx="2"/>
+  <rect x="125" y="12" width="30" height="16" fill="#c89968" opacity="0.7" rx="2"/>
+  <rect x="20" y="52" width="30" height="16" fill="#e8e8e8" opacity="0.7" rx="2"/>
+  <rect x="55" y="52" width="30" height="16" fill="#fff8f0" opacity="0.7" rx="2"/>
+  <rect x="90" y="52" width="30" height="16" fill="#4a2410" opacity="0.7" rx="2"/>
+  <rect x="20" y="92" width="40" height="16" fill="#e8f4f8" opacity="0.6" rx="2"/>
+  <rect x="65" y="92" width="40" height="16" fill="#fff8f0" opacity="0.6" rx="2"/>
+  <text x="100" y="140" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#ffffff">STORAGE ROOM</text>
+</svg>

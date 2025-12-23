@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="baguette-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d4a574"/>
+      <stop offset="50%" stop-color="#c89968"/>
+      <stop offset="100%" stop-color="#d4a574"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="38" rx="32" ry="8" fill="#8b6f47" opacity="0.2" transform="rotate(-25 32 32)"/>
+  <ellipse cx="32" cy="32" rx="30" ry="10" fill="url(#baguette-grad)" transform="rotate(-25 32 32)"/>
+  <line x1="16" y1="38" x2="20" y2="30" stroke="#a67c52" stroke-width="1.5" opacity="0.7"/>
+  <line x1="26" y1="40" x2="30" y2="32" stroke="#a67c52" stroke-width="1.5" opacity="0.7"/>
+  <line x1="36" y1="36" x2="40" y2="28" stroke="#a67c52" stroke-width="1.5" opacity="0.7"/>
+  <line x1="46" y1="32" x2="50" y2="24" stroke="#a67c52" stroke-width="1.5" opacity="0.7"/>
+</svg>

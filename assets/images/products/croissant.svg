@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="croissant-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f5deb8"/>
+      <stop offset="50%" stop-color="#d4a574"/>
+      <stop offset="100%" stop-color="#c89968"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="42" rx="30" ry="12" fill="#8b6f47" opacity="0.2"/>
+  <path d="M12 30 Q16 20 24 18 L28 32 Z" fill="url(#croissant-grad)"/>
+  <path d="M52 30 Q48 20 40 18 L36 32 Z" fill="url(#croissant-grad)"/>
+  <ellipse cx="32" cy="32" rx="18" ry="12" fill="url(#croissant-grad)"/>
+  <path d="M20 28 Q24 24 28 28" stroke="#b8845a" stroke-width="1" fill="none" opacity="0.6"/>
+  <path d="M36 28 Q40 24 44 28" stroke="#b8845a" stroke-width="1" fill="none" opacity="0.6"/>
+  <path d="M28 32 Q32 30 36 32" stroke="#b8845a" stroke-width="1" fill="none" opacity="0.6"/>
+</svg>

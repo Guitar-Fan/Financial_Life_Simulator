@@ -21,10 +21,35 @@ class EconomicSimulationCore {
         this.lastHourCheck = gameState.currentHour;
         this.lastDayCheck = gameState.currentDay;
         
+        // Event callbacks for visual system
+        this.eventCallbacks = {
+            'customer-purchase': [],
+            'production-complete': [],
+            'shrinkage-detected': []
+        };
+        
         // Set up state change listener
         this.gameState.onStateChange((newState, oldState) => {
             this.handleStateChange(newState, oldState);
         });
+    }
+    
+    /**
+     * Register event callback
+     */
+    on(eventName, callback) {
+        if (this.eventCallbacks[eventName]) {
+            this.eventCallbacks[eventName].push(callback);
+        }
+    }
+    
+    /**
+     * Emit event to all listeners
+     */
+    emit(eventName, data) {
+        if (this.eventCallbacks[eventName]) {
+            this.eventCallbacks[eventName].forEach(callback => callback(data));
+        }
     }
     
     /**
@@ -210,7 +235,17 @@ class EconomicSimulationCore {
         // Record sale in ledger
         this.ledger.recordSale(product.name, product.price, cogs);
         
-        console.log(`Sold ${product.name}: $${product.price} (COGS: $${cogs.toFixed(2)}, Profit: $${(product.price - cogs).toFixed(2)})`);
+        const profit = product.price - cogs;
+        console.log(`Sold ${product.name}: $${product.price} (COGS: $${cogs.toFixed(2)}, Profit: $${profit.toFixed(2)})`);
+        
+        // Emit event for visual system
+        this.emit('customer-purchase', {
+            product: product.name,
+            price: product.price,
+            cogs: cogs,
+            profit: profit,
+            revenue: product.price
+        });
     }
     
     /**

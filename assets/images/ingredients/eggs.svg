@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="egg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f5f5f5"/>
+    </linearGradient>
+    <linearGradient id="egg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffef7"/>
+      <stop offset="100%" stop-color="#fef5e7"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="16" cy="24" rx="10" ry="14" fill="url(#egg1)" stroke="#e0e0e0" stroke-width="1"/>
+  <ellipse cx="32" cy="24" rx="10" ry="14" fill="url(#egg2)" stroke="#e8d5b7" stroke-width="1"/>
+  <ellipse cx="16" cy="20" rx="3" ry="4" fill="#ffffff" opacity="0.6"/>
+  <ellipse cx="32" cy="20" rx="3" ry="4" fill="#ffffff" opacity="0.6"/>
+</svg>

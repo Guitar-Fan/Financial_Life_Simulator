@@ -30,6 +30,16 @@ const config = {
             debug: false
         }
     },
+    render: {
+        pixelArt: false,
+        antialias: true,
+        antialiasGL: true,
+        roundPixels: false
+    },
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
     callbacks: {
         preBoot: function(game) {
             // Pass game systems to scene
@@ -53,6 +63,19 @@ game.events.once('ready', () => {
     
     // Pass simulation to scene
     scene.simulation = simulation;
+    
+    // Connect simulation events to scene events
+    simulation.on('customer-purchase', (data) => {
+        scene.events.emit('customer-purchase', data);
+    });
+    
+    simulation.on('production-complete', (data) => {
+        scene.events.emit('production-complete', data);
+    });
+    
+    simulation.on('shrinkage-detected', (data) => {
+        scene.events.emit('shrinkage-detected', data);
+    });
     
     // Set up update loop
     scene.events.on('update', (time, delta) => {

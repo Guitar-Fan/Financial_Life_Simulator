@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80">
+  <defs>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd4b2"/>
+      <stop offset="100%" stop-color="#f0c19a"/>
+    </linearGradient>
+    <linearGradient id="apron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff7a5c"/>
+      <stop offset="50%" stop-color="#ff6347"/>
+      <stop offset="100%" stop-color="#e84a36"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f0f0"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="75" rx="12" ry="4" fill="#000" opacity="0.2"/>
+  <!-- Legs -->
+  <rect x="24" y="52" width="7" height="24" rx="3" fill="#4a4a4a"/>
+  <rect x="33" y="52" width="7" height="24" rx="3" fill="#4a4a4a"/>
+  <!-- Shoes -->
+  <ellipse cx="27" cy="76" rx="5" ry="3" fill="#2a2a2a"/>
+  <ellipse cx="37" cy="76" rx="5" ry="3" fill="#2a2a2a"/>
+  <!-- Body/Shirt -->
+  <ellipse cx="32" cy="38" rx="14" ry="16" fill="url(#shirt)"/>
+  <!-- Apron back straps -->
+  <rect x="26" y="28" width="3" height="16" fill="#e84a36"/>
+  <rect x="35" y="28" width="3" height="16" fill="#e84a36"/>
+  <!-- Arms -->
+  <ellipse cx="18" cy="42" rx="5" ry="12" fill="url(#skin)"/>
+  <ellipse cx="46" cy="42" rx="5" ry="12" fill="url(#skin)"/>
+  <!-- Hands -->
+  <ellipse cx="18" cy="52" rx="4" ry="5" fill="#ffc9a8"/>
+  <ellipse cx="46" cy="52" rx="4" ry="5" fill="#ffc9a8"/>
+  <!-- Neck -->
+  <ellipse cx="32" cy="24" rx="6" ry="8" fill="url(#skin)"/>
+  <!-- Head -->
+  <circle cx="32" cy="16" r="12" fill="url(#skin)"/>
+  <!-- Ears -->
+  <ellipse cx="22" cy="16" rx="2.5" ry="4" fill="#f0b896"/>
+  <ellipse cx="42" cy="16" rx="2.5" ry="4" fill="#f0b896"/>
+  <!-- Hair back -->
+  <path d="M22 12 Q20 8 24 6 Q28 4 32 5 Q36 4 40 6 Q44 8 42 12 L42 20 Q32 22 22 20 Z" fill="#8b6f47"/>
+  <!-- Chef hat -->
+  <ellipse cx="32" cy="8" rx="14" ry="4" fill="#ffffff"/>
+  <circle cx="26" cy="4" r="6" fill="#ffffff"/>
+  <circle cx="32" cy="2" r="7" fill="#ffffff"/>
+  <circle cx="38" cy="4" r="6" fill="#ffffff"/>
+</svg>
