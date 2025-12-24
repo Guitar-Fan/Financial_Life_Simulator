@@ -34,9 +34,7 @@
             --danger: #E74C3C;
             --dark: #2C1810;
             --light: #FFF8DC;
-            --cream: #FFFEF0;
-            --shadow: rgba(44, 24, 16, 0.3);
-            --glow: rgba(255, 215, 0, 0.4);
+            --bg-dark: #1a0f0a;
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -47,12 +45,10 @@
             overflow: hidden;
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #1a0f0a 0%, #2C1810 50%, #3d2317 100%);
+            color: white;
         }
         
         #game-wrapper {
-            position: fixed;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
             display: flex;
@@ -62,468 +58,444 @@
         /* Top Navigation */
         #top-nav {
             height: 60px;
-            background: linear-gradient(180deg, rgba(44, 24, 16, 0.98) 0%, rgba(60, 35, 23, 0.95) 100%);
+            background: rgba(44, 24, 16, 0.95);
             border-bottom: 3px solid var(--secondary);
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            z-index: 1000;
-            box-shadow: 0 4px 20px var(--shadow);
+            flex-shrink: 0;
         }
         
-        .logo {
+        .nav-logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 2px 10px var(--glow);
+        .nav-logo-icon {
+            font-size: 28px;
         }
         
-        .logo-text {
+        .nav-logo-text {
             font-family: 'Fredoka', sans-serif;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
             color: var(--light);
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         
-        .stats-bar {
+        .nav-stats {
             display: flex;
             gap: 20px;
             align-items: center;
         }
         
-        .stat-item {
+        .nav-stat {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 8px 16px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            min-width: 100px;
+            padding: 5px 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
         }
         
-        .stat-label {
+        .nav-stat-label {
             font-size: 10px;
             color: rgba(255,255,255,0.6);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
         }
         
-        .stat-value {
+        .nav-stat-value {
             font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
+            color: var(--accent);
         }
         
-        .stat-cash { color: #4ADE80; }
-        .stat-day { color: var(--accent); }
-        .stat-time { color: #60A5FA; }
-        .stat-profit { color: #F472B6; }
-        
-        /* Nav Actions */
         .nav-actions {
             display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .game-clock {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
-            color: var(--accent);
-            background: rgba(255,215,0,0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,215,0,0.3);
+            gap: 10px;
         }
         
         .nav-btn {
-            width: 40px;
-            height: 40px;
+            padding: 8px 16px;
             background: rgba(255,255,255,0.1);
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             color: white;
-            font-size: 20px;
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
         .nav-btn:hover {
             background: rgba(255,255,255,0.2);
-            transform: scale(1.1);
         }
         
-        /* Mode Tabs */
-        #mode-tabs {
+        /* Phase Indicator */
+        #phase-indicator {
             height: 50px;
-            background: linear-gradient(180deg, rgba(60, 35, 23, 0.95) 0%, rgba(44, 24, 16, 0.9) 100%);
+            background: rgba(0,0,0,0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 0 20px;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
+            gap: 40px;
+            flex-shrink: 0;
         }
         
-        .mode-tab {
+        .phase-step {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 24px;
-            background: transparent;
-            border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 25px;
-            color: rgba(255,255,255,0.7);
+            padding: 8px 20px;
+            border-radius: 20px;
             font-family: 'Fredoka', sans-serif;
             font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255,255,255,0.4);
+            transition: all 0.3s;
         }
         
-        .mode-tab:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.4);
-            color: white;
-            transform: translateY(-2px);
+        .phase-step.active {
+            background: var(--accent);
+            color: var(--dark);
         }
         
-        .mode-tab.active {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            border-color: var(--secondary);
-            color: white;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);
-        }
-        
-        .mode-tab-icon { font-size: 18px; }
-        
-        .mode-tab-key {
-            font-size: 10px;
-            background: rgba(0,0,0,0.3);
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 4px;
+        .phase-step.complete {
+            color: var(--success);
         }
         
         /* Main Game Container */
         #game-container {
             flex: 1;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .mode-panel {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-        
-        .mode-panel.active {
-            display: grid;
-            opacity: 1;
-        }
-        
-        /* Vendor Panel */
-        #vendor-panel {
-            grid-template-columns: 280px 1fr 320px;
-        }
-        
-        .vendor-sidebar {
-            background: linear-gradient(180deg, #2C1810 0%, #1a0f0a 100%);
-            padding: 20px;
-            border-right: 2px solid var(--secondary);
             overflow-y: auto;
+            padding: 20px;
         }
         
-        .sidebar-title {
+        /* Main Menu Styles */
+        .main-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+        
+        .menu-header {
+            margin-bottom: 40px;
+        }
+        
+        .menu-logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        .menu-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--light);
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+        
+        .menu-subtitle {
+            font-size: 18px;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .menu-btn {
+            padding: 18px 50px;
+            border: none;
+            border-radius: 30px;
             font-family: 'Fredoka', sans-serif;
             font-size: 18px;
-            color: var(--light);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .vendor-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-            border: 2px solid rgba(255,255,255,0.15);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
+            min-width: 280px;
         }
         
-        .vendor-card:hover {
-            border-color: var(--accent);
-            transform: translateX(5px);
-            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.2);
+        .menu-btn.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
+            color: var(--dark);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
         }
         
-        .vendor-card.selected {
-            border-color: var(--accent);
-            background: linear-gradient(145deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.05) 100%);
+        .menu-btn.primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6);
         }
         
-        .vendor-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .menu-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .menu-btn.secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .menu-info {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        /* Phase Header */
+        .phase-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .phase-header h2 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 28px;
+            color: var(--light);
             margin-bottom: 8px;
         }
         
-        .vendor-icon {
-            width: 40px;
-            height: 40px;
+        .phase-header p {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+        }
+        
+        /* Buying Layout */
+        .buying-layout {
+            display: grid;
+            grid-template-columns: 220px 1fr 280px 220px;
+            gap: 15px;
+            height: calc(100vh - 280px);
+        }
+        
+        .vendors-section, .ingredients-section, .cart-section, .recipe-reference {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .vendors-section h3, .ingredients-section h3, .cart-section h3, .recipe-reference h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            color: var(--accent);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Recipe Reference Panel */
+        .recipe-ref-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .recipe-ref-card {
+            background: rgba(255,255,255,0.05);
             border-radius: 10px;
+            padding: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .recipe-ref-card.can-bake {
+            border-color: var(--success);
+            background: rgba(46, 204, 113, 0.1);
+        }
+        
+        .recipe-ref-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .recipe-ref-icon {
+            font-size: 20px;
+        }
+        
+        .recipe-ref-name {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 12px;
+            flex: 1;
+        }
+        
+        .recipe-ref-price {
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+        
+        .recipe-ref-ingredients {
+            font-size: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .recipe-ing {
+            padding: 2px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .recipe-ing.have {
+            color: var(--success);
+        }
+        
+        .recipe-ing.need {
+            color: var(--danger);
+        }
+        
+        .have-amount {
+            opacity: 0.7;
+            font-size: 9px;
+        }
+        
+        .recipe-ref-status {
+            font-size: 10px;
+            text-align: center;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Vendor Cards */
+        .vendor-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .vendor-card:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .vendor-card.active {
+            border-color: var(--accent);
+            background: rgba(255,215,0,0.1);
+        }
+        
+        .vendor-icon {
+            font-size: 32px;
+        }
+        
+        .vendor-info {
+            flex: 1;
         }
         
         .vendor-name {
             font-family: 'Fredoka', sans-serif;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
-            color: var(--light);
+            color: white;
         }
         
         .vendor-specialty {
             font-size: 11px;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255,255,255,0.6);
         }
         
-        .vendor-rating {
-            display: flex;
-            gap: 3px;
-            margin-top: 8px;
-            color: var(--accent);
-            font-size: 11px;
-        }
-        
-        .vendor-tags {
-            display: flex;
-            gap: 6px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .vendor-tag {
+        .vendor-price {
             font-size: 10px;
-            padding: 3px 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            color: rgba(255,255,255,0.7);
+            margin-top: 3px;
         }
         
-        .vendor-tag.discount {
-            background: rgba(46, 204, 113, 0.2);
-            color: var(--success);
-        }
-        
-        .vendor-main {
-            background: linear-gradient(135deg, rgba(255,248,220,0.03) 0%, rgba(255,248,220,0.01) 100%);
-            padding: 20px;
-            overflow-y: auto;
-        }
-        
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .section-title {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 22px;
-            color: var(--light);
-        }
-        
+        /* Ingredient Grid */
         .ingredient-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
         }
         
         .ingredient-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 15px;
             text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
+            transition: all 0.3s;
         }
-        
-        .ingredient-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 50% 0%, rgba(255,215,0,0.15) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        
-        .ingredient-card:hover::before { opacity: 1; }
         
         .ingredient-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-3px);
         }
         
-        .ingredient-icon {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 10px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            background: linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+        .ing-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
         }
         
-        .ingredient-name {
+        .ing-name {
             font-family: 'Fredoka', sans-serif;
             font-size: 13px;
-            font-weight: 600;
-            color: var(--light);
-            margin-bottom: 4px;
+            color: white;
+            margin-bottom: 5px;
         }
         
-        .ingredient-price {
-            font-size: 15px;
-            font-weight: 700;
+        .ing-price {
+            font-size: 14px;
             color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 3px;
         }
         
-        .ingredient-unit {
-            font-size: 10px;
+        .ing-stock {
+            font-size: 11px;
             color: rgba(255,255,255,0.5);
-        }
-        
-        .ingredient-stock {
-            font-size: 10px;
-            color: rgba(255,255,255,0.6);
-            margin-top: 8px;
-            padding: 3px 8px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            display: inline-block;
-        }
-        
-        .ingredient-stock.low {
-            background: rgba(231, 76, 60, 0.3);
-            color: var(--danger);
-        }
-        
-        .cart-sidebar {
-            background: linear-gradient(180deg, #2C1810 0%, #1a0f0a 100%);
-            padding: 20px;
-            border-left: 2px solid var(--secondary);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .cart-header {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
-            color: var(--light);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .cart-items {
-            flex: 1;
-            overflow-y: auto;
-        }
-        
-        .cart-empty {
-            text-align: center;
-            padding: 40px 20px;
-            color: rgba(255,255,255,0.4);
-        }
-        
-        .cart-empty-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-        
-        .cart-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
             margin-bottom: 10px;
         }
         
-        .cart-item-icon { font-size: 24px; }
-        
-        .cart-item-details { flex: 1; }
-        
-        .cart-item-name {
-            font-size: 12px;
-            color: var(--light);
-            font-weight: 500;
-        }
-        
-        .cart-item-price {
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-        }
-        
-        .cart-item-qty {
+        .ing-quality-info {
             display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 5px;
+        }
+        
+        .quality-badge {
+            margin-left: 5px;
+            font-weight: 600;
+        }
+        
+        /* Quantity Controls */
+        .qty-controls {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
             align-items: center;
-            gap: 6px;
         }
         
         .qty-btn {
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            background: rgba(255,255,255,0.15);
             border: none;
             border-radius: 6px;
-            background: var(--primary);
             color: white;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
@@ -532,1069 +504,785 @@
         }
         
         .qty-btn:hover {
-            background: var(--primary-light);
-            transform: scale(1.1);
+            background: rgba(255,255,255,0.25);
         }
         
-        .qty-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
-            color: var(--light);
-            min-width: 24px;
-            text-align: center;
-        }
-        
-        .cart-summary {
-            border-top: 2px solid rgba(255,255,255,0.1);
-            padding-top: 15px;
-            margin-top: 15px;
-        }
-        
-        .cart-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 13px;
-        }
-        
-        .cart-row-label { color: rgba(255,255,255,0.7); }
-        .cart-row-value { color: var(--light); font-weight: 500; }
-        
-        .cart-total {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            padding-top: 10px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .cart-total-label {
-            font-size: 14px;
-            color: rgba(255,255,255,0.8);
-        }
-        
-        .cart-total-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--accent);
-        }
-        
-        .btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 14px 24px;
+        .qty-input {
+            width: 45px;
+            padding: 5px;
             border: none;
-            border-radius: 12px;
-            font-family: 'Fredoka', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 100%;
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, var(--success) 0%, #27ae60 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(46, 204, 113, 0.5);
-        }
-        
-        .btn-secondary {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: white;
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
-            color: white;
-        }
-        
-        /* Production Panel */
-        #production-panel {
-            grid-template-columns: 1fr 360px;
-        }
-        
-        .production-floor {
-            background: linear-gradient(135deg, rgba(139, 69, 19, 0.1) 0%, rgba(210, 105, 30, 0.05) 100%);
-            padding: 25px;
-            overflow-y: auto;
-        }
-        
-        .recipe-categories {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .recipe-category {
-            padding: 8px 16px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 20px;
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .recipe-category:hover {
-            background: rgba(255,255,255,0.15);
-        }
-        
-        .recipe-category.active {
-            background: var(--primary);
-            border-color: var(--secondary);
-            color: white;
-        }
-        
-        .recipe-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 18px;
-        }
-        
-        .recipe-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-        }
-        
-        .recipe-card:hover {
-            border-color: var(--secondary);
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
-        
-        .recipe-card.unavailable {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .recipe-card.baking {
-            border-color: var(--warning);
-            animation: pulse-glow 2s infinite;
-        }
-        
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(243, 156, 18, 0.3); }
-            50% { box-shadow: 0 0 40px rgba(243, 156, 18, 0.6); }
-        }
-        
-        .recipe-badge {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: var(--danger);
-            color: white;
-            font-size: 10px;
-            padding: 4px 8px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
-        
-        .recipe-image {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 12px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 44px;
-            background: linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
-        }
-        
-        .recipe-name {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--light);
-            margin-bottom: 6px;
-        }
-        
-        .recipe-stats {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin: 10px 0;
-        }
-        
-        .recipe-stat {
-            text-align: center;
-        }
-        
-        .recipe-stat-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .recipe-stat-label {
-            font-size: 9px;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-        }
-        
-        .recipe-profit {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--success);
-            padding: 6px 12px;
-            background: rgba(46, 204, 113, 0.15);
-            border-radius: 20px;
-            display: inline-block;
-            margin-top: 8px;
-        }
-        
-        .production-sidebar {
-            background: linear-gradient(180deg, #2C1810 0%, #1a0f0a 100%);
-            padding: 20px;
-            border-left: 2px solid var(--secondary);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .queue-header {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
-            color: var(--light);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .oven-status {
-            background: rgba(255,255,255,0.08);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .oven-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .oven-title {
-            font-size: 13px;
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .oven-temp {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
-            color: var(--warning);
-        }
-        
-        .oven-progress {
-            height: 8px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .oven-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--warning) 0%, var(--accent) 100%);
-            border-radius: 4px;
-            transition: width 0.3s;
-        }
-        
-        .oven-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-            font-size: 13px;
-            color: var(--light);
-        }
-        
-        .queue-items {
-            flex: 1;
-            overflow-y: auto;
-        }
-        
-        .queue-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            margin-bottom: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .queue-item-progress {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--warning) 0%, var(--accent) 100%);
-        }
-        
-        .queue-item-icon { font-size: 28px; }
-        
-        .queue-item-details { flex: 1; }
-        
-        .queue-item-name {
-            font-size: 13px;
-            color: var(--light);
-            font-weight: 500;
-        }
-        
-        .queue-item-status {
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-        }
-        
-        .inventory-summary {
-            border-top: 2px solid rgba(255,255,255,0.1);
-            padding-top: 15px;
-            margin-top: auto;
-        }
-        
-        .inventory-title {
-            font-size: 13px;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 10px;
-        }
-        
-        .inventory-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            font-size: 12px;
-        }
-        
-        .inventory-item-name { color: rgba(255,255,255,0.8); }
-        .inventory-item-qty { color: var(--accent); font-weight: 600; }
-        
-        /* Sales Panel */
-        #sales-panel {
-            grid-template-columns: 1fr 340px;
-        }
-        
-        .sales-floor {
-            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h30v30H0zm30 30h30v30H30z' fill='rgba(139,69,19,0.08)'/%3E%3C/svg%3E");
-            padding: 25px;
-            overflow-y: auto;
-        }
-        
-        .time-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
-        
-        .time-btn {
-            padding: 10px 20px;
+            border-radius: 6px;
             background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 25px;
-            color: var(--light);
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
+            color: white;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .qty-input:focus {
+            outline: 2px solid var(--accent);
+        }
+        
+        .btn-buy {
+            padding: 6px 12px;
+            background: var(--success);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
         }
         
-        .time-btn:hover {
-            background: rgba(255,255,255,0.2);
+        .btn-buy:hover {
+            transform: scale(1.05);
+            background: #27ae60;
         }
         
-        .time-btn.active {
-            background: var(--primary);
-            border-color: var(--secondary);
+        /* Vendor Quality */
+        .vendor-quality {
+            font-size: 10px;
+            margin-top: 2px;
         }
         
-        .display-cases {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 18px;
-        }
-        
-        .display-case {
-            background: linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%);
-            border: 3px solid rgba(255,215,0,0.3);
-            border-radius: 20px;
-            padding: 18px;
-            text-align: center;
-            position: relative;
-            min-height: 180px;
-        }
-        
-        .display-case.empty {
-            border-style: dashed;
-            opacity: 0.5;
-        }
-        
-        .display-case-glass {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
-            border-radius: 17px;
-            pointer-events: none;
-        }
-        
-        .display-product {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .display-product-icon {
-            font-size: 48px;
-            margin-bottom: 8px;
-        }
-        
-        .display-product-name {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--light);
-        }
-        
-        .display-product-price {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--accent);
-            margin: 6px 0;
-        }
-        
-        .display-product-stock {
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-            padding: 4px 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            display: inline-block;
-        }
-        
-        .sales-sidebar {
-            background: linear-gradient(180deg, #2C1810 0%, #1a0f0a 100%);
-            padding: 20px;
-            border-left: 2px solid var(--secondary);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .sales-header {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
-            color: var(--light);
-            margin-bottom: 15px;
-        }
-        
-        .sales-stats {
-            margin-bottom: 20px;
-        }
-        
-        .sales-stat {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .sales-stat-label {
-            font-size: 12px;
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .sales-stat-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .customer-section {
-            flex: 1;
-            overflow-y: auto;
-        }
-        
-        .customer-queue-header {
-            font-size: 13px;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .customer-count {
-            background: var(--accent);
-            color: var(--dark);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .customer-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            margin-bottom: 10px;
-            border-left: 3px solid var(--accent);
-            animation: slide-in 0.3s ease-out;
-        }
-        
-        @keyframes slide-in {
-            from { transform: translateX(50px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        .customer-avatar {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-        
-        .customer-info { flex: 1; }
-        
-        .customer-type {
-            font-size: 12px;
-            color: var(--light);
-            font-weight: 500;
-        }
-        
-        .customer-order {
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-        }
-        
-        .customer-total {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
-            color: var(--success);
-        }
-        
-        .activity-log {
-            margin-top: 15px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        
-        .activity-item {
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        
-        .activity-time {
-            color: var(--accent);
-            margin-right: 8px;
-        }
-        
-        /* Summary Panel */
-        #summary-panel {
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 25px;
-            overflow-y: auto;
-        }
-        
-        .summary-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 22px;
-        }
-        
-        .summary-card.full-width {
-            grid-column: span 2;
-        }
-        
-        .summary-card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 18px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
-        }
-        
-        .summary-card-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-        }
-        
-        .summary-card-title {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 17px;
-            font-weight: 600;
-            color: var(--light);
-        }
-        
-        .summary-metric {
+        /* Inventory Quality */
+        .inv-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 8px 0;
-        }
-        
-        .summary-metric-label {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             font-size: 13px;
-            color: rgba(255,255,255,0.7);
         }
         
-        .summary-metric-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
+        .inv-quality {
+            font-size: 10px;
             font-weight: 600;
         }
         
-        .summary-metric-value.positive { color: var(--success); }
-        .summary-metric-value.negative { color: var(--danger); }
-        .summary-metric-value.neutral { color: var(--light); }
-        
-        .chart-container {
-            height: 180px;
-            margin-top: 12px;
+        .ing-buttons {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
         }
         
-        .summary-highlight {
-            background: linear-gradient(135deg, rgba(46, 204, 113, 0.15) 0%, rgba(46, 204, 113, 0.05) 100%);
-            border: 2px solid rgba(46, 204, 113, 0.3);
-            border-radius: 15px;
-            padding: 18px;
-            text-align: center;
-            margin-top: 15px;
-        }
-        
-        .summary-highlight-label {
+        .ing-btn {
+            padding: 6px 12px;
+            background: var(--success);
+            border: none;
+            border-radius: 6px;
+            color: white;
             font-size: 12px;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 6px;
-        }
-        
-        .summary-highlight-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--success);
-        }
-        
-        /* Tutorial Overlay */
-        #tutorial-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.92);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.5s ease;
-        }
-        
-        #tutorial-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .tutorial-content {
-            max-width: 700px;
-            padding: 40px;
-            text-align: left;
-            background: rgba(44, 24, 16, 0.95);
-            border-radius: 20px;
-            border: 2px solid var(--secondary);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
-        
-        .tutorial-content h2 {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 28px;
-            color: var(--light);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .tutorial-body {
-            font-size: 15px;
-            color: rgba(255,255,255,0.85);
-            line-height: 1.8;
-        }
-        
-        .tutorial-body p {
-            margin-bottom: 15px;
-        }
-        
-        .tutorial-body ul, .tutorial-body ol {
-            padding-left: 25px;
-            margin-bottom: 15px;
-        }
-        
-        .tutorial-body li {
-            margin-bottom: 8px;
-        }
-        
-        .tutorial-body strong {
-            color: var(--accent);
-        }
-        
-        .tutorial-body code {
-            background: rgba(255,215,0,0.2);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--accent);
-        }
-        
-        .tutorial-highlight {
-            box-shadow: 0 0 0 4px var(--accent) !important;
-            position: relative;
-            z-index: 100;
-        }
-        
-        .tutorial-step {
-            display: none;
-        }
-        
-        .tutorial-step.active {
-            display: block;
-            animation: fade-up 0.6s ease-out;
-        }
-        
-        @keyframes fade-up {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .tutorial-icon {
-            font-size: 72px;
-            margin-bottom: 25px;
-            animation: bounce 2s infinite;
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-12px); }
-        }
-        
-        .tutorial-title {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--light);
-            margin-bottom: 18px;
-        }
-        
-        .tutorial-text {
-            font-size: 17px;
-            color: rgba(255,255,255,0.8);
-            line-height: 1.7;
-            margin-bottom: 35px;
-        }
-        
-        .tutorial-highlight {
-            color: var(--accent);
             font-weight: 600;
-        }
-        
-        .tutorial-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-        
-        .tutorial-btn {
-            padding: 14px 35px;
-            border: none;
-            border-radius: 25px;
-            font-family: 'Fredoka', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .tutorial-btn-next {
-            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
-            color: var(--dark);
-            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
-        }
-        
-        .tutorial-btn-next:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6);
-        }
-        
-        .tutorial-btn-skip {
-            background: transparent;
-            border: 2px solid rgba(255,255,255,0.3);
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .tutorial-btn-skip:hover {
-            border-color: rgba(255,255,255,0.6);
-            color: white;
-        }
-        
-        .tutorial-progress {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 25px;
-        }
-        
-        .tutorial-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.3);
-            transition: all 0.3s;
-        }
-        
-        .tutorial-dot.active {
-            background: var(--accent);
-            transform: scale(1.3);
-        }
-        
-        /* Toast Notifications */
-        .toast-container {
-            position: fixed;
-            top: 130px;
-            right: 20px;
-            z-index: 5000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .toast {
-            padding: 14px 22px;
-            border-radius: 12px;
-            color: white;
-            font-family: 'Fredoka', sans-serif;
-            font-size: 14px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transform: translateX(120%);
-            animation: toast-in 0.4s forwards;
-        }
-        
-        .toast.removing {
-            animation: toast-out 0.4s forwards;
-        }
-        
-        @keyframes toast-in { to { transform: translateX(0); } }
-        @keyframes toast-out { to { transform: translateX(120%); opacity: 0; } }
-        
-        .toast-success { background: linear-gradient(135deg, var(--success) 0%, #27ae60 100%); }
-        .toast-warning { background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%); }
-        .toast-error { background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%); }
-        .toast-info { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); }
-        
-        .toast-icon { font-size: 18px; }
-        
-        /* Quantity Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 8000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-overlay.active { display: flex; }
-        
-        .modal-content {
-            background: linear-gradient(145deg, #3d2317 0%, #2C1810 100%);
-            border: 2px solid var(--secondary);
-            border-radius: 24px;
-            padding: 35px;
-            max-width: 420px;
-            width: 90%;
-            text-align: center;
-            animation: modal-pop 0.3s ease-out;
-        }
-        
-        @keyframes modal-pop {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        
-        .modal-icon {
-            font-size: 56px;
-            margin-bottom: 15px;
-        }
-        
-        .modal-title {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 22px;
-            color: var(--light);
-            margin-bottom: 8px;
-        }
-        
-        .modal-subtitle {
-            font-size: 13px;
-            color: rgba(255,255,255,0.6);
-            margin-bottom: 20px;
-        }
-        
-        .modal-quantity {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 18px;
-            margin: 25px 0;
-        }
-        
-        .modal-qty-btn {
-            width: 46px;
-            height: 46px;
-            border: none;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
-            font-size: 22px;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
-        .modal-qty-btn:hover {
-            background: var(--primary-light);
+        .ing-btn:hover {
             transform: scale(1.1);
         }
         
-        .modal-qty-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 42px;
-            color: var(--accent);
-            min-width: 80px;
+        /* Inventory List */
+        .inventory-list {
+            margin-bottom: 15px;
         }
         
-        .modal-info {
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 20px;
-        }
-        
-        .modal-info-row {
+        .inv-item {
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             font-size: 13px;
         }
         
-        .modal-info-label { color: rgba(255,255,255,0.7); }
-        .modal-info-value { color: var(--light); font-weight: 500; }
+        .inv-empty {
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            padding: 20px;
+            font-style: italic;
+        }
         
-        .modal-total {
+        .cart-total {
+            padding: 15px;
+            background: rgba(255,215,0,0.1);
+            border-radius: 10px;
+            text-align: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 18px;
+            color: var(--accent);
+        }
+        
+        /* Baking Layout */
+        .baking-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            height: calc(100vh - 280px);
+        }
+        
+        .recipes-section, .oven-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .recipes-section h3, .oven-section h3 {
+            font-family: 'Fredoka', sans-serif;
             font-size: 16px;
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+        
+        /* Recipe Grid */
+        .recipe-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+        
+        .recipe-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 18px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .recipe-card:hover:not(.unavailable) {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-3px);
+        }
+        
+        .recipe-card.unavailable {
+            opacity: 0.5;
+        }
+        
+        .recipe-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .recipe-name {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            color: white;
+            margin-bottom: 10px;
+        }
+        
+        .recipe-stats {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 8px;
+        }
+        
+        .recipe-profit {
+            font-size: 14px;
+            color: var(--success);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .recipe-time {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 12px;
+        }
+        
+        .btn-bake {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--warning) 0%, var(--danger) 100%);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-bake:hover {
+            transform: scale(1.05);
+        }
+        
+        .missing-label {
+            font-size: 11px;
+            color: var(--danger);
+            padding: 8px;
+            background: rgba(231, 76, 60, 0.2);
+            border-radius: 8px;
+        }
+        
+        /* Oven Slots */
+        .oven-slots {
+            margin-bottom: 20px;
+        }
+        
+        .oven-slot {
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .oven-slot.active {
+            background: rgba(255,165,0,0.2);
+            border: 1px solid var(--warning);
+        }
+        
+        .oven-slot.empty {
+            text-align: center;
+            color: rgba(255,255,255,0.3);
+            font-style: italic;
+        }
+        
+        .oven-item {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .oven-progress {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+        
+        .oven-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--warning), var(--danger));
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        
+        .oven-time {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* Ready Products */
+        .ready-products {
+            margin-top: 15px;
+        }
+        
+        .ready-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            gap: 8px;
+        }
+        
+        .ready-qty {
+            color: var(--success);
+            font-weight: 600;
+        }
+        
+        .ready-quality {
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .ready-price {
+            font-size: 11px;
+            color: var(--accent);
+        }
+        
+        /* Recipe Quality in Baking */
+        .recipe-quality {
+            font-size: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .no-products {
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            padding: 20px;
+            font-style: italic;
+        }
+        
+        /* Selling Layout */
+        .selling-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px 200px;
+            gap: 20px;
+            height: calc(100vh - 280px);
+        }
+        
+        .shop-display, .customer-window, .sales-stats {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .shop-display h3, .customer-window h3, .sales-stats h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+        
+        /* Display Products */
+        .display-products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+        
+        .display-item {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .display-item.sold-out {
+            opacity: 0.4;
+        }
+        
+        .display-icon {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+        
+        .display-name {
+            font-size: 11px;
+            color: white;
+            margin-bottom: 3px;
+        }
+        
+        .display-price {
+            font-size: 12px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+        
+        .display-quality {
+            font-size: 14px;
+            margin: 2px 0;
+        }
+        
+        .display-qty {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+        }
+        
+        /* Customer Window */
+        .customer-area {
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .waiting-message {
+            color: rgba(255,255,255,0.4);
+            font-style: italic;
+        }
+        
+        .customer-popup {
+            text-align: center;
+            padding: 25px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .customer-popup.success {
+            background: rgba(46, 204, 113, 0.1);
+            border: 2px solid var(--success);
+        }
+        
+        .customer-face {
+            margin-bottom: 10px;
+        }
+        
+        .customer-name {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 18px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+        
+        .customer-dialogue {
+            font-size: 14px;
             color: rgba(255,255,255,0.8);
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        
+        .customer-order {
+            font-size: 15px;
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .customer-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .customer-mood {
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        
+        .sale-amount {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 28px;
+            color: var(--success);
+            margin-top: 15px;
+        }
+        
+        /* Sales Stats */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 14px;
+        }
+        
+        /* Summary Screen */
+        .summary-screen {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .summary-screen h2 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 32px;
+            color: var(--light);
             margin-bottom: 25px;
         }
         
-        .modal-total-value {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 26px;
-            color: var(--success);
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
         }
         
-        .modal-buttons {
+        .summary-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 20px;
+        }
+        
+        .summary-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 8px;
+        }
+        
+        .summary-value {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 24px;
+            color: white;
+        }
+        
+        .summary-value.positive { color: var(--success); }
+        .summary-value.negative { color: var(--danger); }
+        
+        .summary-card.revenue { border-left: 4px solid var(--accent); }
+        .summary-card.costs { border-left: 4px solid var(--danger); }
+        .summary-card.profit { border-left: 4px solid var(--success); }
+        
+        /* Spoilage Warning */
+        .spoilage-warning, .stale-warning {
+            background: rgba(231, 76, 60, 0.15);
+            border: 2px solid var(--danger);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .stale-warning {
+            background: rgba(243, 156, 18, 0.15);
+            border-color: var(--warning);
+        }
+        
+        .spoilage-warning h3, .stale-warning h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .spoilage-warning h3 { color: var(--danger); }
+        .stale-warning h3 { color: var(--warning); }
+        
+        .spoilage-list, .stale-list {
+            font-size: 12px;
+        }
+        
+        .spoilage-item, .stale-item {
+            padding: 4px 0;
+        }
+        
+        /* Expenses Section */
+        .expenses-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        .expenses-section h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            color: var(--warning);
+            margin-bottom: 15px;
+        }
+        
+        .expense-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 14px;
+        }
+        
+        .expense-total {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--danger);
+        }
+        
+        /* Net Profit Section */
+        .net-profit-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .net-profit-section.positive {
+            background: rgba(46, 204, 113, 0.15);
+            border: 2px solid var(--success);
+        }
+        
+        .net-profit-section.negative {
+            background: rgba(231, 76, 60, 0.15);
+            border: 2px solid var(--danger);
+        }
+        
+        .net-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 8px;
+        }
+        
+        .net-value {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+        }
+        
+        .net-profit-section.positive .net-value { color: var(--success); }
+        .net-profit-section.negative .net-value { color: var(--danger); }
+        
+        .cash-section {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        
+        /* Phase Actions */
+        .phase-actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 25px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
+            color: var(--dark);
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Popup Overlay */
+        .game-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .game-popup {
+            background: linear-gradient(145deg, #3d2317 0%, #2C1810 100%);
+            border-radius: 25px;
+            padding: 35px;
+            max-width: 450px;
+            text-align: center;
+            border: 3px solid var(--secondary);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        .game-popup.success {
+            border-color: var(--success);
+        }
+        
+        .game-popup.warning {
+            border-color: var(--warning);
+        }
+        
+        .game-popup.danger {
+            border-color: var(--danger);
+        }
+        
+        .popup-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+        
+        .popup-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 24px;
+            color: var(--light);
+            margin-bottom: 15px;
+        }
+        
+        .popup-message {
+            font-size: 15px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .popup-buttons {
             display: flex;
             gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         
-        .modal-buttons .btn { flex: 1; }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
-        
-        /* Financial Term Tooltips */
-        .term-tooltip {
-            position: relative;
-            border-bottom: 1px dotted var(--accent);
-            cursor: help;
+        .popup-btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         
-        .term-tooltip::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--dark);
-            color: var(--light);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s;
-            z-index: 1000;
-            border: 1px solid var(--secondary);
+        .popup-btn.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
+            color: var(--dark);
         }
         
-        .term-tooltip:hover::after {
-            opacity: 1;
-            visibility: visible;
-            bottom: calc(100% + 5px);
+        .popup-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .popup-btn.danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .popup-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .buying-layout {
+                grid-template-columns: 200px 1fr 200px;
+            }
+            
+            .recipe-reference {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .buying-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .baking-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .selling-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .recipe-reference {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -1602,99 +1290,54 @@
     <div id="game-wrapper">
         <!-- Top Navigation -->
         <div id="top-nav">
-            <div class="logo">
-                <div class="logo-icon">🥐</div>
-                <div class="logo-text">Sweet Success Bakery</div>
+            <div class="nav-logo">
+                <span class="nav-logo-icon">🥐</span>
+                <span class="nav-logo-text">Sweet Success Bakery</span>
             </div>
             
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <div class="stat-label">💵 Cash</div>
-                    <div class="stat-value stat-cash" id="stat-cash">$15,000</div>
+            <div class="nav-stats">
+                <div class="nav-stat">
+                    <span class="nav-stat-label">Cash</span>
+                    <span class="nav-stat-value" id="nav-cash">$15,000.00</span>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">📈 Revenue</div>
-                    <div class="stat-value" id="stat-revenue">$0.00</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">💰 Profit</div>
-                    <div class="stat-value stat-profit" id="stat-profit">$0.00</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">📊 Margin</div>
-                    <div class="stat-value" id="stat-margin">0%</div>
+                <div class="nav-stat">
+                    <span class="nav-stat-label">Day</span>
+                    <span class="nav-stat-value" id="nav-day">Day 1</span>
                 </div>
             </div>
             
             <div class="nav-actions">
-                <div class="game-clock" id="game-clock">Day 1 | Mon 6:00 AM</div>
-                <button class="nav-btn" id="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
-                <button class="nav-btn" id="menu-btn" title="Game Menu">☰</button>
+                <button class="nav-btn" id="btn-reset">🔄 Reset</button>
             </div>
         </div>
         
-        <!-- Mode Tabs -->
-        <div id="mode-tabs">
-            <button class="mode-tab active" data-mode="vendor" id="tab-vendor">
-                <span class="mode-tab-icon">📦</span>
-                Buy Inventory
-                <span class="mode-tab-key">1</span>
-            </button>
-            <button class="mode-tab" data-mode="production" id="tab-production">
-                <span class="mode-tab-icon">🍞</span>
-                Bake Products
-                <span class="mode-tab-key">2</span>
-            </button>
-            <button class="mode-tab" data-mode="sales" id="tab-sales">
-                <span class="mode-tab-icon">💰</span>
-                Open Shop
-                <span class="mode-tab-key">3</span>
-            </button>
-            <button class="mode-tab" data-mode="summary" id="tab-summary">
-                <span class="mode-tab-icon">📊</span>
-                Summary
-                <span class="mode-tab-key">4</span>
-            </button>
+        <!-- Phase Indicator -->
+        <div id="phase-indicator">
+            <div class="phase-step" id="phase-buying">📦 Buy</div>
+            <div class="phase-step" id="phase-baking">🍞 Bake</div>
+            <div class="phase-step" id="phase-selling">💰 Sell</div>
+            <div class="phase-step" id="phase-summary">📊 Summary</div>
         </div>
         
         <!-- Main Game Container -->
         <div id="game-container">
-            <!-- Panels will be populated by JavaScript -->
-            <div class="mode-panel active" id="vendor-panel"></div>
-            <div class="mode-panel" id="production-panel"></div>
-            <div class="mode-panel" id="sales-panel"></div>
-            <div class="mode-panel" id="summary-panel"></div>
+            <!-- Content loaded by JavaScript -->
         </div>
     </div>
-    
-    <!-- Tutorial Overlay -->
-    <div id="tutorial-overlay">
-        <div class="tutorial-content" id="tutorial-content"></div>
-        <div class="tutorial-buttons">
-            <button class="tutorial-btn tutorial-btn-skip" id="tutorial-skip">Skip Tutorial</button>
-            <button class="tutorial-btn" id="tutorial-prev" style="background: rgba(255,255,255,0.1); color: white;">← Back</button>
-            <button class="tutorial-btn tutorial-btn-next" id="tutorial-next">Next →</button>
-        </div>
-        <div class="tutorial-progress" id="tutorial-dots"></div>
-    </div>
-    
-    <!-- Quantity Modal -->
-    <div class="modal-overlay" id="quantity-modal">
-        <div class="modal-content" id="modal-content"></div>
-    </div>
-    
-    <!-- Toast Container -->
-    <div class="toast-container" id="toast-container"></div>
     
     <!-- Game Scripts -->
     <script src="js/GameConfig.js"></script>
     <script src="js/FinancialEngine.js"></script>
-    <script src="js/UIManager.js"></script>
-    <script src="js/VendorMode.js"></script>
-    <script src="js/ProductionMode.js"></script>
-    <script src="js/SalesMode.js"></script>
-    <script src="js/SummaryMode.js"></script>
-    <script src="js/TutorialSystem.js"></script>
     <script src="js/GameController.js"></script>
+    
+    <script>
+        // Reset button handler
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            if (confirm('Reset game to $15,000? All progress will be lost!')) {
+                localStorage.removeItem('bakery_save');
+                location.reload();
+            }
+        });
+    </script>
 </body>
 </html>

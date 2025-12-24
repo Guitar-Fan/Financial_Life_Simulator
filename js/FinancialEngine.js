@@ -1,89 +1,71 @@
 /**
  * FinancialEngine.js - Core financial simulation engine
- * Handles all money, inventory, and financial calculations
  */
 
 class FinancialEngine {
     constructor() {
+        this.reset();
+    }
+    
+    reset() {
         this.cash = GAME_CONFIG.STARTING_CASH;
         this.day = 1;
-        this.dayOfWeek = 1;  // 1 = Monday
-        this.hour = 6;
+        this.hour = GAME_CONFIG.TIME.OPENING_HOUR;
         this.minute = 0;
-        this.isShopOpen = false;
+        this.isPaused = true;
         this.gameSpeed = 1;
-        this.isPaused = false;
         
-        // Inventory tracking
+        // Initialize inventory with batch tracking for quality
         this.ingredients = {};
-        this.products = {};
-        this.pendingOrders = [];
-        
-        // Initialize empty inventory
         Object.keys(GAME_CONFIG.INGREDIENTS).forEach(key => {
-            this.ingredients[key] = {
-                quantity: 0,
-                avgCost: 0,
-                totalCost: 0,
-                expiryDates: []  // Track expiry for FIFO
+            this.ingredients[key] = { 
+                batches: [],  // Array of { quantity, quality, purchaseDay, vendorQuality }
+                totalCost: 0 
             };
         });
         
+        // Products with freshness tracking
+        this.products = {};
         Object.keys(GAME_CONFIG.RECIPES).forEach(key => {
-            this.products[key] = {
-                quantity: 0,
-                unitCost: 0,
-                totalCost: 0,
-                bakedToday: 0,
-                soldToday: 0
+            this.products[key] = { 
+                batches: [],  // Array of { quantity, quality, bakeDay, ingredientQuality }
+                soldToday: 0 
             };
         });
         
-        // Financial tracking
+        // Production
+        this.productionQueue = [];
+        this.ovenCapacity = 2;
+        
+        // Prepared items (par-baked, frozen dough)
+        this.preparedItems = [];
+        
+        // Daily stats
         this.dailyStats = {
             revenue: 0,
             cogs: 0,
             grossProfit: 0,
-            transactions: 0,
             customersServed: 0,
-            itemsSold: 0,
-            stockouts: 0,
-            shrinkage: 0,
-            purchasesMade: 0
+            customersMissed: 0,
+            itemsSold: 0
         };
         
+        // All time stats
         this.allTimeStats = {
             totalRevenue: 0,
             totalCogs: 0,
-            totalShrinkage: 0,
+            totalExpenses: 0,
             totalCustomers: 0,
             daysOperated: 0
         };
         
-        // History for charts
-        this.dailyHistory = [];
-        this.maxHistoryDays = 30;
-        
-        // Production queue
-        this.productionQueue = [];
-        this.ovenCapacity = 3;  // Items that can bake at once
-        
         // Event callbacks
-        this.callbacks = {
-            onCashChange: [],
-            onInventoryChange: [],
-            onSale: [],
-            onProduction: [],
-            onDayEnd: [],
-            onTimeChange: []
-        };
+        this.callbacks = {};
     }
     
-    // ==================== EVENT SYSTEM ====================
     on(event, callback) {
-        if (this.callbacks[event]) {
-            this.callbacks[event].push(callback);
-        }
+        if (!this.callbacks[event]) this.callbacks[event] = [];
+        this.callbacks[event].push(callback);
     }
     
     emit(event, data) {
@@ -92,7 +74,477 @@ class FinancialEngine {
         }
     }
     
-    // ==================== TIME MANAGEMENT ====================
+    // ==================== PURCHASING ====================
+    purchaseIngredient(ingredientKey, quantity, vendor) {
+        const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
+        const vendorData = GAME_CONFIG.VENDORS[vendor];
+        const unitPrice = ingredient.basePrice * (vendorData?.priceMultiplier || 1);
+        const totalCost = unitPrice * quantity;
+        
+        if (this.cash < totalCost) {
+            return { success: false, message: 'Not enough cash!' };
+        }
+        
+        this.cash -= totalCost;
+        
+        // Calculate starting quality based on vendor
+        const vendorQualityMult = vendorData?.qualityMultiplier || 1.0;
+        const startingQuality = Math.min(100, ingredient.baseQuality * vendorQualityMult);
+        
+        // Add batch with quality tracking
+        this.ingredients[ingredientKey].batches.push({
+            quantity: quantity,
+            quality: startingQuality,
+            purchaseDay: this.day,
+            vendor: vendor,
+            unitCost: unitPrice
+        });
+        this.ingredients[ingredientKey].totalCost += totalCost;
+        
+        this.emit('purchase', { ingredient: ingredientKey, quantity, cost: totalCost, quality: startingQuality });
+        return { 
+            success: true, 
+            message: `Purchased ${quantity} ${ingredient.unit} of ${ingredient.name}`,
+            quality: startingQuality
+        };
+    }
+    
+    getIngredientStock(key) {
+        const ingredient = this.ingredients[key];
+        if (!ingredient || !ingredient.batches) return 0;
+        return ingredient.batches.reduce((sum, b) => sum + b.quantity, 0);
+    }
+    
+    // Get the average quality of an ingredient across all batches
+    getIngredientQuality(key) {
+        const ingredient = this.ingredients[key];
+        if (!ingredient || !ingredient.batches || ingredient.batches.length === 0) return 0;
+        
+        let totalQty = 0;
+        let weightedQuality = 0;
+        ingredient.batches.forEach(batch => {
+            weightedQuality += batch.quality * batch.quantity;
+            totalQty += batch.quantity;
+        });
+        
+        return totalQty > 0 ? weightedQuality / totalQty : 0;
+    }
+    
+    // Get quality label based on percentage
+    getQualityLabel(quality) {
+        if (quality >= GAME_CONFIG.QUALITY.FRESH) return { label: 'Fresh', color: '#2ECC71', emoji: '✨' };
+        if (quality >= GAME_CONFIG.QUALITY.GOOD) return { label: 'Good', color: '#F39C12', emoji: '👍' };
+        if (quality >= GAME_CONFIG.QUALITY.ACCEPTABLE) return { label: 'Acceptable', color: '#E67E22', emoji: '😐' };
+        if (quality >= GAME_CONFIG.QUALITY.STALE) return { label: 'Stale', color: '#E74C3C', emoji: '👎' };
+        return { label: 'Spoiled', color: '#8E44AD', emoji: '🤢' };
+    }
+    
+    // Update ingredient quality at end of day
+    updateIngredientQuality() {
+        const spoiled = [];
+        
+        Object.entries(this.ingredients).forEach(([key, ingredient]) => {
+            const config = GAME_CONFIG.INGREDIENTS[key];
+            
+            ingredient.batches = ingredient.batches.filter(batch => {
+                // Decay quality based on ingredient's decay rate
+                batch.quality -= config.decayRate;
+                
+                // Check if spoiled
+                if (batch.quality <= 0) {
+                    spoiled.push({ ingredient: key, name: config.name, quantity: batch.quantity });
+                    return false;
+                }
+                return true;
+            });
+        });
+        
+        return spoiled;
+    }
+    
+    // ==================== PRODUCTION ====================
+    canBakeRecipe(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe) return { canBake: false, missing: [] };
+        
+        const missing = [];
+        for (const [ingKey, needed] of Object.entries(recipe.ingredients)) {
+            const have = this.getIngredientStock(ingKey);
+            // Only count ingredients above spoiled threshold
+            const usableQty = this.getUsableIngredientStock(ingKey);
+            if (usableQty < needed) {
+                const ing = GAME_CONFIG.INGREDIENTS[ingKey];
+                missing.push({ 
+                    ingredient: ing?.name || ingKey, 
+                    needed: needed, 
+                    have: usableQty,
+                    quality: this.getIngredientQuality(ingKey).toFixed(0)
+                });
+            }
+        }
+        
+        return { canBake: missing.length === 0, missing };
+    }
+    
+    // Get usable stock (not spoiled)
+    getUsableIngredientStock(key) {
+        const ingredient = this.ingredients[key];
+        if (!ingredient || !ingredient.batches) return 0;
+        return ingredient.batches
+            .filter(b => b.quality >= GAME_CONFIG.QUALITY.STALE)
+            .reduce((sum, b) => sum + b.quantity, 0);
+    }
+    
+    calculateProductCost(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe) return 0;
+        
+        let cost = 0;
+        for (const [ingKey, amount] of Object.entries(recipe.ingredients)) {
+            const ing = GAME_CONFIG.INGREDIENTS[ingKey];
+            if (ing) {
+                cost += ing.basePrice * amount;
+            }
+        }
+        return cost;
+    }
+    
+    // Calculate expected quality of product based on ingredient quality
+    calculateProductQuality(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe) return 100;
+        
+        let totalWeight = 0;
+        let weightedQuality = 0;
+        
+        for (const [ingKey, amount] of Object.entries(recipe.ingredients)) {
+            const quality = this.getIngredientQuality(ingKey);
+            weightedQuality += quality * amount;
+            totalWeight += amount;
+        }
+        
+        return totalWeight > 0 ? weightedQuality / totalWeight : 100;
+    }
+    
+    // Consume ingredients using FIFO (oldest first)
+    consumeIngredients(recipeKey, quantity = 1) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        let avgQuality = 0;
+        let totalAmount = 0;
+        let totalCost = 0;
+        
+        for (const [ingKey, amountNeeded] of Object.entries(recipe.ingredients)) {
+            let remaining = amountNeeded * quantity;
+            const batches = this.ingredients[ingKey].batches;
+            
+            // Sort by purchase day (oldest first) then by quality (lowest first)
+            batches.sort((a, b) => a.purchaseDay - b.purchaseDay || a.quality - b.quality);
+            
+            while (remaining > 0 && batches.length > 0) {
+                const batch = batches[0];
+                
+                // Skip spoiled ingredients
+                if (batch.quality < GAME_CONFIG.QUALITY.STALE) {
+                    batches.shift();
+                    continue;
+                }
+                
+                const useAmount = Math.min(batch.quantity, remaining);
+                avgQuality += batch.quality * useAmount;
+                totalAmount += useAmount;
+                totalCost += batch.unitCost * useAmount;
+                
+                batch.quantity -= useAmount;
+                remaining -= useAmount;
+                
+                if (batch.quantity <= 0) {
+                    batches.shift();
+                }
+            }
+        }
+        
+        return {
+            avgQuality: totalAmount > 0 ? avgQuality / totalAmount : 100,
+            totalCost
+        };
+    }
+    
+    startBaking(recipeKey, quantity = 1) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        const { canBake, missing } = this.canBakeRecipe(recipeKey);
+        
+        if (!canBake) {
+            return { success: false, message: 'Missing ingredients!', missing };
+        }
+        
+        // Check oven capacity
+        const activeBaking = this.productionQueue.filter(p => p.status === 'baking').length;
+        if (activeBaking >= this.ovenCapacity) {
+            return { success: false, message: 'Oven is full! Wait for items to finish.' };
+        }
+        
+        // Consume ingredients and get quality info
+        const { avgQuality, totalCost } = this.consumeIngredients(recipeKey, quantity);
+        
+        // Add to queue with ingredient quality info
+        const productionItem = {
+            id: Date.now(),
+            recipeKey,
+            recipeName: recipe.name,
+            recipeIcon: recipe.icon,
+            quantity,
+            status: 'baking',
+            progress: 0,
+            totalTime: recipe.bakeTime * 60 * 1000 / 10, // Faster for gameplay
+            startTime: Date.now(),
+            unitCost: totalCost / quantity,
+            ingredientQuality: avgQuality  // Track quality of ingredients used
+        };
+        
+        this.productionQueue.push(productionItem);
+        this.emit('baking_started', productionItem);
+        
+        const qualityLabel = this.getQualityLabel(avgQuality);
+        return { 
+            success: true, 
+            message: `Started baking ${quantity}x ${recipe.name}! ${qualityLabel.emoji} ${qualityLabel.label} ingredients`, 
+            item: productionItem,
+            ingredientQuality: avgQuality
+        };
+    }
+    
+    updateProduction(deltaMs) {
+        const completed = [];
+        
+        this.productionQueue.forEach(item => {
+            if (item.status === 'baking') {
+                item.progress += deltaMs;
+                
+                if (item.progress >= item.totalTime) {
+                    item.status = 'complete';
+                    
+                    // Add to products as a batch with quality
+                    this.products[item.recipeKey].batches.push({
+                        quantity: item.quantity,
+                        quality: item.ingredientQuality || 100,  // Product starts with ingredient quality
+                        bakeDay: this.day,
+                        unitCost: item.unitCost
+                    });
+                    
+                    completed.push(item);
+                }
+            }
+        });
+        
+        // Remove completed
+        this.productionQueue = this.productionQueue.filter(p => p.status === 'baking');
+        
+        completed.forEach(item => {
+            this.emit('baking_complete', item);
+        });
+        
+        return completed;
+    }
+    
+    getProductStock(recipeKey) {
+        const product = this.products[recipeKey];
+        if (!product || !product.batches) return 0;
+        return product.batches.reduce((sum, b) => sum + b.quantity, 0);
+    }
+    
+    getProductQuality(recipeKey) {
+        const product = this.products[recipeKey];
+        if (!product || !product.batches || product.batches.length === 0) return 0;
+        
+        let totalQty = 0;
+        let weightedQuality = 0;
+        product.batches.forEach(batch => {
+            weightedQuality += batch.quality * batch.quantity;
+            totalQty += batch.quantity;
+        });
+        
+        return totalQty > 0 ? weightedQuality / totalQty : 0;
+    }
+    
+    // Update product quality at end of day
+    updateProductQuality() {
+        const stale = [];
+        
+        Object.entries(this.products).forEach(([key, product]) => {
+            const config = GAME_CONFIG.RECIPES[key];
+            
+            product.batches = product.batches.filter(batch => {
+                // Decay quality based on product's decay rate
+                batch.quality -= config.decayRate;
+                
+                // Track stale items
+                if (batch.quality < GAME_CONFIG.QUALITY.STALE && batch.quality > 0) {
+                    stale.push({ product: key, name: config.name, quantity: batch.quantity, quality: batch.quality });
+                }
+                
+                // Remove spoiled items
+                if (batch.quality <= 0) {
+                    return false;
+                }
+                return true;
+            });
+        });
+        
+        return stale;
+    }
+    
+    // Get price multiplier based on product quality
+    getQualityPriceMultiplier(quality) {
+        if (quality >= GAME_CONFIG.QUALITY.FRESH) return 1.0;      // Full price
+        if (quality >= GAME_CONFIG.QUALITY.GOOD) return 0.90;      // 90% price
+        if (quality >= GAME_CONFIG.QUALITY.ACCEPTABLE) return 0.75; // 75% price
+        if (quality >= GAME_CONFIG.QUALITY.STALE) return 0.50;     // 50% price
+        return 0;  // Spoiled - cannot sell
+    }
+    
+    getTotalProductsAvailable() {
+        let total = 0;
+        Object.keys(this.products).forEach(key => {
+            total += this.getProductStock(key);
+        });
+        return total;
+    }
+    
+    // ==================== SALES ====================
+    processSale(recipeKey, quantity = 1) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        const product = this.products[recipeKey];
+        const stock = this.getProductStock(recipeKey);
+        
+        if (!product || stock < quantity) {
+            return { success: false, message: 'Not enough stock!' };
+        }
+        
+        // Sell from oldest batch first (FIFO) and calculate quality-adjusted price
+        let remaining = quantity;
+        let totalRevenue = 0;
+        let totalCogs = 0;
+        let avgQuality = 0;
+        let soldQty = 0;
+        
+        // Sort batches by bake day (oldest first)
+        product.batches.sort((a, b) => a.bakeDay - b.bakeDay);
+        
+        while (remaining > 0 && product.batches.length > 0) {
+            const batch = product.batches[0];
+            const sellAmount = Math.min(batch.quantity, remaining);
+            
+            // Quality-adjusted pricing
+            const priceMultiplier = this.getQualityPriceMultiplier(batch.quality);
+            const unitRevenue = recipe.retailPrice * priceMultiplier;
+            
+            totalRevenue += unitRevenue * sellAmount;
+            totalCogs += batch.unitCost * sellAmount;
+            avgQuality += batch.quality * sellAmount;
+            soldQty += sellAmount;
+            
+            batch.quantity -= sellAmount;
+            remaining -= sellAmount;
+            
+            if (batch.quantity <= 0) {
+                product.batches.shift();
+            }
+        }
+        
+        avgQuality = soldQty > 0 ? avgQuality / soldQty : 100;
+        const profit = totalRevenue - totalCogs;
+        
+        this.cash += totalRevenue;
+        product.soldToday += quantity;
+        
+        this.dailyStats.revenue += totalRevenue;
+        this.dailyStats.cogs += totalCogs;
+        this.dailyStats.grossProfit += profit;
+        this.dailyStats.itemsSold += quantity;
+        this.dailyStats.customersServed++;
+        
+        this.allTimeStats.totalRevenue += totalRevenue;
+        this.allTimeStats.totalCogs += totalCogs;
+        this.allTimeStats.totalCustomers++;
+        
+        const qualityLabel = this.getQualityLabel(avgQuality);
+        this.emit('sale', { recipe, quantity, revenue: totalRevenue, profit, quality: avgQuality });
+        
+        return { 
+            success: true, 
+            revenue: totalRevenue, 
+            profit,
+            quality: avgQuality,
+            qualityLabel: qualityLabel.label,
+            priceMultiplier: this.getQualityPriceMultiplier(avgQuality)
+        };
+    }
+    
+    missedCustomer() {
+        this.dailyStats.customersMissed++;
+    }
+    
+    // ==================== EXPENSES ====================
+    payDailyExpenses() {
+        let totalExpenses = 0;
+        const expenses = [];
+        
+        Object.entries(GAME_CONFIG.DAILY_EXPENSES).forEach(([key, expense]) => {
+            totalExpenses += expense.amount;
+            expenses.push({ ...expense, key });
+        });
+        
+        this.cash -= totalExpenses;
+        this.allTimeStats.totalExpenses += totalExpenses;
+        
+        return { total: totalExpenses, expenses };
+    }
+    
+    // ==================== DAY MANAGEMENT ====================
+    endDay() {
+        const expenseResult = this.payDailyExpenses();
+        
+        // Update quality of ingredients and products (decay overnight)
+        const spoiledIngredients = this.updateIngredientQuality();
+        const staleProducts = this.updateProductQuality();
+        
+        const summary = {
+            day: this.day,
+            revenue: this.dailyStats.revenue,
+            cogs: this.dailyStats.cogs,
+            grossProfit: this.dailyStats.grossProfit,
+            expenses: expenseResult.total,
+            expenseDetails: expenseResult.expenses,
+            netProfit: this.dailyStats.grossProfit - expenseResult.total,
+            customersServed: this.dailyStats.customersServed,
+            customersMissed: this.dailyStats.customersMissed,
+            itemsSold: this.dailyStats.itemsSold,
+            cashEnd: this.cash,
+            spoiledIngredients: spoiledIngredients,  // Items that went bad
+            staleProducts: staleProducts             // Products losing freshness
+        };
+        
+        this.allTimeStats.daysOperated++;
+        
+        // Reset daily stats
+        this.dailyStats = {
+            revenue: 0, cogs: 0, grossProfit: 0,
+            customersServed: 0, customersMissed: 0, itemsSold: 0
+        };
+        
+        // Reset sold today
+        Object.values(this.products).forEach(p => p.soldToday = 0);
+        
+        // Next day
+        this.day++;
+        this.hour = GAME_CONFIG.TIME.OPENING_HOUR;
+        this.minute = 0;
+        
+        this.emit('day_end', summary);
+        return summary;
+    }
+    
+    // ==================== TIME ====================
     update(deltaMs) {
         if (this.isPaused) return;
         
@@ -104,605 +556,58 @@ class FinancialEngine {
         while (this.minute >= 60) {
             this.minute -= 60;
             this.hour++;
-            this.onHourChange();
-        }
-        
-        if (this.hour >= 24) {
-            this.hour = 0;
-            this.onDayChange();
+            this.emit('hour_change', { hour: this.hour });
         }
         
         // Update production
-        this.updateProduction(deltaMs);
-        
-        this.emit('onTimeChange', this.getTimeData());
+        this.updateProduction(deltaMs * this.gameSpeed);
     }
     
-    onHourChange() {
-        // Check for shop open/close
-        if (this.hour === GAME_CONFIG.TIME.OPENING_HOUR && !this.isShopOpen) {
-            this.isShopOpen = true;
-        } else if (this.hour === GAME_CONFIG.TIME.CLOSING_HOUR && this.isShopOpen) {
-            this.closeShop();
-        }
-        
-        // Check ingredient expiry
-        this.checkExpiry();
+    getTimeString() {
+        const h = Math.floor(this.hour);
+        const m = Math.floor(this.minute);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        return `${displayH}:${m.toString().padStart(2, '0')} ${ampm}`;
     }
     
-    onDayChange() {
-        // Record daily stats
-        this.recordDailyStats();
-        
-        // Reset daily counters
-        this.resetDailyStats();
-        
-        // Process pending deliveries
-        this.processDeliveries();
-        
-        // Increment day
-        this.day++;
-        this.dayOfWeek = (this.dayOfWeek % 7) + 1;
-        
-        // Check product freshness
-        this.checkProductFreshness();
-        
-        this.emit('onDayEnd', { day: this.day });
+    isClosingTime() {
+        return this.hour >= GAME_CONFIG.TIME.CLOSING_HOUR;
     }
     
-    closeShop() {
-        this.isShopOpen = false;
-        this.dailyStats.daysOperated = 1;
-        
-        // Calculate daily summary
-        const summary = this.getDailySummary();
-        this.emit('onDayEnd', summary);
-    }
-    
-    getTimeData() {
-        return {
-            day: this.day,
-            dayOfWeek: this.dayOfWeek,
-            dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][this.dayOfWeek % 7],
-            hour: this.hour,
-            minute: Math.floor(this.minute),
-            timeString: this.formatTime(),
-            isOpen: this.isShopOpen,
-            progress: (this.hour - 6) / 12  // 0-1 progress through business day
-        };
-    }
-    
-    formatTime() {
-        const h = this.hour % 12 || 12;
-        const m = Math.floor(this.minute).toString().padStart(2, '0');
-        const ampm = this.hour < 12 ? 'AM' : 'PM';
-        return `${h}:${m} ${ampm}`;
-    }
-    
-    // ==================== PURCHASING ====================
-    purchaseIngredients(ingredientKey, quantity, vendor) {
-        const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
-        const vendorData = GAME_CONFIG.VENDORS[vendor];
-        
-        if (!ingredient || !vendorData) return { success: false, error: 'Invalid item or vendor' };
-        
-        // Calculate price with vendor multiplier
-        const unitPrice = ingredient.basePrice * vendorData.priceMultiplier;
-        const totalCost = unitPrice * quantity;
-        
-        // Check if can afford
-        if (totalCost > this.cash) {
-            return { success: false, error: 'Insufficient funds' };
-        }
-        
-        // Deduct cash
-        this.cash -= totalCost;
-        
-        // If immediate delivery (Metro Supply)
-        if (vendorData.deliveryDays === 0) {
-            this.receiveIngredients(ingredientKey, quantity, unitPrice);
-        } else {
-            // Schedule delivery
-            this.pendingOrders.push({
-                ingredientKey,
-                quantity,
-                unitPrice,
-                deliveryDay: this.day + vendorData.deliveryDays,
-                vendor: vendorData.name
-            });
-        }
-        
-        this.dailyStats.purchasesMade += totalCost;
-        this.emit('onCashChange', { cash: this.cash, change: -totalCost });
-        
-        return { 
-            success: true, 
-            cost: totalCost,
-            deliveryDay: vendorData.deliveryDays === 0 ? 'Now' : `Day ${this.day + vendorData.deliveryDays}`
-        };
-    }
-    
-    receiveIngredients(ingredientKey, quantity, unitPrice) {
-        const inv = this.ingredients[ingredientKey];
-        const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
-        
-        // Calculate new weighted average cost
-        const existingValue = inv.quantity * inv.avgCost;
-        const newValue = quantity * unitPrice;
-        const newTotal = inv.quantity + quantity;
-        
-        inv.avgCost = newTotal > 0 ? (existingValue + newValue) / newTotal : unitPrice;
-        inv.quantity += quantity;
-        inv.totalCost = inv.quantity * inv.avgCost;
-        
-        // Track expiry (FIFO)
-        inv.expiryDates.push({
-            quantity,
-            expiryDay: this.day + ingredient.shelfLife
-        });
-        
-        this.emit('onInventoryChange', { type: 'ingredient', key: ingredientKey });
-    }
-    
-    processDeliveries() {
-        const toDeliver = this.pendingOrders.filter(o => o.deliveryDay <= this.day);
-        
-        toDeliver.forEach(order => {
-            this.receiveIngredients(order.ingredientKey, order.quantity, order.unitPrice);
-        });
-        
-        this.pendingOrders = this.pendingOrders.filter(o => o.deliveryDay > this.day);
-    }
-    
-    getIngredientStock(key) {
-        return this.ingredients[key]?.quantity || 0;
-    }
-    
-    // ==================== PRODUCTION ====================
-    canBakeRecipe(recipeKey, quantity = 1) {
-        const recipe = GAME_CONFIG.RECIPES[recipeKey];
-        if (!recipe) return { canBake: false, missing: [] };
-        
-        const missing = [];
-        
-        for (const [ingKey, amount] of Object.entries(recipe.ingredients)) {
-            const needed = amount * quantity;
-            const have = this.ingredients[ingKey]?.quantity || 0;
-            
-            if (have < needed) {
-                missing.push({
-                    ingredient: GAME_CONFIG.INGREDIENTS[ingKey].name,
-                    needed,
-                    have,
-                    short: needed - have
-                });
-            }
-        }
-        
-        // Check packaging
-        if (recipe.packaging) {
-            const packNeeded = recipe.packagingQty * quantity;
-            const packHave = this.ingredients[recipe.packaging]?.quantity || 0;
-            
-            if (packHave < packNeeded) {
-                missing.push({
-                    ingredient: GAME_CONFIG.INGREDIENTS[recipe.packaging].name,
-                    needed: packNeeded,
-                    have: packHave,
-                    short: packNeeded - packHave
-                });
-            }
-        }
-        
-        return { canBake: missing.length === 0, missing };
-    }
-    
-    calculateProductCost(recipeKey) {
-        const recipe = GAME_CONFIG.RECIPES[recipeKey];
-        if (!recipe) return 0;
-        
-        let cost = 0;
-        
-        for (const [ingKey, amount] of Object.entries(recipe.ingredients)) {
-            const avgCost = this.ingredients[ingKey]?.avgCost || GAME_CONFIG.INGREDIENTS[ingKey].basePrice;
-            cost += amount * avgCost;
-        }
-        
-        // Add packaging cost
-        if (recipe.packaging) {
-            const packCost = this.ingredients[recipe.packaging]?.avgCost || GAME_CONFIG.INGREDIENTS[recipe.packaging].basePrice;
-            cost += recipe.packagingQty * packCost;
-        }
-        
-        return cost;
-    }
-    
-    startBaking(recipeKey, quantity = 1) {
-        const recipe = GAME_CONFIG.RECIPES[recipeKey];
-        const { canBake, missing } = this.canBakeRecipe(recipeKey, quantity);
-        
-        if (!canBake) {
-            return { success: false, error: 'Missing ingredients', missing };
-        }
-        
-        // Check oven capacity
-        const currentBaking = this.productionQueue.filter(p => p.status === 'baking').length;
-        if (currentBaking >= this.ovenCapacity) {
-            return { success: false, error: 'Oven full! Wait for current batch.' };
-        }
-        
-        // Consume ingredients (FIFO)
-        for (const [ingKey, amount] of Object.entries(recipe.ingredients)) {
-            this.consumeIngredient(ingKey, amount * quantity);
-        }
-        
-        // Consume packaging
-        if (recipe.packaging) {
-            this.consumeIngredient(recipe.packaging, recipe.packagingQty * quantity);
-        }
-        
-        // Calculate unit cost
-        const unitCost = this.calculateProductCost(recipeKey);
-        
-        // Add to production queue
-        const item = {
-            id: Date.now(),
-            recipeKey,
-            quantity,
-            unitCost,
-            status: 'baking',
-            progress: 0,
-            totalTime: recipe.bakeTime * 1000,  // Convert to ms for animation
-            startTime: Date.now()
-        };
-        
-        this.productionQueue.push(item);
-        this.emit('onProduction', { action: 'start', item });
-        
-        return { success: true, item };
-    }
-    
-    consumeIngredient(ingredientKey, amount) {
-        const inv = this.ingredients[ingredientKey];
-        if (!inv) return;
-        
-        let remaining = amount;
-        
-        // Consume from oldest first (FIFO)
-        while (remaining > 0 && inv.expiryDates.length > 0) {
-            const oldest = inv.expiryDates[0];
-            
-            if (oldest.quantity <= remaining) {
-                remaining -= oldest.quantity;
-                inv.expiryDates.shift();
-            } else {
-                oldest.quantity -= remaining;
-                remaining = 0;
-            }
-        }
-        
-        inv.quantity -= amount;
-        inv.totalCost = inv.quantity * inv.avgCost;
-    }
-    
-    updateProduction(deltaMs) {
-        this.productionQueue.forEach(item => {
-            if (item.status !== 'baking') return;
-            
-            item.progress += (deltaMs * this.gameSpeed) / item.totalTime;
-            
-            if (item.progress >= 1) {
-                this.completeProduction(item);
-            }
-        });
-        
-        // Remove completed items from queue display after animation
-        this.productionQueue = this.productionQueue.filter(
-            p => p.status !== 'completed' || Date.now() - p.completedAt < 2000
-        );
-    }
-    
-    completeProduction(item) {
-        item.status = 'completed';
-        item.completedAt = Date.now();
-        
-        const recipe = GAME_CONFIG.RECIPES[item.recipeKey];
-        const product = this.products[item.recipeKey];
-        
-        // Add to finished products inventory
-        product.quantity += item.quantity;
-        product.unitCost = item.unitCost;
-        product.totalCost += item.unitCost * item.quantity;
-        product.bakedToday += item.quantity;
-        
-        this.emit('onProduction', { action: 'complete', item, recipe });
-        this.emit('onInventoryChange', { type: 'product', key: item.recipeKey });
-    }
-    
-    getProductStock(key) {
-        return this.products[key]?.quantity || 0;
-    }
-    
-    // ==================== SALES ====================
-    simulateCustomer() {
-        if (!this.isShopOpen) return null;
-        
-        // Determine customer type
-        const types = Object.entries(GAME_CONFIG.DEMAND.CUSTOMER_TYPES);
-        const rand = Math.random();
-        let cumulative = 0;
-        let customerType = null;
-        
-        for (const [key, type] of types) {
-            cumulative += type.probability;
-            if (rand <= cumulative) {
-                customerType = { key, ...type };
-                break;
-            }
-        }
-        
-        if (!customerType) customerType = { key: 'COMMUTER', ...GAME_CONFIG.DEMAND.CUSTOMER_TYPES.COMMUTER };
-        
-        // Determine what they want to buy
-        const availableProducts = this.getAvailableProducts();
-        const preferredProducts = availableProducts.filter(p => 
-            customerType.preferences.includes(GAME_CONFIG.RECIPES[p.key].category)
-        );
-        
-        const productsToConsider = preferredProducts.length > 0 ? preferredProducts : availableProducts;
-        
-        if (productsToConsider.length === 0) {
-            this.dailyStats.stockouts++;
-            return { type: customerType, purchased: [], leftEmpty: true };
-        }
-        
-        // Randomly select items
-        const numItems = Math.min(
-            Math.ceil(customerType.avgItems * (0.5 + Math.random())),
-            productsToConsider.length
-        );
-        
-        const purchased = [];
-        const shuffled = [...productsToConsider].sort(() => Math.random() - 0.5);
-        
-        for (let i = 0; i < numItems; i++) {
-            const product = shuffled[i % shuffled.length];
-            const recipe = GAME_CONFIG.RECIPES[product.key];
-            
-            if (this.products[product.key].quantity > 0) {
-                purchased.push({
-                    key: product.key,
-                    name: recipe.name,
-                    icon: recipe.icon,
-                    price: recipe.retailPrice * customerType.priceMultiplier,
-                    cost: this.products[product.key].unitCost
-                });
-            }
-        }
-        
-        if (purchased.length > 0) {
-            this.processSale(purchased, customerType);
-        }
-        
-        return { type: customerType, purchased };
-    }
-    
-    processSale(items, customerType) {
-        let totalRevenue = 0;
-        let totalCogs = 0;
-        
-        items.forEach(item => {
-            // Deduct from inventory
-            this.products[item.key].quantity--;
-            this.products[item.key].soldToday++;
-            
-            totalRevenue += item.price;
-            totalCogs += item.cost;
-        });
-        
-        // Round to 2 decimals
-        totalRevenue = Math.round(totalRevenue * 100) / 100;
-        totalCogs = Math.round(totalCogs * 100) / 100;
-        
-        // Add cash
-        this.cash += totalRevenue;
-        
-        // Update stats
-        this.dailyStats.revenue += totalRevenue;
-        this.dailyStats.cogs += totalCogs;
-        this.dailyStats.grossProfit = this.dailyStats.revenue - this.dailyStats.cogs;
-        this.dailyStats.transactions++;
-        this.dailyStats.customersServed++;
-        this.dailyStats.itemsSold += items.length;
-        
-        this.emit('onSale', {
-            items,
-            revenue: totalRevenue,
-            cogs: totalCogs,
-            profit: totalRevenue - totalCogs,
-            customerType
-        });
-        
-        this.emit('onCashChange', { cash: this.cash, change: totalRevenue });
-        this.emit('onInventoryChange', { type: 'product' });
-    }
-    
-    getAvailableProducts() {
-        return Object.entries(this.products)
-            .filter(([key, product]) => product.quantity > 0)
-            .map(([key, product]) => ({
-                key,
-                ...product,
-                recipe: GAME_CONFIG.RECIPES[key]
-            }));
-    }
-    
-    // ==================== EXPIRY & SHRINKAGE ====================
-    checkExpiry() {
-        Object.entries(this.ingredients).forEach(([key, inv]) => {
-            const expired = inv.expiryDates.filter(e => e.expiryDay <= this.day);
-            
-            expired.forEach(e => {
-                const lostValue = e.quantity * inv.avgCost;
-                this.dailyStats.shrinkage += lostValue;
-                inv.quantity -= e.quantity;
-            });
-            
-            inv.expiryDates = inv.expiryDates.filter(e => e.expiryDay > this.day);
-        });
-    }
-    
-    checkProductFreshness() {
-        // Products lose freshness - simplified: 50% of products spoil after shelf life
-        // In real implementation, would track bake dates
-        Object.entries(this.products).forEach(([key, product]) => {
-            const recipe = GAME_CONFIG.RECIPES[key];
-            if (product.quantity > 0) {
-                // Spoil a portion based on shelf life (simplified)
-                const spoilRate = 1 / recipe.shelfLife;
-                const spoiled = Math.floor(product.quantity * spoilRate * 0.3);
-                
-                if (spoiled > 0) {
-                    const lostValue = spoiled * product.unitCost;
-                    this.dailyStats.shrinkage += lostValue;
-                    product.quantity -= spoiled;
-                }
-            }
-        });
-    }
-    
-    // ==================== STATISTICS & REPORTING ====================
-    resetDailyStats() {
-        this.dailyStats = {
-            revenue: 0,
-            cogs: 0,
-            grossProfit: 0,
-            transactions: 0,
-            customersServed: 0,
-            itemsSold: 0,
-            stockouts: 0,
-            shrinkage: 0,
-            purchasesMade: 0
-        };
-        
-        // Reset product daily counters
-        Object.values(this.products).forEach(p => {
-            p.bakedToday = 0;
-            p.soldToday = 0;
-        });
-    }
-    
-    recordDailyStats() {
-        const record = {
-            day: this.day,
-            ...this.dailyStats,
-            cash: this.cash
-        };
-        
-        this.dailyHistory.push(record);
-        
-        // Keep only recent history
-        if (this.dailyHistory.length > this.maxHistoryDays) {
-            this.dailyHistory.shift();
-        }
-        
-        // Update all-time stats
-        this.allTimeStats.totalRevenue += this.dailyStats.revenue;
-        this.allTimeStats.totalCogs += this.dailyStats.cogs;
-        this.allTimeStats.totalShrinkage += this.dailyStats.shrinkage;
-        this.allTimeStats.totalCustomers += this.dailyStats.customersServed;
-        this.allTimeStats.daysOperated++;
-    }
-    
-    getDailySummary() {
-        const grossMargin = this.dailyStats.revenue > 0 
-            ? (this.dailyStats.grossProfit / this.dailyStats.revenue * 100).toFixed(1)
-            : 0;
-            
-        const avgTicket = this.dailyStats.transactions > 0
-            ? (this.dailyStats.revenue / this.dailyStats.transactions).toFixed(2)
-            : 0;
-        
-        return {
-            day: this.day,
-            revenue: this.dailyStats.revenue,
-            cogs: this.dailyStats.cogs,
-            grossProfit: this.dailyStats.grossProfit,
-            grossMargin: parseFloat(grossMargin),
-            transactions: this.dailyStats.transactions,
-            customersServed: this.dailyStats.customersServed,
-            itemsSold: this.dailyStats.itemsSold,
-            avgTicket: parseFloat(avgTicket),
-            stockouts: this.dailyStats.stockouts,
-            shrinkage: this.dailyStats.shrinkage,
-            cash: this.cash
-        };
-    }
-    
-    getInventoryValue() {
-        let ingredientValue = 0;
-        let productValue = 0;
-        
-        Object.values(this.ingredients).forEach(inv => {
-            ingredientValue += inv.quantity * inv.avgCost;
-        });
-        
-        Object.entries(this.products).forEach(([key, product]) => {
-            productValue += product.quantity * GAME_CONFIG.RECIPES[key].retailPrice;
-        });
-        
-        return { ingredients: ingredientValue, products: productValue, total: ingredientValue + productValue };
-    }
-    
+    // ==================== METRICS ====================
     getFinancialMetrics() {
-        const inventoryValue = this.getInventoryValue();
-        const avgDailyRevenue = this.allTimeStats.daysOperated > 0
-            ? this.allTimeStats.totalRevenue / this.allTimeStats.daysOperated
-            : 0;
-        
-        const grossMarginPct = this.allTimeStats.totalRevenue > 0
-            ? ((this.allTimeStats.totalRevenue - this.allTimeStats.totalCogs) / this.allTimeStats.totalRevenue * 100)
-            : 0;
-            
-        const shrinkageRate = this.allTimeStats.totalCogs > 0
-            ? (this.allTimeStats.totalShrinkage / this.allTimeStats.totalCogs * 100)
-            : 0;
-        
         return {
             cash: this.cash,
-            inventoryValue: inventoryValue.total,
-            totalAssets: this.cash + inventoryValue.total,
-            avgDailyRevenue: avgDailyRevenue.toFixed(2),
-            grossMarginPct: grossMarginPct.toFixed(1),
-            shrinkageRate: shrinkageRate.toFixed(1),
-            totalRevenue: this.allTimeStats.totalRevenue,
-            totalProfit: this.allTimeStats.totalRevenue - this.allTimeStats.totalCogs,
-            customersToDate: this.allTimeStats.totalCustomers
+            dailyRevenue: this.dailyStats.revenue,
+            dailyProfit: this.dailyStats.grossProfit,
+            dailyCogs: this.dailyStats.cogs,
+            grossMargin: this.dailyStats.revenue > 0 
+                ? ((this.dailyStats.grossProfit / this.dailyStats.revenue) * 100).toFixed(1) 
+                : '0.0',
+            customersToday: this.dailyStats.customersServed,
+            missedToday: this.dailyStats.customersMissed
         };
     }
     
-    // ==================== GAME STATE ====================
+    // ==================== SAVE/LOAD ====================
     save() {
-        return JSON.stringify({
+        return {
             cash: this.cash,
             day: this.day,
-            dayOfWeek: this.dayOfWeek,
-            hour: this.hour,
-            minute: this.minute,
             ingredients: this.ingredients,
             products: this.products,
-            pendingOrders: this.pendingOrders,
-            dailyStats: this.dailyStats,
-            allTimeStats: this.allTimeStats,
-            dailyHistory: this.dailyHistory
-        });
+            allTimeStats: this.allTimeStats
+        };
     }
     
-    load(saveData) {
-        const data = JSON.parse(saveData);
-        Object.assign(this, data);
+    load(data) {
+        if (data.cash !== undefined) this.cash = data.cash;
+        if (data.day !== undefined) this.day = data.day;
+        if (data.ingredients) this.ingredients = data.ingredients;
+        if (data.products) this.products = data.products;
+        if (data.allTimeStats) this.allTimeStats = data.allTimeStats;
     }
 }
 
-// Make globally available
 window.FinancialEngine = FinancialEngine;

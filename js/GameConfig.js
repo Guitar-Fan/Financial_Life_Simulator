@@ -1,562 +1,256 @@
 /**
  * GameConfig.js - Realistic Bakery Financial Parameters
- * All values based on real-world small bakery economics (2024-2025)
  */
 
 const GAME_CONFIG = {
-    // Starting capital - realistic for a small bakery startup
     STARTING_CASH: 15000,
     
-    // Time settings
     TIME: {
-        GAME_SPEED: 1,          // 1 = normal, 2 = 2x speed
-        SECONDS_PER_GAME_MINUTE: 1,  // 1 real second = 1 game minute
-        OPENING_HOUR: 6,        // 6 AM
-        CLOSING_HOUR: 18,       // 6 PM
-        DAYS_PER_WEEK: 7
+        SECONDS_PER_GAME_MINUTE: 0.3,
+        OPENING_HOUR: 6,
+        CLOSING_HOUR: 18
     },
     
-    // Vendors with different pricing, quality, and delivery terms
+    // Daily fixed expenses
+    DAILY_EXPENSES: {
+        rent: { name: 'Daily Rent', amount: 150, icon: '🏠' },
+        utilities: { name: 'Utilities', amount: 45, icon: '💡' },
+        insurance: { name: 'Insurance', amount: 25, icon: '🛡️' }
+    },
+    
+    // Crisis events
+    CRISIS_EVENTS: [
+        {
+            id: 'oven_malfunction',
+            title: '🔥 Oven Malfunction!',
+            description: 'Your main oven is overheating!',
+            urgent: true,
+            choices: [
+                { text: 'Call repair ($200)', cost: 200, outcome: 'Oven repaired! Production continues.', success: true },
+                { text: 'Try to fix yourself', cost: 0, outcome: 'Made it worse... Oven down for 2 hours.', success: false }
+            ]
+        },
+        {
+            id: 'health_inspector',
+            title: '👨‍⚕️ Health Inspector!',
+            description: 'Surprise inspection! Kitchen is being evaluated.',
+            urgent: true,
+            choices: [
+                { text: 'Show them around ($0)', cost: 0, outcome: 'Passed! Good reputation.', success: true, bonus: 50 },
+                { text: 'Quick bribe ($300)', cost: 300, outcome: 'Risky but passed...', success: true }
+            ]
+        },
+        {
+            id: 'rush_order',
+            title: '📞 Big Order Request!',
+            description: 'Local business wants 10 pastries NOW!',
+            urgent: false,
+            choices: [
+                { text: 'Accept (+$80 bonus)', cost: 0, outcome: 'Challenge accepted!', success: true, bonus: 80 },
+                { text: 'Decline politely', cost: 0, outcome: 'Maybe next time.', success: true }
+            ]
+        },
+        {
+            id: 'ingredient_spoiled',
+            title: '🦠 Spoiled Ingredients!',
+            description: 'Some dairy went bad overnight!',
+            urgent: true,
+            choices: [
+                { text: 'Dispose all dairy ($80)', cost: 80, outcome: 'Safety first!', success: true },
+                { text: 'Check each item', cost: 0, outcome: 'Saved some, lost time.', success: true }
+            ]
+        }
+    ],
+    
+    // Customer faces
+    CUSTOMERS: [
+        { face: '👨', name: 'Mike', patience: 'normal' },
+        { face: '👩', name: 'Sarah', patience: 'patient' },
+        { face: '👴', name: 'Harold', patience: 'patient' },
+        { face: '👵', name: 'Betty', patience: 'patient' },
+        { face: '🧑', name: 'Alex', patience: 'impatient' },
+        { face: '👨‍🦱', name: 'Carlos', patience: 'normal' },
+        { face: '👩‍🦰', name: 'Emma', patience: 'normal' },
+        { face: '🧔', name: 'James', patience: 'impatient' }
+    ],
+    
+    CUSTOMER_DIALOGUES: {
+        greeting: [
+            "Hi! What do you have fresh today?",
+            "Good morning! Smells amazing in here!",
+            "Hello! I'm looking for something sweet.",
+            "Hey there! What's your best seller?",
+            "Hi! I heard great things about this place!"
+        ],
+        ordering: [
+            "I'll take a {item} please!",
+            "Can I get one {item}?",
+            "Ooh, the {item} looks delicious!",
+            "I'd love a {item}!",
+            "One {item} for me, please!"
+        ],
+        happy: [
+            "This is AMAZING! 🤩",
+            "So good! I'll be back!",
+            "Best {item} in town!",
+            "Wow, perfection! ⭐",
+            "You made my day! 😊"
+        ],
+        sad: [
+            "Oh no, you're out of that? 😢",
+            "Nothing I want is available...",
+            "I'll try somewhere else.",
+            "Maybe next time then.",
+            "That's disappointing."
+        ]
+    },
+    
     VENDORS: {
         SYSCO: {
             id: 'sysco',
             name: 'Sysco Wholesale',
             icon: '🏭',
-            specialty: 'Bulk Dry Goods & Staples',
+            specialty: 'Bulk Dry Goods',
             rating: 4,
-            tags: ['Bulk Discounts', 'Net 30'],
-            minimumOrder: 100,
-            deliveryDays: 2,
-            priceMultiplier: 0.85,  // 15% cheaper than retail
-            categories: ['dry', 'packaging']
+            priceMultiplier: 0.85,
+            qualityMultiplier: 0.90,  // Lower starting quality
+            categories: ['dry']
         },
-        FARMERS_DIRECT: {
+        FARMERS: {
             id: 'farmers',
             name: "Farmer's Direct",
             icon: '🚜',
             specialty: 'Fresh Dairy & Eggs',
             rating: 5,
-            tags: ['Farm Fresh', 'Local'],
-            minimumOrder: 25,
-            deliveryDays: 1,
-            priceMultiplier: 1.1,  // Premium for freshness
+            priceMultiplier: 1.1,
+            qualityMultiplier: 1.10,  // Higher starting quality
             categories: ['dairy']
         },
-        METRO_SUPPLY: {
+        METRO: {
             id: 'metro',
-            name: 'Metro Restaurant Supply',
+            name: 'Metro Supply',
             icon: '🏪',
-            specialty: 'All-Purpose Bakery Supplies',
+            specialty: 'All-Purpose',
             rating: 3,
-            tags: ['No Minimum', 'Same Day'],
-            minimumOrder: 0,
-            deliveryDays: 0,
-            priceMultiplier: 1.0,  // Standard pricing
-            categories: ['dry', 'dairy', 'packaging']
-        },
-        PREMIUM_IMPORTS: {
-            id: 'premium',
-            name: 'Premium Imports Co.',
-            icon: '✨',
-            specialty: 'Specialty & Gourmet Ingredients',
-            rating: 5,
-            tags: ['Premium Quality', 'Imported'],
-            minimumOrder: 50,
-            deliveryDays: 3,
-            priceMultiplier: 1.35,  // Premium pricing
-            categories: ['specialty']
+            priceMultiplier: 1.0,
+            qualityMultiplier: 1.0,
+            categories: ['dry', 'dairy']
         }
     },
     
-    // Raw ingredients with realistic wholesale pricing
+    // Quality thresholds for pricing and usability
+    QUALITY: {
+        FRESH: 80,           // 80-100% = Fresh, full price
+        GOOD: 60,            // 60-79% = Good, 90% price
+        ACCEPTABLE: 40,      // 40-59% = Acceptable, 75% price
+        STALE: 20,           // 20-39% = Stale, 50% price, customers may refuse
+        SPOILED: 0           // 0-19% = Spoiled, cannot use
+    },
+    
+    // Prep-ahead options for advanced baking
+    PREP_OPTIONS: {
+        FRESH: { id: 'fresh', name: 'Bake Fresh', icon: '🔥', qualityBonus: 1.0, timeMultiplier: 1.0 },
+        PAR_BAKED: { id: 'parbaked', name: 'Par-Bake', icon: '⏸️', qualityBonus: 0.95, timeMultiplier: 0.6 },
+        FROZEN_DOUGH: { id: 'frozen', name: 'Freeze Dough', icon: '❄️', qualityBonus: 0.90, shelfExtension: 7 }
+    },
+    
     INGREDIENTS: {
-        // Flour & Grains
-        FLOUR_AP: {
-            id: 'flour_ap',
-            name: 'All-Purpose Flour',
-            icon: '🌾',
-            unit: 'lb',
-            basePrice: 0.48,
-            category: 'dry',
-            shelfLife: 90,
-            description: 'Versatile flour for most baked goods'
+        FLOUR: { 
+            id: 'flour', name: 'All-Purpose Flour', icon: '🌾', unit: 'lb', basePrice: 0.50, category: 'dry',
+            shelfLife: 30, baseQuality: 100, decayRate: 2
         },
-        FLOUR_BREAD: {
-            id: 'flour_bread',
-            name: 'Bread Flour',
-            icon: '🍞',
-            unit: 'lb',
-            basePrice: 0.58,
-            category: 'dry',
-            shelfLife: 90,
-            description: 'High-gluten flour for artisan breads'
+        SUGAR: { 
+            id: 'sugar', name: 'Sugar', icon: '🧂', unit: 'lb', basePrice: 0.55, category: 'dry',
+            shelfLife: 60, baseQuality: 100, decayRate: 1
         },
-        SUGAR_WHITE: {
-            id: 'sugar_white',
-            name: 'Granulated Sugar',
-            icon: '🧂',
-            unit: 'lb',
-            basePrice: 0.52,
-            category: 'dry',
-            shelfLife: 365,
-            description: 'Standard baking sugar'
+        BUTTER: { 
+            id: 'butter', name: 'Butter', icon: '🧈', unit: 'lb', basePrice: 3.50, category: 'dairy',
+            shelfLife: 14, baseQuality: 100, decayRate: 5
         },
-        SUGAR_BROWN: {
-            id: 'sugar_brown',
-            name: 'Brown Sugar',
-            icon: '🟤',
-            unit: 'lb',
-            basePrice: 0.68,
-            category: 'dry',
-            shelfLife: 180,
-            description: 'Adds moisture and caramel flavor'
+        EGGS: { 
+            id: 'eggs', name: 'Eggs', icon: '🥚', unit: 'dozen', basePrice: 3.25, category: 'dairy',
+            shelfLife: 21, baseQuality: 100, decayRate: 4
         },
-        
-        // Leavening & Baking Essentials
-        YEAST: {
-            id: 'yeast',
-            name: 'Active Dry Yeast',
-            icon: '🫧',
-            unit: 'lb',
-            basePrice: 5.20,
-            category: 'dry',
-            shelfLife: 120,
-            description: 'Essential for bread rising'
+        MILK: { 
+            id: 'milk', name: 'Milk', icon: '🥛', unit: 'gallon', basePrice: 4.50, category: 'dairy',
+            shelfLife: 7, baseQuality: 100, decayRate: 10
         },
-        BAKING_POWDER: {
-            id: 'baking_powder',
-            name: 'Baking Powder',
-            icon: '⚪',
-            unit: 'lb',
-            basePrice: 2.80,
-            category: 'dry',
-            shelfLife: 365,
-            description: 'Chemical leavening agent'
+        YEAST: { 
+            id: 'yeast', name: 'Yeast', icon: '🫧', unit: 'pack', basePrice: 1.00, category: 'dry',
+            shelfLife: 14, baseQuality: 100, decayRate: 5
         },
-        SALT: {
-            id: 'salt',
-            name: 'Kosher Salt',
-            icon: '🧊',
-            unit: 'lb',
-            basePrice: 0.35,
-            category: 'dry',
-            shelfLife: 730,
-            description: 'Enhances flavor in all baked goods'
+        CHOCOLATE: { 
+            id: 'chocolate', name: 'Chocolate', icon: '🍫', unit: 'lb', basePrice: 8.00, category: 'dry',
+            shelfLife: 90, baseQuality: 100, decayRate: 1
         },
-        
-        // Dairy
-        BUTTER: {
-            id: 'butter',
-            name: 'Unsalted Butter',
-            icon: '🧈',
-            unit: 'lb',
-            basePrice: 4.25,
-            category: 'dairy',
-            shelfLife: 14,
-            description: 'Premium European-style butter'
-        },
-        EGGS: {
-            id: 'eggs',
-            name: 'Large Eggs',
-            icon: '🥚',
-            unit: 'dozen',
-            basePrice: 3.85,
-            category: 'dairy',
-            shelfLife: 21,
-            description: 'Farm fresh large eggs'
-        },
-        MILK: {
-            id: 'milk',
-            name: 'Whole Milk',
-            icon: '🥛',
-            unit: 'gal',
-            basePrice: 3.95,
-            category: 'dairy',
-            shelfLife: 10,
-            description: 'Fresh whole milk'
-        },
-        CREAM: {
-            id: 'cream',
-            name: 'Heavy Cream',
-            icon: '🍦',
-            unit: 'qt',
-            basePrice: 5.50,
-            category: 'dairy',
-            shelfLife: 14,
-            description: '36% butterfat for whipping'
-        },
-        
-        // Specialty
-        CHOCOLATE: {
-            id: 'chocolate',
-            name: 'Chocolate Chips',
-            icon: '🍫',
-            unit: 'lb',
-            basePrice: 5.25,
-            category: 'specialty',
-            shelfLife: 365,
-            description: 'Semi-sweet chocolate morsels'
-        },
-        VANILLA: {
-            id: 'vanilla',
-            name: 'Pure Vanilla Extract',
-            icon: '🌸',
-            unit: 'oz',
-            basePrice: 1.85,
-            category: 'specialty',
-            shelfLife: 730,
-            description: 'Madagascar bourbon vanilla'
-        },
-        COCOA: {
-            id: 'cocoa',
-            name: 'Dutch Cocoa Powder',
-            icon: '🟫',
-            unit: 'lb',
-            basePrice: 8.50,
-            category: 'specialty',
-            shelfLife: 365,
-            description: 'Alkalized cocoa for rich flavor'
-        },
-        
-        // Packaging
-        BREAD_BAG: {
-            id: 'bread_bag',
-            name: 'Bread Bags',
-            icon: '🛍️',
-            unit: 'pack (50)',
-            basePrice: 4.50,
-            category: 'packaging',
-            shelfLife: 730,
-            description: 'Clear bags with twist ties'
-        },
-        PASTRY_BOX: {
-            id: 'pastry_box',
-            name: 'Pastry Boxes',
-            icon: '📦',
-            unit: 'pack (25)',
-            basePrice: 12.50,
-            category: 'packaging',
-            shelfLife: 730,
-            description: 'White bakery boxes 6x6x3'
-        },
-        CAKE_BOX: {
-            id: 'cake_box',
-            name: 'Cake Boxes',
-            icon: '🎁',
-            unit: 'pack (10)',
-            basePrice: 18.00,
-            category: 'packaging',
-            shelfLife: 730,
-            description: 'Large boxes 10x10x5'
+        VANILLA: { 
+            id: 'vanilla', name: 'Vanilla', icon: '🌸', unit: 'bottle', basePrice: 5.00, category: 'dry',
+            shelfLife: 365, baseQuality: 100, decayRate: 0.5
         }
     },
     
-    // Product recipes with realistic costs and margins
     RECIPES: {
-        BASIC_BREAD: {
-            id: 'basic_bread',
-            name: 'Artisan White Bread',
+        BREAD: {
+            id: 'bread',
+            name: 'Fresh Bread',
             icon: '🍞',
             category: 'bread',
+            bakeTime: 3,
             retailPrice: 4.50,
-            bakeTime: 45,  // game minutes
-            shelfLife: 2,  // days
-            ingredients: {
-                FLOUR_AP: 1.5,      // lbs
-                YEAST: 0.02,        // lbs
-                SALT: 0.04,         // lbs
-                SUGAR_WHITE: 0.06   // lbs
-            },
-            packaging: 'BREAD_BAG',
-            packagingQty: 0.02,  // 1/50 of a pack
-            description: 'Classic crusty loaf with soft interior'
-        },
-        SOURDOUGH: {
-            id: 'sourdough',
-            name: 'Sourdough Loaf',
-            icon: '🥖',
-            category: 'bread',
-            retailPrice: 7.00,
-            bakeTime: 60,
-            shelfLife: 3,
-            ingredients: {
-                FLOUR_BREAD: 1.8,
-                SALT: 0.05
-            },
-            packaging: 'BREAD_BAG',
-            packagingQty: 0.02,
-            description: 'Tangy artisan sourdough with crispy crust'
-        },
-        BAGUETTE: {
-            id: 'baguette',
-            name: 'French Baguette',
-            icon: '🥖',
-            category: 'bread',
-            retailPrice: 3.25,
-            bakeTime: 25,
-            shelfLife: 1,
-            ingredients: {
-                FLOUR_BREAD: 0.75,
-                YEAST: 0.015,
-                SALT: 0.02
-            },
-            packaging: 'BREAD_BAG',
-            packagingQty: 0.02,
-            description: 'Crispy French bread, best eaten same day'
+            ingredients: { FLOUR: 2, SUGAR: 0.1, BUTTER: 0.2, YEAST: 0.5, MILK: 0.2 },
+            shelfLife: 2,      // Days the product stays fresh
+            decayRate: 30      // % quality lost per day
         },
         CROISSANT: {
             id: 'croissant',
-            name: 'Butter Croissant',
+            name: 'Croissant',
             icon: '🥐',
             category: 'pastry',
-            retailPrice: 3.75,
-            bakeTime: 20,
-            shelfLife: 2,
-            ingredients: {
-                FLOUR_AP: 0.5,
-                BUTTER: 0.35,
-                YEAST: 0.01,
-                SUGAR_WHITE: 0.04,
-                EGGS: 0.08  // eggs by dozen fraction
-            },
-            packaging: 'PASTRY_BOX',
-            packagingQty: 0.04,  // 1/25 of pack
-            description: 'Flaky, buttery French pastry'
-        },
-        PAIN_AU_CHOCOLAT: {
-            id: 'pain_chocolat',
-            name: 'Pain au Chocolat',
-            icon: '🍫',
-            category: 'pastry',
-            retailPrice: 4.25,
-            bakeTime: 20,
-            shelfLife: 2,
-            ingredients: {
-                FLOUR_AP: 0.5,
-                BUTTER: 0.35,
-                CHOCOLATE: 0.15,
-                YEAST: 0.01,
-                SUGAR_WHITE: 0.04,
-                EGGS: 0.08
-            },
-            packaging: 'PASTRY_BOX',
-            packagingQty: 0.04,
-            description: 'Croissant dough with chocolate batons'
-        },
-        BLUEBERRY_MUFFIN: {
-            id: 'muffin',
-            name: 'Blueberry Muffin',
-            icon: '🧁',
-            category: 'pastry',
+            bakeTime: 4,
             retailPrice: 3.50,
-            bakeTime: 22,
-            shelfLife: 3,
-            ingredients: {
-                FLOUR_AP: 0.25,
-                SUGAR_WHITE: 0.15,
-                BUTTER: 0.12,
-                EGGS: 0.16,
-                MILK: 0.05,
-                BAKING_POWDER: 0.015
-            },
-            packaging: 'PASTRY_BOX',
-            packagingQty: 0.04,
-            description: 'Moist muffin packed with blueberries'
+            ingredients: { FLOUR: 0.5, BUTTER: 0.5, EGGS: 0.25, SUGAR: 0.1, YEAST: 0.2 },
+            shelfLife: 1,
+            decayRate: 40
         },
-        CHOCOLATE_COOKIE: {
-            id: 'choc_cookie',
-            name: 'Chocolate Chip Cookie',
+        COOKIE: {
+            id: 'cookie',
+            name: 'Chocolate Cookie',
             icon: '🍪',
             category: 'cookie',
-            retailPrice: 2.50,
-            bakeTime: 12,
-            shelfLife: 5,
-            ingredients: {
-                FLOUR_AP: 0.12,
-                BUTTER: 0.08,
-                SUGAR_WHITE: 0.08,
-                SUGAR_BROWN: 0.04,
-                EGGS: 0.08,
-                CHOCOLATE: 0.1,
-                VANILLA: 0.1
-            },
-            packaging: 'PASTRY_BOX',
-            packagingQty: 0.04,
-            description: 'Classic American cookie, crispy outside'
-        },
-        SUGAR_COOKIE: {
-            id: 'sugar_cookie',
-            name: 'Sugar Cookie',
-            icon: '🍪',
-            category: 'cookie',
+            bakeTime: 2,
             retailPrice: 2.00,
-            bakeTime: 10,
-            shelfLife: 7,
-            ingredients: {
-                FLOUR_AP: 0.1,
-                BUTTER: 0.06,
-                SUGAR_WHITE: 0.08,
-                EGGS: 0.06,
-                VANILLA: 0.05
-            },
-            packaging: 'PASTRY_BOX',
-            packagingQty: 0.04,
-            description: 'Soft vanilla cookie, perfect for decorating'
+            ingredients: { FLOUR: 0.25, SUGAR: 0.15, BUTTER: 0.2, EGGS: 0.1, CHOCOLATE: 0.15 },
+            shelfLife: 5,
+            decayRate: 15
         },
-        CUPCAKE: {
-            id: 'cupcake',
-            name: 'Vanilla Cupcake',
+        MUFFIN: {
+            id: 'muffin',
+            name: 'Muffin',
             icon: '🧁',
-            category: 'cake',
-            retailPrice: 4.00,
-            bakeTime: 18,
+            category: 'pastry',
+            bakeTime: 3,
+            retailPrice: 2.75,
+            ingredients: { FLOUR: 0.3, SUGAR: 0.15, BUTTER: 0.15, EGGS: 0.2, MILK: 0.1 },
             shelfLife: 3,
-            ingredients: {
-                FLOUR_AP: 0.15,
-                SUGAR_WHITE: 0.12,
-                BUTTER: 0.1,
-                EGGS: 0.16,
-                MILK: 0.04,
-                BAKING_POWDER: 0.008,
-                VANILLA: 0.15,
-                CREAM: 0.05  // for frosting
-            },
-            packaging: 'PASTRY_BOX',
-            packagingQty: 0.04,
-            description: 'Light cupcake with vanilla buttercream'
+            decayRate: 25
         },
-        CHOCOLATE_CAKE: {
-            id: 'choc_cake',
-            name: 'Chocolate Layer Cake',
+        CAKE: {
+            id: 'cake',
+            name: 'Chocolate Cake',
             icon: '🎂',
             category: 'cake',
-            retailPrice: 38.00,
-            bakeTime: 55,
+            bakeTime: 5,
+            retailPrice: 25.00,
+            ingredients: { FLOUR: 1.5, SUGAR: 1.0, BUTTER: 0.75, EGGS: 1.0, CHOCOLATE: 0.5, MILK: 0.5 },
             shelfLife: 4,
-            ingredients: {
-                FLOUR_AP: 1.5,
-                SUGAR_WHITE: 1.2,
-                COCOA: 0.4,
-                BUTTER: 0.6,
-                EGGS: 0.5,
-                MILK: 0.25,
-                BAKING_POWDER: 0.05,
-                VANILLA: 0.3,
-                CREAM: 0.25
-            },
-            packaging: 'CAKE_BOX',
-            packagingQty: 0.1,  // 1/10 of pack
-            description: '8-inch double layer with ganache'
+            decayRate: 20
         }
     },
     
-    // Customer demand patterns
     DEMAND: {
-        // Hourly multipliers (percentage of daily traffic)
-        HOURLY: {
-            6: 0.12,   // Early birds
-            7: 0.15,   // Morning rush
-            8: 0.12,
-            9: 0.08,
-            10: 0.07,
-            11: 0.08,
-            12: 0.10,  // Lunch
-            13: 0.06,
-            14: 0.05,
-            15: 0.06,
-            16: 0.06,
-            17: 0.05
-        },
-        // Day of week multipliers
-        DAILY: {
-            0: 1.3,   // Sunday - high (brunch)
-            1: 0.8,   // Monday - low
-            2: 0.9,
-            3: 1.0,
-            4: 1.0,
-            5: 1.2,   // Friday - higher
-            6: 1.4    // Saturday - highest
-        },
-        // Base customers per day
-        BASE_CUSTOMERS: 45,
-        
-        // Customer types and their preferences
-        CUSTOMER_TYPES: {
-            COMMUTER: {
-                icon: '👔',
-                name: 'Morning Commuter',
-                probability: 0.25,
-                preferences: ['bread', 'pastry'],
-                avgItems: 1.5,
-                priceMultiplier: 1.0
-            },
-            PARENT: {
-                icon: '👨‍👧',
-                name: 'Parent',
-                probability: 0.2,
-                preferences: ['cookie', 'cake', 'pastry'],
-                avgItems: 3,
-                priceMultiplier: 1.0
-            },
-            FOODIE: {
-                icon: '🧑‍🍳',
-                name: 'Food Enthusiast',
-                probability: 0.15,
-                preferences: ['bread', 'pastry'],
-                avgItems: 2,
-                priceMultiplier: 1.15  // Willing to pay more
-            },
-            TEEN: {
-                icon: '🧑',
-                name: 'Teen Customer',
-                probability: 0.15,
-                preferences: ['cookie', 'pastry'],
-                avgItems: 2,
-                priceMultiplier: 0.95
-            },
-            SENIOR: {
-                icon: '👴',
-                name: 'Senior',
-                probability: 0.15,
-                preferences: ['bread', 'cake'],
-                avgItems: 1.5,
-                priceMultiplier: 1.0
-            },
-            TOURIST: {
-                icon: '📸',
-                name: 'Tourist',
-                probability: 0.1,
-                preferences: ['pastry', 'cake'],
-                avgItems: 4,
-                priceMultiplier: 1.2
-            }
-        }
-    },
-    
-    // Monthly fixed costs (realistic for small bakery)
-    FIXED_COSTS: {
-        RENT: 2800,
-        UTILITIES: 450,
-        INSURANCE: 280,
-        LICENSES: 75,
-        MARKETING: 200,
-        MAINTENANCE: 150,
-        PAYROLL_TAX: 350  // Even if owner-operated
-    },
-    
-    // Financial terms for education
-    FINANCIAL_TERMS: {
-        COGS: 'Cost of Goods Sold - The direct cost to make your products (ingredients + packaging)',
-        GROSS_PROFIT: 'Gross Profit = Revenue - COGS. Money left after product costs.',
-        GROSS_MARGIN: 'Gross Margin % = (Gross Profit ÷ Revenue) × 100. Industry standard is 60-70%.',
-        NET_PROFIT: 'Net Profit = Gross Profit - Operating Expenses. Your actual earnings.',
-        INVENTORY_TURNOVER: 'How many times you sell through inventory per period. Higher = better cash flow.',
-        SHRINKAGE: 'Product loss from spoilage, damage, or waste. Target under 3%.',
-        BREAK_EVEN: 'The sales amount where Revenue = Total Costs. No profit, no loss.',
-        WORKING_CAPITAL: 'Cash available for daily operations. Cash - Immediate Obligations.',
-        FOOD_COST_RATIO: 'Ingredient cost ÷ Selling price. Target 25-35% for bakeries.'
+        hourlyMultiplier: { 6: 0.3, 7: 0.8, 8: 1.5, 9: 1.2, 10: 0.8, 11: 1.0, 12: 1.3, 13: 1.0, 14: 0.7, 15: 0.9, 16: 1.1, 17: 0.8, 18: 0.4 },
+        baseCustomersPerHour: 4
     }
 };
 
-// Make globally available
 window.GAME_CONFIG = GAME_CONFIG;
