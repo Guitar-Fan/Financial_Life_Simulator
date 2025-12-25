@@ -1,0 +1,49 @@
+Upgrade the start page buttons UI experience in main.html game, 
+do not mind interactive.html.
+
+Code an interactive tutorial with explantions in thought bubbles and 
+dialogue floating bubbles demonstrating how to do each phase idealy 
+like showing a good player's sample user's actions
+
+Add a stage before the bakery even starts buying inventory; 
+where user plays setting up the bakery, including choosing between locations, 
+paperwork with local and state government, buying building, equipment, hiring workers,
+buying furniture and decorations (could become later part of stages). I want bakery simulation to be free navigate sim, like many games
+such as 
+
+whenever I start up the tutorial, the explanation bubble disappears after around half
+a second of showing.
+
+Add a custom favicon that resembles a bakery
+
+
+detailed svg, gsap or phaser for graphics of environment, equipment, rooms and building,  not emojis
+
+Redesign game play to allow player to walk to the mode they want. 
+
+This game now has functional gameplay. There are 4 modes; buy inventory, produce goods, sell pastries
+and summary/review stats. Only have basic financial stats, such as net loss and profit. Had AI generate
+a bunch of bakery recipes, ingredients, customers and used emojis as pictures for everything. Will transition
+to free-roaming architecture instead of forced mode change. Future updates will introduce a more immersive environment, allowing players to explore the bakery, interact
+with equipment, and manage staff and resources visually. The UI and graphics will be enhanced with SVG, GSAP,
+or Phaser for a richer experience. The tutorial will guide new players step-by-step, showing optimal actions
+through interactive bubbles and dialogue, making it easier to learn the game mechanics and strategies.
+
+the wasd keys don't work for navigating pre operational map and the graphics
+are too basic around
+
+make objects have basic shapes don't
+
+when pre operational play is done, and player presses open bakery, play area
+ turns blank without giving errors, pls comeplete the transition to free-roaming architecture
+
+make a version md, telling the details of each major update
+
+make a plan md, giving suggestions on how game could be developed to 
+simulate more dynamic, realistic financial factors, and teach more business
+concepts, and be more interactive and fun
+
+A series of games aiming to simulate realistic scenarios’ aspects of finance, 
+such as the money management behind small businesses, using real finance concepts and realistic stats.
+Financial principles demonstrated in game are based on well-known finance books, such as Rich Dad Poor Dad.
+Main game is a small bakery business simulation so teens can learn what’s behind starting a business.

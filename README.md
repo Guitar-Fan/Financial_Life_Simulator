@@ -1,6 +1,35 @@
-# Financial Life Simulator - Bakery Business Game
+## Sweet Success Bakery Simulator
 
-An educational browser-based game teaching financial literacy through realistic bakery business simulation. Built with Phaser 3 and vanilla JavaScript.
+An immersive, browser-based financial simulation game where you build and run your own bakery.
+
+### Features
+- **Free-roam Hub:** Walk your character (WASD) to select game phases (Buy, Bake, Sell, Summary) in a custom-drawn bakery hub.
+- **Setup Phase:** Choose location, handle paperwork, buy equipment, and hire staff in a city map before opening your bakery.
+- **Interactive Tutorial:** Step-by-step guidance with floating dialogue and demo actions.
+- **No Forced Progression:** Return to the hub after each phase; choose your next action freely.
+- **Custom Graphics:** Phaser 3, GSAP, and SVG for all visuals (no emojis or stock art).
+- **Core Gameplay:**
+  - Buy ingredients from vendors
+  - Bake products using recipes
+  - Sell to customers with dynamic demand
+  - Review daily financial summary
+
+### Tech Stack
+- **Phaser 3** (game engine, scenes, physics)
+- **GSAP** (UI animation)
+- **Vanilla JS** (game logic, UI overlays)
+
+### How to Play
+1. Start a new game and complete the setup phase in the city.
+2. Enter the bakery hub and walk to a pad to choose a mode.
+3. Buy, bake, sell, and review stats at your own pace.
+4. Use the tutorial for a guided experience.
+
+### Run Locally
+Open `main.html` in your browser. No build step required.
+
+---
+Created by Guitar-Fan. Contributions welcome!
 
 ## 🎮 Game Overview
 

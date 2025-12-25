@@ -5,6 +5,7 @@
 class GameController {
     constructor() {
         this.engine = null;
+        this.tutorial = null;
         this.currentPhase = 'menu'; // menu, buying, baking, selling, summary
         this.phaseOrder = ['buying', 'baking', 'selling', 'summary'];
         this.phaseIndex = 0;
@@ -19,12 +20,18 @@ class GameController {
     
     init() {
         this.engine = new FinancialEngine();
+        this.tutorial = new TutorialSystem(this);
         this.setupEventListeners();
         this.showMainMenu();
     }
     
     setupEventListeners() {
         // Engine events
+        this.engine.on('baking_started', (item) => {
+            window.dispatchEvent(new CustomEvent('engine:baking_started', { detail: { item } }));
+            this.updateStats();
+        });
+
         this.engine.on('baking_complete', (item) => {
             this.showPopup({
                 icon: item.recipeIcon,
@@ -46,8 +53,15 @@ class GameController {
             });
         });
         
-        this.engine.on('sale', () => this.updateStats());
-        this.engine.on('purchase', () => this.updateStats());
+        this.engine.on('sale', (data) => {
+            window.dispatchEvent(new CustomEvent('engine:sale', { detail: data }));
+            this.updateStats();
+        });
+        
+        this.engine.on('purchase', (data) => {
+            window.dispatchEvent(new CustomEvent('engine:purchase', { detail: data }));
+            this.updateStats();
+        });
     }
     
     // ==================== MAIN MENU ====================
@@ -64,14 +78,28 @@ class GameController {
                 </div>
                 
                 <div class="menu-buttons">
-                    <button class="menu-btn primary" id="btn-new-game">
-                        🎮 New Game
+                    <button class="menu-btn primary" id="btn-new-game" role="button" tabindex="0" aria-label="Start a new game">
+                        <span class="btn-content">
+                            <span class="btn-icon">🎮</span>
+                            <span class="btn-title">New Game</span>
+                            <span class="btn-sub">Start fresh with $15,000</span>
+                        </span>
                     </button>
-                    <button class="menu-btn secondary" id="btn-continue" style="display: none;">
-                        ▶️ Continue
+
+                    <button class="menu-btn secondary" id="btn-continue" role="button" tabindex="0" aria-label="Continue saved game" style="display: none;">
+                        <span class="btn-content">
+                            <span class="btn-icon">▶️</span>
+                            <span class="btn-title">Continue</span>
+                            <span class="btn-sub">Resume your last save</span>
+                        </span>
                     </button>
-                    <button class="menu-btn secondary" id="btn-tutorial">
-                        📖 How to Play
+
+                    <button class="menu-btn secondary" id="btn-tutorial" role="button" tabindex="0" aria-label="Open tutorial">
+                        <span class="btn-content">
+                            <span class="btn-icon">📖</span>
+                            <span class="btn-title">How to Play</span>
+                            <span class="btn-sub">Quick guide to game mechanics</span>
+                        </span>
                     </button>
                 </div>
                 
@@ -82,20 +110,68 @@ class GameController {
             </div>
         `;
         
-        // Check for saved game
+        // Reveal continue when a save exists
+        const btnContinue = document.getElementById('btn-continue');
         if (localStorage.getItem('bakery_save')) {
-            document.getElementById('btn-continue').style.display = 'block';
-            document.getElementById('btn-continue').onclick = () => this.loadAndStart();
+            btnContinue.style.display = 'block';
+            btnContinue.addEventListener('click', () => this.loadAndStart());
         }
         
-        document.getElementById('btn-new-game').onclick = () => this.startNewGame();
-        document.getElementById('btn-tutorial').onclick = () => this.showTutorial();
+        const btnNew = document.getElementById('btn-new-game');
+        const btnTut = document.getElementById('btn-tutorial');
+        
+        // Common accessible activation (keyboard Enter/Space)
+        const makeAccessible = (el, handler) => {
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    el.click();
+                }
+            });
+            el.addEventListener('click', handler);
+        };
+        
+        // Button press animation + ripple using GSAP
+        const animatePress = (btn, event) => {
+            // small scale pulse
+            gsap.fromTo(btn, { scale: 1 }, { scale: 1.04, duration: 0.08, yoyo: true, repeat: 1 });
+            // ripple
+            const rect = btn.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            ripple.className = 'btn-ripple';
+            const x = (event && event.clientX) ? event.clientX - rect.left : rect.width / 2;
+            const y = (event && event.clientY) ? event.clientY - rect.top : rect.height / 2;
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            btn.appendChild(ripple);
+            gsap.fromTo(ripple, { scale: 0, opacity: 0.35 }, { scale: 6, opacity: 0, duration: 0.7, onComplete: () => ripple.remove() });
+        };
+        
+        // Wire up New Game
+        makeAccessible(btnNew, (e) => {
+            animatePress(btnNew, e);
+            setTimeout(() => this.startNewGame(), 180);
+        });
+        
+        // Wire up Tutorial
+        makeAccessible(btnTut, (e) => {
+            animatePress(btnTut, e);
+            setTimeout(() => this.showTutorial(), 180);
+        });
+
+        // Give focus styles and hover micro-interactions
+        [btnNew, btnTut, btnContinue].forEach(b => {
+            if (!b) return;
+            b.addEventListener('mouseenter', () => gsap.to(b.querySelector('.btn-icon'), { y: -4, duration: 0.18 }));
+            b.addEventListener('mouseleave', () => gsap.to(b.querySelector('.btn-icon'), { y: 0, duration: 0.18 }));
+            b.addEventListener('mousedown', (ev) => animatePress(b, ev));
+        });
     }
     
     startNewGame() {
         this.engine.reset();
         localStorage.removeItem('bakery_save');
-        this.startDay();
+        this.goToPhase('setup');
     }
     
     loadAndStart() {
@@ -107,23 +183,137 @@ class GameController {
     }
     
     showTutorial() {
-        this.showPopup({
-            icon: '📖',
-            title: 'How to Play',
-            message: `
-                <div style="text-align: left; line-height: 1.8;">
-                    <p><strong>1. 📦 Buy Inventory</strong><br>Purchase ingredients from vendors</p>
-                    <p><strong>2. 🍞 Bake Products</strong><br>Turn ingredients into baked goods</p>
-                    <p><strong>3. 💰 Serve Customers</strong><br>Sell your products to customers</p>
-                    <p><strong>4. 📊 Review Day</strong><br>See your profits and pay expenses</p>
-                    <p style="color: var(--accent); margin-top: 15px;">
-                        <strong>Goal:</strong> Make more money than you spend!
-                    </p>
-                </div>
-            `,
-            type: 'info',
-            buttons: [{ text: 'Got it!', action: 'close' }]
-        });
+        if (this.tutorial) {
+            this.tutorial.start();
+        }
+    }
+    
+    // ==================== SETUP PHASE ====================
+    showSetupPhase() {
+        const container = document.getElementById('game-container');
+        this.setupChoices = {
+            location: null,
+            equipment: null,
+            staff: null,
+            paperwork: []
+        };
+
+        // Clear container and add Phaser container
+        container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 600px; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
+
+        // Initialize Phaser Game
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'phaser-container',
+            backgroundColor: '#2C1810',
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
+            },
+            scene: [StartupScene]
+        };
+
+        this.phaserGame = new Phaser.Game(config);
+        
+        // We keep the renderSetup method for the modal interactions to use
+        this.renderSetup = () => {
+            // This is now handled by the Phaser scene's modals updating the game state
+            // and potentially refreshing their own UI if needed.
+            // The selectSetup method still updates the state.
+        };
+    }
+
+    selectSetup(type, id) {
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        if (type === 'location') {
+            this.setupChoices.location = options.locations.find(l => l.id === id);
+        } else if (type === 'equipment') {
+            this.setupChoices.equipment = options.equipment.find(e => e.id === id);
+        } else if (type === 'staff') {
+            this.setupChoices.staff = options.staff.find(s => s.id === id);
+        } else if (type === 'paperwork') {
+            if (this.setupChoices.paperwork.includes(id)) {
+                this.setupChoices.paperwork = this.setupChoices.paperwork.filter(p => p !== id);
+            } else {
+                this.setupChoices.paperwork.push(id);
+            }
+        }
+        this.renderSetup();
+    }
+
+    canFinishSetup() {
+        return this.setupChoices.location && 
+               this.setupChoices.equipment && 
+               this.setupChoices.staff && 
+               this.setupChoices.paperwork.length === GAME_CONFIG.SETUP_OPTIONS.paperwork.length;
+    }
+
+    finishSetup() {
+        // Destroy Phaser game if it exists
+        if (this.phaserGame) {
+            this.phaserGame.destroy(true);
+            this.phaserGame = null;
+        }
+
+        // Apply choices to engine
+        const choices = this.setupChoices;
+        this.engine.rentAmount = choices.location.rent;
+        this.engine.trafficMultiplier = choices.location.traffic;
+        this.engine.ovenCapacity = choices.equipment.capacity;
+        this.engine.bakingSpeedMultiplier = 1.0 + (choices.staff.bonus || 0);
+        
+        // Deduct costs
+        const totalCost = choices.equipment.cost + choices.staff.cost + 
+                         choices.paperwork.reduce((sum, id) => sum + GAME_CONFIG.SETUP_OPTIONS.paperwork.find(p => p.id === id).cost, 0);
+        
+        this.engine.cash -= totalCost;
+        
+        // Initialize day state without forcing a modal; the hub will route phases
+        this.phaseIndex = 0;
+        this.engine.isPaused = true;
+        this.engine.hour = GAME_CONFIG.TIME.OPENING_HOUR;
+        this.engine.minute = 0;
+
+        // Move to free-roam mode hub
+        this.showModeHub();
+    }
+
+    showModeHub() {
+        this.currentPhase = 'hub';
+        window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase: 'hub' } }));
+
+        const container = document.getElementById('game-container');
+        container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 720px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
+
+        const config = {
+            type: Phaser.AUTO,
+            width: 1000,
+            height: 720,
+            parent: 'phaser-container',
+            backgroundColor: '#11161c',
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 0 }, debug: false }
+            },
+            scene: [ModeHubScene]
+        };
+
+        this.phaserGame = new Phaser.Game(config);
+    }
+
+    enterPhaseFromHub(phase) {
+        // Clean up hub
+        if (this.phaserGame) {
+            this.phaserGame.destroy(true);
+            this.phaserGame = null;
+        }
+        // Proceed to requested phase
+        this.goToPhase(phase);
     }
     
     // ==================== DAY FLOW ====================
@@ -138,7 +328,7 @@ class GameController {
             title: `Day ${this.engine.day} Begins!`,
             message: `Good morning, baker! Time to start your day.\n\nCurrent Cash: $${this.engine.cash.toFixed(2)}`,
             type: 'info',
-            buttons: [{ text: 'Start Shopping →', action: () => this.goToPhase('buying') }]
+            buttons: [{ text: 'Go to Bakery →', action: () => this.showModeHub() }]
         });
     }
     
@@ -146,7 +336,13 @@ class GameController {
         this.currentPhase = phase;
         this.updatePhaseIndicator();
         
+        // Dispatch event for tutorial system
+        window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase } }));
+        
         switch (phase) {
+            case 'setup':
+                this.showSetupPhase();
+                break;
             case 'buying':
                 this.showBuyingPhase();
                 break;
@@ -200,7 +396,7 @@ class GameController {
                 <p>Purchase ingredients from vendors. Check the recipe book to see what you need!</p>
             </div>
             
-            <div class="buying-layout">
+            <div class="buying-layout" id="buy-phase-container">
                 <div class="vendors-section">
                     <h3>Select Vendor</h3>
                     <div class="vendor-list" id="vendor-list"></div>
@@ -227,7 +423,7 @@ class GameController {
             
             <div class="phase-actions">
                 <button class="btn btn-primary" id="btn-done-buying">
-                    Done Shopping → Bake Products
+                    Done Shopping
                 </button>
             </div>
         `;
@@ -253,12 +449,15 @@ class GameController {
                     title: 'No Ingredients!',
                     message: 'You need to buy some ingredients before you can bake!',
                     type: 'warning',
-                    buttons: [{ text: 'Keep Shopping', action: 'close' }]
+                    buttons: [
+                        { text: 'Keep Shopping', action: 'close' },
+                        { text: 'Return to Hub', action: () => this.showModeHub() }
+                    ]
                 });
                 return;
             }
             
-            this.goToPhase('baking');
+            this.showModeHub();
         };
         
         this.updateStats();
@@ -459,7 +658,7 @@ class GameController {
                 <p>Choose recipes to bake. Each recipe uses ingredients and takes time.</p>
             </div>
             
-            <div class="baking-layout">
+            <div class="baking-layout" id="bake-phase-container">
                 <div class="recipes-section">
                     <h3>Recipes</h3>
                     <div class="recipe-grid" id="recipe-grid"></div>
@@ -475,8 +674,8 @@ class GameController {
             </div>
             
             <div class="phase-actions">
-                <button class="btn btn-secondary" id="btn-back-buying">← Back to Buying</button>
-                <button class="btn btn-primary" id="btn-done-baking">Done Baking → Open Shop</button>
+                <button class="btn btn-secondary" id="btn-back-hub">Return to Hub</button>
+                <button class="btn btn-primary" id="btn-done-baking">Done Baking</button>
             </div>
         `;
         
@@ -487,7 +686,11 @@ class GameController {
         // Start baking timer
         this.startBakingLoop();
         
-        document.getElementById('btn-back-buying').onclick = () => this.goToPhase('buying');
+        document.getElementById('btn-back-hub').onclick = () => {
+            this.stopBakingLoop();
+            this.showModeHub();
+        };
+        
         document.getElementById('btn-done-baking').onclick = () => {
             // Check if they have any products
             const totalProducts = this.engine.getTotalProductsAvailable();
@@ -498,13 +701,19 @@ class GameController {
                     title: 'No Products!',
                     message: 'You need to bake something before opening the shop!',
                     type: 'warning',
-                    buttons: [{ text: 'Keep Baking', action: 'close' }]
+                    buttons: [
+                        { text: 'Keep Baking', action: 'close' },
+                        { text: 'Return to Hub', action: () => {
+                            this.stopBakingLoop();
+                            this.showModeHub();
+                        }}
+                    ]
                 });
                 return;
             }
             
             this.stopBakingLoop();
-            this.goToPhase('selling');
+            this.showModeHub();
         };
         
         this.updateStats();
@@ -676,7 +885,7 @@ class GameController {
                 <p>Serve customers and make sales! Time: <span id="game-time">${this.engine.getTimeString()}</span></p>
             </div>
             
-            <div class="selling-layout">
+            <div class="selling-layout" id="sell-phase-container">
                 <div class="shop-display">
                     <h3>🏪 Your Display Case</h3>
                     <div class="display-products" id="display-products"></div>
@@ -715,7 +924,7 @@ class GameController {
                     { text: 'Stay Open', action: 'close', style: 'secondary' },
                     { text: 'Close Shop', action: () => {
                         this.stopSellingLoop();
-                        this.goToPhase('summary');
+                        this.showModeHub();
                     }}
                 ]
             });
@@ -783,7 +992,7 @@ class GameController {
                     title: 'Closing Time!',
                     message: 'The shop is now closed for the day.',
                     type: 'info',
-                    buttons: [{ text: 'View Summary', action: () => this.goToPhase('summary') }]
+                    buttons: [{ text: 'Return to Hub', action: () => this.showModeHub() }]
                 });
                 return;
             }
@@ -1018,7 +1227,7 @@ class GameController {
         const container = document.getElementById('game-container');
         
         container.innerHTML = `
-            <div class="summary-screen">
+            <div class="summary-screen" id="summary-phase-container">
                 <h2>📊 Day ${summary.day} Summary</h2>
                 
                 <div class="summary-grid">
@@ -1110,7 +1319,7 @@ class GameController {
     }
     
     updatePhaseIndicator() {
-        const phases = ['buying', 'baking', 'selling', 'summary'];
+        const phases = ['setup', 'buying', 'baking', 'selling', 'summary'];
         phases.forEach(phase => {
             const el = document.getElementById(`phase-${phase}`);
             if (el) {

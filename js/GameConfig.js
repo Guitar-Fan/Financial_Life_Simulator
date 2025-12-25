@@ -17,6 +17,26 @@ const GAME_CONFIG = {
         utilities: { name: 'Utilities', amount: 45, icon: '💡' },
         insurance: { name: 'Insurance', amount: 25, icon: '🛡️' }
     },
+
+    SETUP_OPTIONS: {
+        locations: [
+            { id: 'downtown', name: 'Downtown', rent: 300, traffic: 1.5, icon: '🏙️', description: 'High rent, high foot traffic.' },
+            { id: 'suburbs', name: 'Suburbs', rent: 150, traffic: 1.0, icon: '🏡', description: 'Moderate rent, steady customers.' },
+            { id: 'industrial', name: 'Industrial Zone', rent: 80, traffic: 0.6, icon: '🏭', description: 'Low rent, mostly delivery/bulk.' }
+        ],
+        equipment: [
+            { id: 'basic', name: 'Basic Oven', cost: 2000, capacity: 2, icon: '🔥', description: '2 slots, slow heating.' },
+            { id: 'pro', name: 'Professional Oven', cost: 5000, capacity: 5, icon: '🌋', description: '5 slots, fast heating.' }
+        ],
+        staff: [
+            { id: 'solo', name: 'Solo Operation', cost: 0, bonus: 0, icon: '👤', description: 'You do everything yourself.' },
+            { id: 'assistant', name: 'Hire Assistant', cost: 1000, bonus: 0.2, icon: '👥', description: 'Speeds up baking by 20%.' }
+        ],
+        paperwork: [
+            { id: 'license', name: 'Business License', cost: 500, icon: '📜' },
+            { id: 'health', name: 'Health Permit', cost: 300, icon: '🏥' }
+        ]
+    },
     
     // Crisis events
     CRISIS_EVENTS: [

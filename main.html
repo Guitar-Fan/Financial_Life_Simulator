@@ -22,6 +22,7 @@
     <!-- Chart.js for financial charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥐</text></svg>">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -226,47 +227,340 @@
         .menu-buttons {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 14px;
             margin-bottom: 30px;
+            align-items: center;
         }
 
         .menu-btn {
-            padding: 18px 50px;
+            padding: 14px 24px;
             border: none;
-            border-radius: 30px;
+            border-radius: 14px;
             font-family: 'Fredoka', sans-serif;
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
-            min-width: 280px;
+            transition: all 0.24s ease;
+            min-width: 300px;
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
         }
 
+        .menu-btn .btn-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .menu-btn .btn-icon {
+            font-size: 22px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .menu-btn .btn-title { font-size: 16px; }
+        .menu-btn .btn-sub { font-size: 12px; opacity: 0.85; color: rgba(255,255,255,0.9); display: block; }
+
         .menu-btn.primary {
-            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
+            background: linear-gradient(90deg, #FFD76B 0%, #F39C12 100%);
             color: var(--dark);
-            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+            box-shadow: 0 8px 30px rgba(243,156,18,0.18), 0 2px 6px rgba(0,0,0,0.25);
         }
 
         .menu-btn.primary:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(243,156,18,0.22);
         }
 
+        /* Animated gradient pulse for primary */
+        .menu-btn.primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.06) 100%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .menu-btn.primary:hover::before { opacity: 1; }
+
         .menu-btn.secondary {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
             color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .menu-btn.secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* Ripple */
+        .btn-ripple {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: rgba(255,255,255,0.22);
+            border-radius: 50%;
+            transform-origin: center;
+            pointer-events: none;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0);
+        }
+
+        /* Focus and keyboard */
+        .menu-btn:focus {
+            outline: none;
+        }
+
+        .menu-btn:focus-visible {
+            box-shadow: 0 0 0 4px rgba(255,215,0,0.12), 0 8px 30px rgba(0,0,0,0.25);
+            transform: translateY(-2px);
         }
 
         .menu-info {
             color: rgba(255, 255, 255, 0.6);
             font-size: 14px;
             line-height: 1.6;
+            max-width: 640px;
+            margin-top: 6px;
+        }
+
+        /* Tutorial Overlay */
+        #tutorial-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            display: none;
+            pointer-events: none;
+        }
+
+        #tutorial-overlay.active {
+            display: block;
+            pointer-events: all;
+        }
+
+        .tutorial-character {
+            position: fixed;
+            bottom: 20px;
+            right: 40px;
+            font-size: 120px;
+            z-index: 2001;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+        }
+
+        .dialogue-bubble {
+            position: fixed;
+            bottom: 160px;
+            right: 180px;
+            background: white;
+            color: var(--dark);
+            padding: 20px 25px;
+            border-radius: 25px;
+            border-bottom-right-radius: 2px;
+            max-width: 350px;
+            font-weight: 500;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            z-index: 2002;
+        }
+
+        .dialogue-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            right: 20px;
+            border-width: 15px 15px 0 0;
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+
+        .thought-bubble {
+            position: fixed;
+            bottom: 320px;
+            right: 220px;
+            background: #eef2ff;
+            color: #4338ca;
+            padding: 15px 20px;
+            border-radius: 50%;
+            max-width: 250px;
+            font-size: 13px;
+            font-style: italic;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 2002;
+        }
+
+        .thought-bubble::before, .thought-bubble::after {
+            content: '';
+            position: absolute;
+            background: #eef2ff;
+            border-radius: 50%;
+        }
+
+        .thought-bubble::before {
+            width: 20px;
+            height: 20px;
+            bottom: -10px;
+            right: 40px;
+        }
+
+        .thought-bubble::after {
+            width: 10px;
+            height: 10px;
+            bottom: -20px;
+            right: 30px;
+        }
+
+        .tutorial-highlight {
+            position: absolute;
+            border: 4px solid var(--accent);
+            border-radius: 15px;
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.7);
+            z-index: 1999;
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        .tutorial-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+
+        .tutorial-next-btn {
+            padding: 8px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .tutorial-next-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .tutorial-next-btn.pulse {
+            animation: btnPulse 1.5s infinite;
+        }
+
+        .tutorial-demo-btn {
+            padding: 8px 15px;
+            background: var(--accent);
+            color: var(--dark);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .tutorial-demo-btn:hover {
+            transform: scale(1.05);
+        }
+
+        @keyframes btnPulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8) translateY(20px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Setup Phase */
+        .setup-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+
+        .setup-section h3 {
+            color: var(--light);
+            margin-bottom: 15px;
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .setup-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+        }
+
+        .setup-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .setup-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .setup-card.selected {
+            border-color: var(--accent);
+            background: rgba(255, 215, 0, 0.1);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+        }
+
+        .setup-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .setup-name {
+            font-weight: 700;
+            color: var(--light);
+            margin-bottom: 5px;
+        }
+
+        .setup-desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 10px;
+        }
+
+        .setup-price {
+            font-weight: 600;
+            color: var(--accent);
         }
 
         /* Phase Header */
@@ -1373,6 +1667,7 @@
 
         <!-- Phase Indicator -->
         <div id="phase-indicator">
+            <div class="phase-step" id="phase-setup">🏗️ Setup</div>
             <div class="phase-step" id="phase-buying">📦 Buy</div>
             <div class="phase-step" id="phase-baking">🍞 Bake</div>
             <div class="phase-step" id="phase-selling">💰 Sell</div>
@@ -1388,6 +1683,9 @@
     <!-- Game Scripts -->
     <script src="js/GameConfig.js"></script>
     <script src="js/FinancialEngine.js"></script>
+    <script src="js/TutorialSystem.js"></script>
+    <script src="js/ModeHubScene.js"></script>
+    <script src="js/Bakery_Startup_Sequence.js"></script>
     <script src="js/GameController.js"></script>
 
     <script>

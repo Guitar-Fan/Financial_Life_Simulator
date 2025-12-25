@@ -36,6 +36,9 @@ class FinancialEngine {
         // Production
         this.productionQueue = [];
         this.ovenCapacity = 2;
+        this.bakingSpeedMultiplier = 1.0;
+        this.trafficMultiplier = 1.0;
+        this.rentAmount = GAME_CONFIG.DAILY_EXPENSES.rent.amount;
         
         // Prepared items (par-baked, frozen dough)
         this.preparedItems = [];
@@ -490,8 +493,11 @@ class FinancialEngine {
         const expenses = [];
         
         Object.entries(GAME_CONFIG.DAILY_EXPENSES).forEach(([key, expense]) => {
-            totalExpenses += expense.amount;
-            expenses.push({ ...expense, key });
+            let amount = expense.amount;
+            if (key === 'rent') amount = this.rentAmount;
+            
+            totalExpenses += amount;
+            expenses.push({ ...expense, amount, key });
         });
         
         this.cash -= totalExpenses;
