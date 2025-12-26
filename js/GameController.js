@@ -14,17 +14,17 @@ class GameController {
         this.customerQueue = [];
         this.currentCustomer = null;
         this.crisisActive = false;
-        
+
         this.init();
     }
-    
+
     init() {
         this.engine = new FinancialEngine();
         this.tutorial = new TutorialSystem(this);
         this.setupEventListeners();
         this.showMainMenu();
     }
-    
+
     setupEventListeners() {
         // Engine events
         this.engine.on('baking_started', (item) => {
@@ -42,7 +42,7 @@ class GameController {
             });
             this.updateStats();
         });
-        
+
         this.engine.on('hour_change', (data) => {
             this.showPopup({
                 icon: '🕐',
@@ -52,23 +52,23 @@ class GameController {
                 autoClose: 1500
             });
         });
-        
+
         this.engine.on('sale', (data) => {
             window.dispatchEvent(new CustomEvent('engine:sale', { detail: data }));
             this.updateStats();
         });
-        
+
         this.engine.on('purchase', (data) => {
             window.dispatchEvent(new CustomEvent('engine:purchase', { detail: data }));
             this.updateStats();
         });
     }
-    
+
     // ==================== MAIN MENU ====================
     showMainMenu() {
         this.currentPhase = 'menu';
         const container = document.getElementById('game-container');
-        
+
         container.innerHTML = `
             <div class="main-menu">
                 <div class="menu-header">
@@ -109,17 +109,17 @@ class GameController {
                 </div>
             </div>
         `;
-        
+
         // Reveal continue when a save exists
         const btnContinue = document.getElementById('btn-continue');
         if (localStorage.getItem('bakery_save')) {
             btnContinue.style.display = 'block';
             btnContinue.addEventListener('click', () => this.loadAndStart());
         }
-        
+
         const btnNew = document.getElementById('btn-new-game');
         const btnTut = document.getElementById('btn-tutorial');
-        
+
         // Common accessible activation (keyboard Enter/Space)
         const makeAccessible = (el, handler) => {
             el.addEventListener('keydown', (e) => {
@@ -130,7 +130,7 @@ class GameController {
             });
             el.addEventListener('click', handler);
         };
-        
+
         // Button press animation + ripple using GSAP
         const animatePress = (btn, event) => {
             // small scale pulse
@@ -146,13 +146,13 @@ class GameController {
             btn.appendChild(ripple);
             gsap.fromTo(ripple, { scale: 0, opacity: 0.35 }, { scale: 6, opacity: 0, duration: 0.7, onComplete: () => ripple.remove() });
         };
-        
+
         // Wire up New Game
         makeAccessible(btnNew, (e) => {
             animatePress(btnNew, e);
             setTimeout(() => this.startNewGame(), 180);
         });
-        
+
         // Wire up Tutorial
         makeAccessible(btnTut, (e) => {
             animatePress(btnTut, e);
@@ -167,13 +167,13 @@ class GameController {
             b.addEventListener('mousedown', (ev) => animatePress(b, ev));
         });
     }
-    
+
     startNewGame() {
         this.engine.reset();
         localStorage.removeItem('bakery_save');
         this.goToPhase('setup');
     }
-    
+
     loadAndStart() {
         const save = localStorage.getItem('bakery_save');
         if (save) {
@@ -181,13 +181,13 @@ class GameController {
         }
         this.startDay();
     }
-    
+
     showTutorial() {
         if (this.tutorial) {
             this.tutorial.start();
         }
     }
-    
+
     // ==================== SETUP PHASE ====================
     showSetupPhase() {
         const container = document.getElementById('game-container');
@@ -219,7 +219,7 @@ class GameController {
         };
 
         this.phaserGame = new Phaser.Game(config);
-        
+
         // We keep the renderSetup method for the modal interactions to use
         this.renderSetup = () => {
             // This is now handled by the Phaser scene's modals updating the game state
@@ -247,10 +247,10 @@ class GameController {
     }
 
     canFinishSetup() {
-        return this.setupChoices.location && 
-               this.setupChoices.equipment && 
-               this.setupChoices.staff && 
-               this.setupChoices.paperwork.length === GAME_CONFIG.SETUP_OPTIONS.paperwork.length;
+        return this.setupChoices.location &&
+            this.setupChoices.equipment &&
+            this.setupChoices.staff &&
+            this.setupChoices.paperwork.length === GAME_CONFIG.SETUP_OPTIONS.paperwork.length;
     }
 
     finishSetup() {
@@ -266,13 +266,13 @@ class GameController {
         this.engine.trafficMultiplier = choices.location.traffic;
         this.engine.ovenCapacity = choices.equipment.capacity;
         this.engine.bakingSpeedMultiplier = 1.0 + (choices.staff.bonus || 0);
-        
+
         // Deduct costs
-        const totalCost = choices.equipment.cost + choices.staff.cost + 
-                         choices.paperwork.reduce((sum, id) => sum + GAME_CONFIG.SETUP_OPTIONS.paperwork.find(p => p.id === id).cost, 0);
-        
+        const totalCost = choices.equipment.cost + choices.staff.cost +
+            choices.paperwork.reduce((sum, id) => sum + GAME_CONFIG.SETUP_OPTIONS.paperwork.find(p => p.id === id).cost, 0);
+
         this.engine.cash -= totalCost;
-        
+
         // Initialize day state without forcing a modal; the hub will route phases
         this.phaseIndex = 0;
         this.engine.isPaused = true;
@@ -304,6 +304,40 @@ class GameController {
         };
 
         this.phaserGame = new Phaser.Game(config);
+
+        // Add Economic Dashboard Overlay
+        const economyReport = this.engine.economy.getDailyReport(this.engine.day);
+        const eventsHtml = economyReport.activeEvents.length > 0
+            ? `<div class="econ-events">
+                ${economyReport.activeEvents.map(e => `
+                    <div class="event-ticker" title="${e.daysRemaining} days left">
+                        ${e.icon || '⚠️'} ${e.name}
+                    </div>
+                `).join('')}
+               </div>`
+            : '';
+
+        const dashboard = document.createElement('div');
+        dashboard.className = 'econ-dashboard';
+        dashboard.innerHTML = `
+            <h3>📈 Market Report</h3>
+            <div class="econ-row">
+                <span class="econ-label">Season</span>
+                <span class="econ-value">${economyReport.season.icon} ${economyReport.season.name}</span>
+            </div>
+            <div class="econ-row">
+                <span class="econ-label">Inflation</span>
+                <span class="econ-value">${economyReport.inflation.rate} ${economyReport.inflation.trend}</span>
+            </div>
+            <div class="econ-row">
+                <span class="econ-label">Supply</span>
+                <span class="econ-value" title="Grains/Dairy/Produce">
+                    🌾${economyReport.supply.grains} 🥛${economyReport.supply.dairy} 🍎${economyReport.supply.produce}
+                </span>
+            </div>
+            ${eventsHtml}
+        `;
+        container.appendChild(dashboard);
     }
 
     enterPhaseFromHub(phase) {
@@ -315,14 +349,14 @@ class GameController {
         // Proceed to requested phase
         this.goToPhase(phase);
     }
-    
+
     // ==================== DAY FLOW ====================
     startDay() {
         this.phaseIndex = 0;
         this.engine.isPaused = true;
         this.engine.hour = GAME_CONFIG.TIME.OPENING_HOUR;
         this.engine.minute = 0;
-        
+
         this.showPopup({
             icon: '🌅',
             title: `Day ${this.engine.day} Begins!`,
@@ -331,14 +365,14 @@ class GameController {
             buttons: [{ text: 'Go to Bakery →', action: () => this.showModeHub() }]
         });
     }
-    
+
     goToPhase(phase) {
         this.currentPhase = phase;
         this.updatePhaseIndicator();
-        
+
         // Dispatch event for tutorial system
         window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase } }));
-        
+
         switch (phase) {
             case 'setup':
                 this.showSetupPhase();
@@ -357,23 +391,23 @@ class GameController {
                 break;
         }
     }
-    
+
     confirmNextPhase() {
         const currentIndex = this.phaseOrder.indexOf(this.currentPhase);
         const nextPhase = this.phaseOrder[currentIndex + 1];
-        
+
         if (!nextPhase) {
             this.showSummaryPhase();
             return;
         }
-        
+
         const phaseNames = {
             buying: '📦 Buy Inventory',
             baking: '🍞 Bake Products',
             selling: '💰 Open Shop',
             summary: '📊 End of Day'
         };
-        
+
         this.showPopup({
             icon: '✅',
             title: 'Phase Complete!',
@@ -385,11 +419,11 @@ class GameController {
             ]
         });
     }
-    
+
     // ==================== BUYING PHASE ====================
     showBuyingPhase() {
         const container = document.getElementById('game-container');
-        
+
         container.innerHTML = `
             <div class="phase-header">
                 <h2>📦 Buy Inventory</h2>
@@ -427,22 +461,22 @@ class GameController {
                 </button>
             </div>
         `;
-        
+
         this.renderVendors();
         this.renderIngredients('METRO');
         this.renderInventory();
         this.renderRecipeReference();
-        
+
         document.getElementById('btn-done-buying').onclick = () => {
             // Check if they have any ingredients
             let hasIngredients = false;
             Object.values(this.engine.ingredients).forEach(i => {
-                const stock = this.engine.getIngredientStock(Object.keys(GAME_CONFIG.INGREDIENTS).find(k => 
+                const stock = this.engine.getIngredientStock(Object.keys(GAME_CONFIG.INGREDIENTS).find(k =>
                     this.engine.ingredients[k] === i
                 ));
                 if (stock > 0) hasIngredients = true;
             });
-            
+
             if (!hasIngredients) {
                 this.showPopup({
                     icon: '⚠️',
@@ -456,21 +490,21 @@ class GameController {
                 });
                 return;
             }
-            
+
             this.showModeHub();
         };
-        
+
         this.updateStats();
     }
-    
+
     // Render recipe book reference panel during buying
     renderRecipeReference() {
         const list = document.getElementById('recipe-ref-list');
         if (!list) return;
-        
+
         list.innerHTML = Object.entries(GAME_CONFIG.RECIPES).map(([key, recipe]) => {
             const { canBake } = this.engine.canBakeRecipe(key);
-            
+
             const ingredientsList = Object.entries(recipe.ingredients).map(([ingKey, amount]) => {
                 const ing = GAME_CONFIG.INGREDIENTS[ingKey];
                 const have = this.engine.getIngredientStock(ingKey);
@@ -480,7 +514,7 @@ class GameController {
                     <span class="have-amount">(have: ${have.toFixed(1)})</span>
                 </div>`;
             }).join('');
-            
+
             return `
                 <div class="recipe-ref-card ${canBake ? 'can-bake' : ''}">
                     <div class="recipe-ref-header">
@@ -496,15 +530,15 @@ class GameController {
             `;
         }).join('');
     }
-    
+
     renderVendors() {
         const list = document.getElementById('vendor-list');
         if (!list) return;
-        
+
         list.innerHTML = Object.entries(GAME_CONFIG.VENDORS).map(([key, vendor]) => {
             const priceLabel = vendor.priceMultiplier < 1 ? '💚 Cheaper' : vendor.priceMultiplier > 1 ? '💛 Premium' : '⚪ Standard';
             const qualityLabel = vendor.qualityMultiplier > 1 ? '✨ High Quality' : vendor.qualityMultiplier < 1 ? '📦 Basic Quality' : '👍 Good Quality';
-            
+
             return `
                 <div class="vendor-card" data-vendor="${key}">
                     <div class="vendor-icon">${vendor.icon}</div>
@@ -517,7 +551,7 @@ class GameController {
                 </div>
             `;
         }).join('');
-        
+
         list.querySelectorAll('.vendor-card').forEach(card => {
             card.onclick = () => {
                 list.querySelectorAll('.vendor-card').forEach(c => c.classList.remove('active'));
@@ -525,31 +559,43 @@ class GameController {
                 this.renderIngredients(card.dataset.vendor);
             };
         });
-        
+
         // Select first vendor
         list.querySelector('.vendor-card')?.classList.add('active');
     }
-    
+
     renderIngredients(vendorKey) {
         const grid = document.getElementById('ingredient-grid');
         if (!grid) return;
-        
+
         const vendor = GAME_CONFIG.VENDORS[vendorKey];
-        
+
         grid.innerHTML = Object.entries(GAME_CONFIG.INGREDIENTS)
             .filter(([key, ing]) => vendor.categories.includes(ing.category))
             .map(([key, ing]) => {
-                const price = ing.basePrice * vendor.priceMultiplier;
+                // Use dynamic price
+                const price = this.engine.getCurrentIngredientPrice(key, vendorKey);
+                // Get comparison to base price
+                const comparison = this.engine.economy.getPriceComparison(key, price);
+
                 const stock = this.engine.getIngredientStock(key);
                 const quality = this.engine.getIngredientQuality(key);
                 const qualityLabel = stock > 0 ? this.engine.getQualityLabel(quality) : null;
                 const startQuality = Math.min(100, ing.baseQuality * vendor.qualityMultiplier);
-                
+
+                let priceClass = '';
+                if (comparison.status === 'low') priceClass = 'price-low';
+                if (comparison.status === 'high') priceClass = 'price-high';
+
                 return `
                     <div class="ingredient-card" data-ingredient="${key}" data-vendor="${vendorKey}">
                         <div class="ing-icon">${ing.icon}</div>
                         <div class="ing-name">${ing.name}</div>
-                        <div class="ing-price">$${price.toFixed(2)}/${ing.unit}</div>
+                        <div class="ing-price ${priceClass}">
+                            $${price.toFixed(2)}/${ing.unit}
+                            ${comparison.status !== 'normal' ?
+                        `<span class="price-trend" title="${comparison.percentChange}% vs base">${comparison.arrow}</span>` : ''}
+                        </div>
                         <div class="ing-quality-info">
                             <span title="Starting quality from this vendor">Quality: ${startQuality.toFixed(0)}%</span>
                             <span title="Shelf life">📅 ${ing.shelfLife} days</span>
@@ -567,14 +613,14 @@ class GameController {
                     </div>
                 `;
             }).join('');
-        
+
         // Handle +/- buttons
         grid.querySelectorAll('.qty-btn').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const input = btn.closest('.qty-controls').querySelector('.qty-input');
                 let val = parseFloat(input.value) || 1;
-                
+
                 if (btn.dataset.action === 'plus') {
                     val = Math.min(100, val + 1);
                 } else {
@@ -583,7 +629,7 @@ class GameController {
                 input.value = val;
             };
         });
-        
+
         // Handle buy buttons
         grid.querySelectorAll('.btn-buy').forEach(btn => {
             btn.onclick = (e) => {
@@ -593,9 +639,9 @@ class GameController {
                 const vendorKey = card.dataset.vendor;
                 const input = card.querySelector('.qty-input');
                 const qty = parseFloat(input.value) || 1;
-                
+
                 const result = this.engine.purchaseIngredient(ingKey, qty, vendorKey);
-                
+
                 if (result.success) {
                     this.showPopup({
                         icon: '✅',
@@ -620,11 +666,11 @@ class GameController {
             };
         });
     }
-    
+
     renderInventory() {
         const list = document.getElementById('inventory-list');
         if (!list) return;
-        
+
         const items = Object.entries(this.engine.ingredients)
             .filter(([key, inv]) => this.engine.getIngredientStock(key) > 0)
             .map(([key, inv]) => {
@@ -632,7 +678,7 @@ class GameController {
                 const stock = this.engine.getIngredientStock(key);
                 const quality = this.engine.getIngredientQuality(key);
                 const qualityLabel = this.engine.getQualityLabel(quality);
-                
+
                 return `
                     <div class="inv-item">
                         <span>${ing.icon} ${ing.name}</span>
@@ -641,17 +687,17 @@ class GameController {
                     </div>
                 `;
             }).join('');
-        
+
         list.innerHTML = items || '<div class="inv-empty">No ingredients yet</div>';
-        
+
         const cashEl = document.getElementById('current-cash');
         if (cashEl) cashEl.textContent = `$${this.engine.cash.toFixed(2)}`;
     }
-    
+
     // ==================== BAKING PHASE ====================
     showBakingPhase() {
         const container = document.getElementById('game-container');
-        
+
         container.innerHTML = `
             <div class="phase-header">
                 <h2>🍞 Bake Products</h2>
@@ -678,23 +724,23 @@ class GameController {
                 <button class="btn btn-primary" id="btn-done-baking">Done Baking</button>
             </div>
         `;
-        
+
         this.renderRecipes();
         this.renderOven();
         this.renderReadyProducts();
-        
+
         // Start baking timer
         this.startBakingLoop();
-        
+
         document.getElementById('btn-back-hub').onclick = () => {
             this.stopBakingLoop();
             this.showModeHub();
         };
-        
+
         document.getElementById('btn-done-baking').onclick = () => {
             // Check if they have any products
             const totalProducts = this.engine.getTotalProductsAvailable();
-            
+
             if (totalProducts === 0 && this.engine.productionQueue.length === 0) {
                 this.showPopup({
                     icon: '⚠️',
@@ -703,26 +749,28 @@ class GameController {
                     type: 'warning',
                     buttons: [
                         { text: 'Keep Baking', action: 'close' },
-                        { text: 'Return to Hub', action: () => {
-                            this.stopBakingLoop();
-                            this.showModeHub();
-                        }}
+                        {
+                            text: 'Return to Hub', action: () => {
+                                this.stopBakingLoop();
+                                this.showModeHub();
+                            }
+                        }
                     ]
                 });
                 return;
             }
-            
+
             this.stopBakingLoop();
             this.showModeHub();
         };
-        
+
         this.updateStats();
     }
-    
+
     renderRecipes() {
         const grid = document.getElementById('recipe-grid');
         if (!grid) return;
-        
+
         grid.innerHTML = Object.entries(GAME_CONFIG.RECIPES).map(([key, recipe]) => {
             const { canBake, missing } = this.engine.canBakeRecipe(key);
             const cost = this.engine.calculateProductCost(key);
@@ -730,7 +778,7 @@ class GameController {
             const margin = ((profit / recipe.retailPrice) * 100).toFixed(0);
             const expectedQuality = this.engine.calculateProductQuality(key);
             const qualityLabel = this.engine.getQualityLabel(expectedQuality);
-            
+
             return `
                 <div class="recipe-card ${canBake ? '' : 'unavailable'}" data-recipe="${key}">
                     <div class="recipe-icon">${recipe.icon}</div>
@@ -744,22 +792,22 @@ class GameController {
                         ${qualityLabel.emoji} Expected: ${expectedQuality.toFixed(0)}% quality
                     </div>
                     <div class="recipe-time">⏱️ ${recipe.bakeTime} min | 📅 Fresh for ${recipe.shelfLife} days</div>
-                    ${canBake 
-                        ? '<button class="btn-bake">🔥 Bake</button>' 
-                        : `<div class="missing-label">Missing: ${missing.map(m => m.ingredient).join(', ')}</div>`
-                    }
+                    ${canBake
+                    ? '<button class="btn-bake">🔥 Bake</button>'
+                    : `<div class="missing-label">Missing: ${missing.map(m => m.ingredient).join(', ')}</div>`
+                }
                 </div>
             `;
         }).join('');
-        
+
         grid.querySelectorAll('.btn-bake').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const card = btn.closest('.recipe-card');
                 const recipeKey = card.dataset.recipe;
-                
+
                 const result = this.engine.startBaking(recipeKey, 1);
-                
+
                 if (result.success) {
                     this.showPopup({
                         icon: '🔥',
@@ -782,13 +830,13 @@ class GameController {
             };
         });
     }
-    
+
     renderOven() {
         const slots = document.getElementById('oven-slots');
         if (!slots) return;
-        
+
         const baking = this.engine.productionQueue.filter(p => p.status === 'baking');
-        
+
         let html = '';
         for (let i = 0; i < this.engine.ovenCapacity; i++) {
             const item = baking[i];
@@ -807,14 +855,14 @@ class GameController {
                 html += `<div class="oven-slot empty">Empty Slot</div>`;
             }
         }
-        
+
         slots.innerHTML = html;
     }
-    
+
     renderReadyProducts() {
         const container = document.getElementById('ready-products');
         if (!container) return;
-        
+
         const products = Object.entries(this.engine.products)
             .filter(([key, p]) => this.engine.getProductStock(key) > 0)
             .map(([key, p]) => {
@@ -824,7 +872,7 @@ class GameController {
                 const qualityLabel = this.engine.getQualityLabel(quality);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
                 const effectivePrice = recipe.retailPrice * priceMultiplier;
-                
+
                 return `
                     <div class="ready-item">
                         <span>${recipe.icon} ${recipe.name}</span>
@@ -834,22 +882,22 @@ class GameController {
                     </div>
                 `;
             }).join('');
-        
+
         container.innerHTML = products || '<div class="no-products">No products yet. Bake something!</div>';
     }
-    
+
     bakingLoopId = null;
-    
+
     startBakingLoop() {
         let lastTime = performance.now();
-        
+
         const loop = () => {
             const now = performance.now();
             const delta = now - lastTime;
             lastTime = now;
-            
+
             const completed = this.engine.updateProduction(delta);
-            
+
             if (completed.length > 0) {
                 this.renderOven();
                 this.renderReadyProducts();
@@ -857,28 +905,28 @@ class GameController {
             } else if (this.engine.productionQueue.length > 0) {
                 this.renderOven();
             }
-            
+
             this.bakingLoopId = requestAnimationFrame(loop);
         };
-        
+
         this.bakingLoopId = requestAnimationFrame(loop);
     }
-    
+
     stopBakingLoop() {
         if (this.bakingLoopId) {
             cancelAnimationFrame(this.bakingLoopId);
             this.bakingLoopId = null;
         }
     }
-    
+
     // ==================== SELLING PHASE ====================
     showSellingPhase() {
         this.engine.isPaused = false;
         this.customerQueue = [];
         this.currentCustomer = null;
-        
+
         const container = document.getElementById('game-container');
-        
+
         container.innerHTML = `
             <div class="phase-header">
                 <h2>💰 Open Shop - Day ${this.engine.day}</h2>
@@ -910,10 +958,10 @@ class GameController {
                 <button class="btn btn-danger" id="btn-close-shop">🚪 Close Shop Early</button>
             </div>
         `;
-        
+
         this.renderDisplayProducts();
         this.startSellingLoop();
-        
+
         document.getElementById('btn-close-shop').onclick = () => {
             this.showPopup({
                 icon: '🚪',
@@ -922,26 +970,28 @@ class GameController {
                 type: 'warning',
                 buttons: [
                     { text: 'Stay Open', action: 'close', style: 'secondary' },
-                    { text: 'Close Shop', action: () => {
-                        this.stopSellingLoop();
-                        this.showModeHub();
-                    }}
+                    {
+                        text: 'Close Shop', action: () => {
+                            this.stopSellingLoop();
+                            this.showModeHub();
+                        }
+                    }
                 ]
             });
         };
-        
+
         this.updateStats();
-        
+
         // Maybe trigger a crisis
         if (Math.random() < 0.3) {
             setTimeout(() => this.triggerCrisis(), 5000);
         }
     }
-    
+
     renderDisplayProducts() {
         const display = document.getElementById('display-products');
         if (!display) return;
-        
+
         const products = Object.entries(this.engine.products)
             .map(([key, p]) => {
                 const recipe = GAME_CONFIG.RECIPES[key];
@@ -950,7 +1000,7 @@ class GameController {
                 const qualityLabel = this.engine.getQualityLabel(quality);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
                 const effectivePrice = recipe.retailPrice * priceMultiplier;
-                
+
                 return `
                     <div class="display-item ${stock === 0 ? 'sold-out' : ''}">
                         <div class="display-icon">${recipe.icon}</div>
@@ -961,29 +1011,29 @@ class GameController {
                     </div>
                 `;
             }).join('');
-        
+
         display.innerHTML = products;
     }
-    
+
     sellingLoopId = null;
     lastCustomerTime = 0;
-    
+
     startSellingLoop() {
         let lastTime = performance.now();
         this.lastCustomerTime = lastTime;
-        
+
         const loop = () => {
             const now = performance.now();
             const delta = now - lastTime;
             lastTime = now;
-            
+
             // Update time
             this.engine.update(delta);
-            
+
             // Update time display
             const timeEl = document.getElementById('game-time');
             if (timeEl) timeEl.textContent = this.engine.getTimeString();
-            
+
             // Check closing time
             if (this.engine.isClosingTime()) {
                 this.stopSellingLoop();
@@ -996,28 +1046,28 @@ class GameController {
                 });
                 return;
             }
-            
+
             // Spawn customers
             if (!this.currentCustomer && !this.crisisActive) {
                 const timeSinceLastCustomer = now - this.lastCustomerTime;
                 const hourMult = GAME_CONFIG.DEMAND.hourlyMultiplier[Math.floor(this.engine.hour)] || 0.5;
                 const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult) / 60 / 10;
-                
+
                 if (timeSinceLastCustomer > 2000 && Math.random() < spawnChance) {
                     this.spawnCustomer();
                     this.lastCustomerTime = now;
                 }
             }
-            
+
             // Update stats display
             this.updateSellingStats();
-            
+
             this.sellingLoopId = requestAnimationFrame(loop);
         };
-        
+
         this.sellingLoopId = requestAnimationFrame(loop);
     }
-    
+
     stopSellingLoop() {
         this.engine.isPaused = true;
         if (this.sellingLoopId) {
@@ -1025,35 +1075,66 @@ class GameController {
             this.sellingLoopId = null;
         }
     }
-    
+
     spawnCustomer() {
         const customer = GAME_CONFIG.CUSTOMERS[Math.floor(Math.random() * GAME_CONFIG.CUSTOMERS.length)];
+        const segment = this.engine.selectCustomerSegment();
         const greetings = GAME_CONFIG.CUSTOMER_DIALOGUES.greeting;
         const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-        
-        // Find available products
+
+        // Find available products that this customer segment is willing to buy
         const available = Object.entries(this.engine.products)
-            .filter(([key, p]) => p.quantity > 0)
+            .filter(([key, p]) => {
+                if (p.quantity <= 0) return false;
+
+                // Demand check based on current price
+                const recipe = GAME_CONFIG.RECIPES[key];
+                const quality = this.engine.getProductQuality(key);
+                const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
+                const currentPrice = recipe.retailPrice * priceMultiplier;
+
+                return this.engine.willCustomerBuy(key, segment, currentPrice);
+            })
             .map(([key]) => key);
-        
+
+        // If nothing matches price requirements, they might still pick something but refuse later
+        // or just leave. For now let's just use available logic or random if none valid (so they can complain)
+
+        let wantsItem = null;
+        if (available.length > 0) {
+            wantsItem = available[Math.floor(Math.random() * available.length)];
+        } else {
+            // Check if we have stock at all?
+            const anyStock = Object.keys(this.engine.products).some(k => this.engine.getProductStock(k) > 0);
+            if (anyStock) {
+                // Have stock but too expensive for this customer
+                // Pick random item to complain about price
+                const allStock = Object.entries(this.engine.products)
+                    .filter(([k, p]) => p.quantity > 0)
+                    .map(([k]) => k);
+                if (allStock.length > 0) wantsItem = allStock[Math.floor(Math.random() * allStock.length)];
+            }
+        }
+
         this.currentCustomer = {
             ...customer,
+            segment,
             greeting,
-            wantsItem: available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null
+            wantsItem
         };
-        
+
         this.showCustomerPopup();
     }
-    
+
     showCustomerPopup() {
         const customer = this.currentCustomer;
         const customerArea = document.getElementById('customer-area');
-        
+
         if (!customer.wantsItem) {
             // Nothing available
             const sadDialogue = GAME_CONFIG.CUSTOMER_DIALOGUES.sad;
             const message = sadDialogue[Math.floor(Math.random() * sadDialogue.length)];
-            
+
             customerArea.innerHTML = `
                 <div class="customer-popup">
                     <div class="customer-face" style="font-size: 64px;">${customer.face}</div>
@@ -1062,26 +1143,29 @@ class GameController {
                     <div class="customer-mood">😢 Disappointed</div>
                 </div>
             `;
-            
+
             this.engine.missedCustomer();
-            
+
             setTimeout(() => {
                 this.currentCustomer = null;
                 customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
             }, 2000);
-            
+
             return;
         }
-        
+
         const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
         const orderDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.ordering;
         const orderMsg = orderDialogues[Math.floor(Math.random() * orderDialogues.length)]
             .replace('{item}', recipe.name);
-        
+
         customerArea.innerHTML = `
             <div class="customer-popup">
                 <div class="customer-face" style="font-size: 64px;">${customer.face}</div>
-                <div class="customer-name">${customer.name}</div>
+                <div class="customer-name">
+                    ${customer.name} 
+                    <span class="customer-segment" title="${customer.segment.description}">${customer.segment.icon}</span>
+                </div>
                 <div class="customer-dialogue">"${customer.greeting}"</div>
                 <div class="customer-order">"${orderMsg}"</div>
                 <div class="customer-buttons">
@@ -1090,22 +1174,22 @@ class GameController {
                 </div>
             </div>
         `;
-        
+
         document.getElementById('btn-sell').onclick = () => this.completeCustomerSale();
         document.getElementById('btn-refuse').onclick = () => this.refuseCustomer();
     }
-    
+
     completeCustomerSale() {
         const customer = this.currentCustomer;
         const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
-        
+
         const result = this.engine.processSale(customer.wantsItem, 1);
-        
+
         if (result.success) {
             const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
             const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)]
                 .replace('{item}', recipe.name);
-            
+
             const customerArea = document.getElementById('customer-area');
             customerArea.innerHTML = `
                 <div class="customer-popup success">
@@ -1115,44 +1199,44 @@ class GameController {
                     <div class="sale-amount">+$${result.revenue.toFixed(2)}</div>
                 </div>
             `;
-            
+
             this.renderDisplayProducts();
-            
+
             setTimeout(() => {
                 this.currentCustomer = null;
                 customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
             }, 1500);
         }
     }
-    
+
     refuseCustomer() {
         this.engine.missedCustomer();
         this.currentCustomer = null;
-        
+
         const customerArea = document.getElementById('customer-area');
         customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
     }
-    
+
     updateSellingStats() {
         const revenueEl = document.getElementById('stat-revenue');
         const customersEl = document.getElementById('stat-customers');
         const missedEl = document.getElementById('stat-missed');
-        
+
         if (revenueEl) revenueEl.textContent = `$${this.engine.dailyStats.revenue.toFixed(2)}`;
         if (customersEl) customersEl.textContent = this.engine.dailyStats.customersServed;
         if (missedEl) missedEl.textContent = this.engine.dailyStats.customersMissed;
     }
-    
+
     // ==================== CRISIS EVENTS ====================
     triggerCrisis() {
         if (this.crisisActive) return;
-        
+
         const events = GAME_CONFIG.CRISIS_EVENTS;
         const event = events[Math.floor(Math.random() * events.length)];
-        
+
         this.crisisActive = true;
         this.engine.isPaused = true;
-        
+
         this.showPopup({
             icon: event.urgent ? '🚨' : '⚠️',
             title: event.title,
@@ -1165,7 +1249,7 @@ class GameController {
             }))
         });
     }
-    
+
     resolveCrisis(event, choice) {
         if (choice.cost > 0) {
             this.engine.cash -= choice.cost;
@@ -1173,7 +1257,7 @@ class GameController {
         if (choice.bonus) {
             this.engine.cash += choice.bonus;
         }
-        
+
         this.showPopup({
             icon: choice.success ? '✅' : '❌',
             title: choice.success ? 'Crisis Resolved!' : 'Outcome',
@@ -1181,19 +1265,19 @@ class GameController {
             type: choice.success ? 'success' : 'warning',
             autoClose: 2000
         });
-        
+
         this.crisisActive = false;
         this.engine.isPaused = false;
         this.updateStats();
     }
-    
+
     // ==================== SUMMARY PHASE ====================
     showSummaryPhase() {
         this.stopBakingLoop();
         this.stopSellingLoop();
-        
+
         const summary = this.engine.endDay();
-        
+
         // Build spoilage warning if any items went bad
         let spoilageHtml = '';
         if (summary.spoiledIngredients && summary.spoiledIngredients.length > 0) {
@@ -1208,7 +1292,7 @@ class GameController {
                 </div>
             `;
         }
-        
+
         // Build stale products warning
         let staleHtml = '';
         if (summary.staleProducts && summary.staleProducts.length > 0) {
@@ -1223,9 +1307,9 @@ class GameController {
                 </div>
             `;
         }
-        
+
         const container = document.getElementById('game-container');
-        
+
         container.innerHTML = `
             <div class="summary-screen" id="summary-phase-container">
                 <h2>📊 Day ${summary.day} Summary</h2>
@@ -1286,13 +1370,13 @@ class GameController {
                 </div>
             </div>
         `;
-        
+
         // Save game
         localStorage.setItem('bakery_save', JSON.stringify(this.engine.save()));
-        
+
         document.getElementById('btn-main-menu').onclick = () => this.showMainMenu();
         document.getElementById('btn-next-day').onclick = () => this.startDay();
-        
+
         // Check for bankruptcy
         if (summary.cashEnd < 0) {
             setTimeout(() => {
@@ -1308,16 +1392,16 @@ class GameController {
             }, 1000);
         }
     }
-    
+
     // ==================== UI HELPERS ====================
     updateStats() {
         const cashEl = document.getElementById('nav-cash');
         if (cashEl) cashEl.textContent = `$${this.engine.cash.toFixed(2)}`;
-        
+
         const dayEl = document.getElementById('nav-day');
         if (dayEl) dayEl.textContent = `Day ${this.engine.day}`;
     }
-    
+
     updatePhaseIndicator() {
         const phases = ['setup', 'buying', 'baking', 'selling', 'summary'];
         phases.forEach(phase => {
@@ -1328,17 +1412,17 @@ class GameController {
             }
         });
     }
-    
+
     showPopup(options) {
         // Remove existing popup
         document.querySelectorAll('.game-popup-overlay').forEach(p => p.remove());
-        
+
         const overlay = document.createElement('div');
         overlay.className = 'game-popup-overlay';
-        
+
         const popup = document.createElement('div');
         popup.className = `game-popup ${options.type || 'info'}`;
-        
+
         let buttonsHtml = '';
         if (options.buttons) {
             buttonsHtml = `<div class="popup-buttons">
@@ -1349,23 +1433,23 @@ class GameController {
                 `).join('')}
             </div>`;
         }
-        
+
         popup.innerHTML = `
             <div class="popup-icon">${options.icon || 'ℹ️'}</div>
             <div class="popup-title">${options.title}</div>
             <div class="popup-message">${options.message}</div>
             ${buttonsHtml}
         `;
-        
+
         overlay.appendChild(popup);
         document.body.appendChild(overlay);
-        
+
         // Animate in
-        gsap.fromTo(popup, 
+        gsap.fromTo(popup,
             { scale: 0.5, opacity: 0 },
             { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out' }
         );
-        
+
         // Button handlers
         if (options.buttons) {
             popup.querySelectorAll('.popup-btn').forEach((btn, i) => {
@@ -1378,7 +1462,7 @@ class GameController {
                 };
             });
         }
-        
+
         // Auto close
         if (options.autoClose) {
             setTimeout(() => {
@@ -1390,7 +1474,7 @@ class GameController {
                 }
             }, options.autoClose);
         }
-        
+
         return overlay;
     }
 }

@@ -22,7 +22,8 @@
     <!-- Chart.js for financial charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥐</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥐</text></svg>">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -122,6 +123,84 @@
         .nav-actions {
             display: flex;
             gap: 10px;
+        }
+
+        /* Economic Indicators */
+        .econ-dashboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(17, 22, 28, 0.9);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ecf0f1;
+            font-family: 'Inter', sans-serif;
+            z-index: 100;
+            min-width: 250px;
+        }
+
+        .econ-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .econ-label {
+            color: #bdc3c7;
+            font-size: 14px;
+        }
+
+        .econ-value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .econ-events {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .event-ticker {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 3px solid #e74c3c;
+            padding: 8px;
+            margin-bottom: 5px;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+
+        /* Price Trends */
+        .ing-price {
+            font-weight: bold;
+            color: #f39c12;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .price-low {
+            color: #2ecc71;
+        }
+
+        .price-high {
+            color: #e74c3c;
+        }
+
+        .price-trend {
+            font-size: 1.2em;
+            cursor: help;
+        }
+
+        /* Customer Segments */
+        .customer-segment {
+            font-size: 0.8em;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            vertical-align: middle;
+            margin-left: 8px;
         }
 
         .nav-btn {
@@ -247,7 +326,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
         }
 
         .menu-btn .btn-content {
@@ -265,21 +344,29 @@
             width: 36px;
             height: 36px;
             border-radius: 10px;
-            background: rgba(255,255,255,0.06);
+            background: rgba(255, 255, 255, 0.06);
         }
 
-        .menu-btn .btn-title { font-size: 16px; }
-        .menu-btn .btn-sub { font-size: 12px; opacity: 0.85; color: rgba(255,255,255,0.9); display: block; }
+        .menu-btn .btn-title {
+            font-size: 16px;
+        }
+
+        .menu-btn .btn-sub {
+            font-size: 12px;
+            opacity: 0.85;
+            color: rgba(255, 255, 255, 0.9);
+            display: block;
+        }
 
         .menu-btn.primary {
             background: linear-gradient(90deg, #FFD76B 0%, #F39C12 100%);
             color: var(--dark);
-            box-shadow: 0 8px 30px rgba(243,156,18,0.18), 0 2px 6px rgba(0,0,0,0.25);
+            box-shadow: 0 8px 30px rgba(243, 156, 18, 0.18), 0 2px 6px rgba(0, 0, 0, 0.25);
         }
 
         .menu-btn.primary:hover {
             transform: translateY(-4px);
-            box-shadow: 0 16px 40px rgba(243,156,18,0.22);
+            box-shadow: 0 16px 40px rgba(243, 156, 18, 0.22);
         }
 
         /* Animated gradient pulse for primary */
@@ -287,11 +374,14 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(120deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.06) 100%);
+            background: linear-gradient(120deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.06) 100%);
             opacity: 0;
             transition: opacity 0.4s;
         }
-        .menu-btn.primary:hover::before { opacity: 1; }
+
+        .menu-btn.primary:hover::before {
+            opacity: 1;
+        }
 
         .menu-btn.secondary {
             background: rgba(255, 255, 255, 0.04);
@@ -301,7 +391,7 @@
 
         .menu-btn.secondary:hover {
             transform: translateY(-3px);
-            background: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         /* Ripple */
@@ -309,7 +399,7 @@
             position: absolute;
             width: 16px;
             height: 16px;
-            background: rgba(255,255,255,0.22);
+            background: rgba(255, 255, 255, 0.22);
             border-radius: 50%;
             transform-origin: center;
             pointer-events: none;
@@ -324,7 +414,7 @@
         }
 
         .menu-btn:focus-visible {
-            box-shadow: 0 0 0 4px rgba(255,215,0,0.12), 0 8px 30px rgba(0,0,0,0.25);
+            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.12), 0 8px 30px rgba(0, 0, 0, 0.25);
             transform: translateY(-2px);
         }
 
@@ -357,7 +447,7 @@
             right: 40px;
             font-size: 120px;
             z-index: 2001;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             user-select: none;
         }
@@ -373,7 +463,7 @@
             border-bottom-right-radius: 2px;
             max-width: 350px;
             font-weight: 500;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
             z-index: 2002;
         }
 
@@ -398,11 +488,12 @@
             max-width: 250px;
             font-size: 13px;
             font-style: italic;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             z-index: 2002;
         }
 
-        .thought-bubble::before, .thought-bubble::after {
+        .thought-bubble::before,
+        .thought-bubble::after {
             content: '';
             position: absolute;
             background: #eef2ff;
@@ -427,7 +518,7 @@
             position: absolute;
             border: 4px solid var(--accent);
             border-radius: 15px;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.7);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
             z-index: 1999;
             pointer-events: none;
             transition: all 0.4s ease;
@@ -477,19 +568,41 @@
         }
 
         @keyframes btnPulse {
-            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+            0% {
+                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(46, 204, 113, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+            }
         }
 
         @keyframes popIn {
-            from { transform: scale(0.8) translateY(20px); opacity: 0; }
-            to { transform: scale(1) translateY(0); opacity: 1; }
+            from {
+                transform: scale(0.8) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
         }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
         }
 
         /* Setup Phase */
@@ -1682,6 +1795,7 @@
 
     <!-- Game Scripts -->
     <script src="js/GameConfig.js"></script>
+    <script src="js/EconomySimulator.js"></script>
     <script src="js/FinancialEngine.js"></script>
     <script src="js/TutorialSystem.js"></script>
     <script src="js/ModeHubScene.js"></script>

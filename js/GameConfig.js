@@ -4,13 +4,13 @@
 
 const GAME_CONFIG = {
     STARTING_CASH: 15000,
-    
+
     TIME: {
         SECONDS_PER_GAME_MINUTE: 0.3,
         OPENING_HOUR: 6,
         CLOSING_HOUR: 18
     },
-    
+
     // Daily fixed expenses
     DAILY_EXPENSES: {
         rent: { name: 'Daily Rent', amount: 150, icon: '🏠' },
@@ -37,7 +37,7 @@ const GAME_CONFIG = {
             { id: 'health', name: 'Health Permit', cost: 300, icon: '🏥' }
         ]
     },
-    
+
     // Crisis events
     CRISIS_EVENTS: [
         {
@@ -81,7 +81,7 @@ const GAME_CONFIG = {
             ]
         }
     ],
-    
+
     // Customer faces
     CUSTOMERS: [
         { face: '👨', name: 'Mike', patience: 'normal' },
@@ -93,7 +93,7 @@ const GAME_CONFIG = {
         { face: '👩‍🦰', name: 'Emma', patience: 'normal' },
         { face: '🧔', name: 'James', patience: 'impatient' }
     ],
-    
+
     CUSTOMER_DIALOGUES: {
         greeting: [
             "Hi! What do you have fresh today?",
@@ -124,7 +124,7 @@ const GAME_CONFIG = {
             "That's disappointing."
         ]
     },
-    
+
     VENDORS: {
         SYSCO: {
             id: 'sysco',
@@ -157,7 +157,7 @@ const GAME_CONFIG = {
             categories: ['dry', 'dairy']
         }
     },
-    
+
     // Quality thresholds for pricing and usability
     QUALITY: {
         FRESH: 80,           // 80-100% = Fresh, full price
@@ -166,49 +166,49 @@ const GAME_CONFIG = {
         STALE: 20,           // 20-39% = Stale, 50% price, customers may refuse
         SPOILED: 0           // 0-19% = Spoiled, cannot use
     },
-    
+
     // Prep-ahead options for advanced baking
     PREP_OPTIONS: {
         FRESH: { id: 'fresh', name: 'Bake Fresh', icon: '🔥', qualityBonus: 1.0, timeMultiplier: 1.0 },
         PAR_BAKED: { id: 'parbaked', name: 'Par-Bake', icon: '⏸️', qualityBonus: 0.95, timeMultiplier: 0.6 },
         FROZEN_DOUGH: { id: 'frozen', name: 'Freeze Dough', icon: '❄️', qualityBonus: 0.90, shelfExtension: 7 }
     },
-    
+
     INGREDIENTS: {
-        FLOUR: { 
+        FLOUR: {
             id: 'flour', name: 'All-Purpose Flour', icon: '🌾', unit: 'lb', basePrice: 0.50, category: 'dry',
             shelfLife: 30, baseQuality: 100, decayRate: 2
         },
-        SUGAR: { 
+        SUGAR: {
             id: 'sugar', name: 'Sugar', icon: '🧂', unit: 'lb', basePrice: 0.55, category: 'dry',
             shelfLife: 60, baseQuality: 100, decayRate: 1
         },
-        BUTTER: { 
+        BUTTER: {
             id: 'butter', name: 'Butter', icon: '🧈', unit: 'lb', basePrice: 3.50, category: 'dairy',
             shelfLife: 14, baseQuality: 100, decayRate: 5
         },
-        EGGS: { 
+        EGGS: {
             id: 'eggs', name: 'Eggs', icon: '🥚', unit: 'dozen', basePrice: 3.25, category: 'dairy',
             shelfLife: 21, baseQuality: 100, decayRate: 4
         },
-        MILK: { 
+        MILK: {
             id: 'milk', name: 'Milk', icon: '🥛', unit: 'gallon', basePrice: 4.50, category: 'dairy',
             shelfLife: 7, baseQuality: 100, decayRate: 10
         },
-        YEAST: { 
+        YEAST: {
             id: 'yeast', name: 'Yeast', icon: '🫧', unit: 'pack', basePrice: 1.00, category: 'dry',
             shelfLife: 14, baseQuality: 100, decayRate: 5
         },
-        CHOCOLATE: { 
+        CHOCOLATE: {
             id: 'chocolate', name: 'Chocolate', icon: '🍫', unit: 'lb', basePrice: 8.00, category: 'dry',
             shelfLife: 90, baseQuality: 100, decayRate: 1
         },
-        VANILLA: { 
+        VANILLA: {
             id: 'vanilla', name: 'Vanilla', icon: '🌸', unit: 'bottle', basePrice: 5.00, category: 'dry',
             shelfLife: 365, baseQuality: 100, decayRate: 0.5
         }
     },
-    
+
     RECIPES: {
         BREAD: {
             id: 'bread',
@@ -266,7 +266,229 @@ const GAME_CONFIG = {
             decayRate: 20
         }
     },
-    
+
+    // ==================== ECONOMIC SIMULATION ====================
+    ECONOMY: {
+        // --- MACRO ECONOMIC CYCLES ---
+        INFLATION: {
+            // Base annual inflation rate (applied daily as day/365 portion)
+            baseRate: 0.03,  // 3% annual
+
+            // Inflation can swing between these bounds
+            minRate: -0.02,   // -2% (deflation)
+            maxRate: 0.08,    // 8% (high inflation)
+
+            // How quickly inflation trends change (0-1, lower = slower)
+            momentum: 0.1,
+
+            // Chance per day of trend reversal
+            reversalChance: 0.05
+        },
+
+        // --- SUPPLY & DEMAND DYNAMICS ---
+        SUPPLY_DEMAND: {
+            // How much scarcity affects prices (multiplier per 10% shortage)
+            scarcityImpact: 0.15,
+
+            // How much abundance reduces prices (multiplier per 10% surplus)
+            abundanceImpact: 0.08,
+
+            // Market rebalancing speed (0-1)
+            equilibriumSpeed: 0.2
+        },
+
+        // --- SEASONAL MODIFIERS ---
+        SEASONS: {
+            SPRING: {
+                demandMod: 1.0,
+                supplyMod: { grains: 0.9, dairy: 1.1, produce: 0.8 },
+                description: 'Fresh produce scarce, dairy abundant'
+            },
+            SUMMER: {
+                demandMod: 0.9,  // People on vacation
+                supplyMod: { grains: 1.0, dairy: 1.0, produce: 1.3 },
+                description: 'Lower foot traffic, abundant produce'
+            },
+            FALL: {
+                demandMod: 1.15, // Back to school, holidays coming
+                supplyMod: { grains: 1.2, dairy: 1.0, produce: 1.0 },
+                description: 'Grain harvest, high demand'
+            },
+            WINTER: {
+                demandMod: 1.2,  // Holiday season
+                supplyMod: { grains: 1.0, dairy: 0.9, produce: 0.7 },
+                description: 'Peak demand, produce expensive'
+            }
+        },
+
+        // --- DAY OF WEEK PATTERNS ---
+        WEEKLY_PATTERNS: {
+            // Customer traffic multipliers (0 = Monday)
+            traffic: [0.8, 0.9, 1.0, 1.0, 1.15, 1.3, 1.1],
+
+            // Ingredient delivery days affect prices
+            deliveryDays: [1, 4], // Tuesday, Friday = fresh stock, slightly lower prices
+            deliveryDiscount: 0.05
+        },
+
+        // --- VENDOR PRICING ---
+        VENDOR_PRICING: {
+            // Bulk discount tiers
+            BULK_DISCOUNTS: [
+                { minQty: 10, discount: 0.05 },  // 5% off 10+ units
+                { minQty: 25, discount: 0.10 },  // 10% off 25+ units
+                { minQty: 50, discount: 0.15 }   // 15% off 50+ units
+            ]
+        },
+
+        // --- RANDOM EVENTS AFFECTING ECONOMY ---
+        ECONOMIC_EVENTS: [
+            {
+                id: 'flour_shortage',
+                name: '🌾 Wheat Shortage',
+                description: 'Poor harvest reported. Flour prices rising.',
+                probability: 0.02,
+                duration: 5,  // days
+                effects: {
+                    ingredients: { FLOUR: 1.4 }  // 40% price increase
+                }
+            },
+            {
+                id: 'dairy_surplus',
+                name: '🥛 Dairy Surplus',
+                description: 'Dairy farmers have excess stock!',
+                probability: 0.03,
+                duration: 4,
+                effects: {
+                    ingredients: { MILK: 0.7, BUTTER: 0.75, EGGS: 0.8 }
+                }
+            },
+            {
+                id: 'sugar_spike',
+                name: '🍬 Sugar Prices Surge',
+                description: 'Global sugar demand drives prices up.',
+                probability: 0.025,
+                duration: 6,
+                effects: {
+                    ingredients: { SUGAR: 1.35, CHOCOLATE: 1.2 }
+                }
+            },
+            {
+                id: 'local_festival',
+                name: '🎉 Local Festival',
+                description: 'Town festival brings crowds!',
+                probability: 0.04,
+                duration: 2,
+                effects: {
+                    demand: 1.5,  // 50% more customers
+                    willingness: 1.1  // Will pay 10% more
+                }
+            },
+            {
+                id: 'competitor_opens',
+                name: '🏪 New Competitor',
+                description: 'A new bakery opened nearby!',
+                probability: 0.02,
+                duration: 7,
+                effects: {
+                    demand: 0.75,  // 25% fewer customers
+                    priceElasticity: 1.3  // Customers more price-sensitive
+                }
+            },
+            {
+                id: 'energy_costs',
+                name: '⚡ Energy Price Spike',
+                description: 'Utility costs are up this week.',
+                probability: 0.03,
+                duration: 5,
+                effects: {
+                    expenses: { utilities: 1.5 }
+                }
+            },
+            {
+                id: 'butter_shortage',
+                name: '🧈 Butter Scarcity',
+                description: 'Supply chain issues affecting butter!',
+                probability: 0.025,
+                duration: 4,
+                effects: {
+                    ingredients: { BUTTER: 1.5 }
+                }
+            },
+            {
+                id: 'good_harvest',
+                name: '🌾 Excellent Harvest',
+                description: 'Great weather led to bumper crops!',
+                probability: 0.03,
+                duration: 8,
+                effects: {
+                    ingredients: { FLOUR: 0.8, SUGAR: 0.85 }
+                }
+            }
+        ],
+
+        // --- TREND GENERATION ---
+        TRENDS: {
+            // Price trend persistence (higher = trends last longer)
+            persistence: 0.85,
+
+            // Maximum daily change percentage
+            maxDailyChange: 0.05,
+
+            // Bounds on how far prices can deviate from base
+            minMultiplier: 0.6,  // Prices can't go below 60% of base
+            maxMultiplier: 1.8   // Prices can't go above 180% of base
+        },
+
+        // --- RANDOMNESS CONSTRAINTS ---
+        RANDOM: {
+            // Daily price jitter (±%)
+            dailyVariance: 0.03,
+
+            // Smoothing factor for random walks (0-1, higher = smoother)
+            smoothing: 0.7
+        }
+    },
+
+    // --- PRICE ELASTICITY (demand response to price) ---
+    PRICE_ELASTICITY: {
+        DEFAULT: -1.2,
+        CATEGORY_MULTIPLIERS: {
+            bread: 0.8,    // Staples less elastic
+            pastry: 1.2,   // Discretionary more elastic
+            cookie: 1.0,   // Middle ground
+            cake: 1.5      // Luxury most elastic
+        }
+    },
+
+    // --- CUSTOMER SEGMENTS ---
+    CUSTOMER_SEGMENTS: {
+        BUDGET: {
+            name: 'Budget Shopper',
+            icon: '💰',
+            weight: 0.35,
+            priceMultiplier: 0.85,
+            qualityTolerance: 0.6,
+            description: 'Seeks deals, less picky about quality'
+        },
+        REGULAR: {
+            name: 'Regular Customer',
+            icon: '😊',
+            weight: 0.45,
+            priceMultiplier: 1.0,
+            qualityTolerance: 0.8,
+            description: 'Balanced price/quality expectations'
+        },
+        PREMIUM: {
+            name: 'Quality Seeker',
+            icon: '⭐',
+            weight: 0.20,
+            priceMultiplier: 1.25,
+            qualityTolerance: 1.0,
+            description: 'Pays more for high quality'
+        }
+    },
+
     DEMAND: {
         hourlyMultiplier: { 6: 0.3, 7: 0.8, 8: 1.5, 9: 1.2, 10: 0.8, 11: 1.0, 12: 1.3, 13: 1.0, 14: 0.7, 15: 0.9, 16: 1.1, 17: 0.8, 18: 0.4 },
         baseCustomersPerHour: 4
