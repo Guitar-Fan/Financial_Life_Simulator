@@ -19,22 +19,512 @@ const GAME_CONFIG = {
     },
 
     SETUP_OPTIONS: {
+        // LOCATIONS - Detailed real estate with multiple parameters
         locations: [
-            { id: 'downtown', name: 'Downtown', rent: 300, traffic: 1.5, icon: '🏙️', description: 'High rent, high foot traffic.' },
-            { id: 'suburbs', name: 'Suburbs', rent: 150, traffic: 1.0, icon: '🏡', description: 'Moderate rent, steady customers.' },
-            { id: 'industrial', name: 'Industrial Zone', rent: 80, traffic: 0.6, icon: '🏭', description: 'Low rent, mostly delivery/bulk.' }
+            {
+                id: 'downtown_prime',
+                name: 'Downtown Prime - Main Street',
+                rent: 450,
+                traffic: 2.0,
+                size: 1200, // sq ft
+                parking: 'street',
+                visibility: 'excellent',
+                competition: 'high',
+                demographics: 'affluent',
+                walkScore: 95,
+                transitAccess: 'excellent',
+                zoningFees: 200,
+                icon: '🏙️',
+                description: 'Prime location with maximum foot traffic. High rent but wealthy clientele. Parking challenges.',
+                pros: ['High foot traffic', 'Wealthy customers', 'Great visibility'],
+                cons: ['Very expensive', 'High competition', 'Limited parking']
+            },
+            {
+                id: 'downtown_side',
+                name: 'Downtown - Side Street',
+                rent: 280,
+                traffic: 1.4,
+                size: 900,
+                parking: 'limited',
+                visibility: 'good',
+                competition: 'medium',
+                demographics: 'mixed',
+                walkScore: 88,
+                transitAccess: 'good',
+                zoningFees: 150,
+                icon: '🏢',
+                description: 'Still downtown but quieter street. Good balance of cost and traffic.',
+                pros: ['Good location', 'Reasonable rent', 'Less competition'],
+                cons: ['Lower visibility', 'Smaller space']
+            },
+            {
+                id: 'suburbs_plaza',
+                name: 'Suburban Shopping Plaza',
+                rent: 200,
+                traffic: 1.2,
+                size: 1500,
+                parking: 'ample',
+                visibility: 'good',
+                competition: 'low',
+                demographics: 'families',
+                walkScore: 60,
+                transitAccess: 'fair',
+                zoningFees: 100,
+                icon: '🏬',
+                description: 'Family-oriented area with good parking. Steady daytime traffic.',
+                pros: ['Ample parking', 'Family customers', 'Larger space'],
+                cons: ['Car-dependent', 'Lower evening traffic']
+            },
+            {
+                id: 'suburbs_residential',
+                name: 'Residential Neighborhood',
+                rent: 150,
+                traffic: 0.9,
+                size: 800,
+                parking: 'street',
+                visibility: 'fair',
+                competition: 'low',
+                demographics: 'locals',
+                walkScore: 70,
+                transitAccess: 'limited',
+                zoningFees: 75,
+                icon: '🏡',
+                description: 'Quiet neighborhood spot. Build loyal local base over time.',
+                pros: ['Low rent', 'No competition', 'Community feel'],
+                cons: ['Low initial traffic', 'Limited growth']
+            },
+            {
+                id: 'college_campus',
+                name: 'Near College Campus',
+                rent: 320,
+                traffic: 1.8,
+                size: 1000,
+                parking: 'bike_racks',
+                visibility: 'excellent',
+                competition: 'medium',
+                demographics: 'students',
+                walkScore: 92,
+                transitAccess: 'excellent',
+                zoningFees: 125,
+                icon: '🎓',
+                description: 'Student-heavy area. High volume but price-sensitive customers.',
+                pros: ['High volume', 'Late hours viable', 'Young crowd'],
+                cons: ['Price-sensitive', 'Seasonal (summer slow)']
+            },
+            {
+                id: 'industrial_wholesale',
+                name: 'Industrial - Wholesale District',
+                rent: 120,
+                traffic: 0.5,
+                size: 2000,
+                parking: 'loading_dock',
+                visibility: 'poor',
+                competition: 'none',
+                demographics: 'businesses',
+                walkScore: 30,
+                transitAccess: 'poor',
+                zoningFees: 50,
+                icon: '🏭',
+                description: 'Large space for wholesale/catering focus. No foot traffic.',
+                pros: ['Very low rent', 'Huge space', 'B2B opportunity'],
+                cons: ['No walk-ins', 'Requires delivery setup']
+            }
         ],
-        equipment: [
-            { id: 'basic', name: 'Basic Oven', cost: 2000, capacity: 2, icon: '🔥', description: '2 slots, slow heating.' },
-            { id: 'pro', name: 'Professional Oven', cost: 5000, capacity: 5, icon: '🌋', description: '5 slots, fast heating.' }
-        ],
+
+        // EQUIPMENT - Professional bakery equipment tiers
+        equipment: {
+            ovens: [
+                {
+                    id: 'home_oven',
+                    name: 'Residential Oven (Used)',
+                    cost: 800,
+                    capacity: 1,
+                    speed: 0.7,
+                    reliability: 0.6,
+                    energyCost: 1.2,
+                    warranty: 0,
+                    icon: '🔥',
+                    description: 'Barely legal for commercial use. Frequent breakdowns.',
+                    lifespan: 3 // years
+                },
+                {
+                    id: 'basic_convection',
+                    name: 'Basic Convection Oven',
+                    cost: 2500,
+                    capacity: 2,
+                    speed: 1.0,
+                    reliability: 0.8,
+                    energyCost: 1.0,
+                    warranty: 1,
+                    icon: '🔥',
+                    description: 'Entry-level commercial. Reliable starter oven.',
+                    lifespan: 7
+                },
+                {
+                    id: 'pro_deck',
+                    name: 'Professional Deck Oven',
+                    cost: 6000,
+                    capacity: 4,
+                    speed: 1.15,
+                    reliability: 0.9,
+                    energyCost: 0.95,
+                    warranty: 3,
+                    icon: '🌋',
+                    description: 'Serious baker\'s choice. Even heat distribution.',
+                    lifespan: 12
+                },
+                {
+                    id: 'commercial_rack',
+                    name: 'Commercial Rack Oven',
+                    cost: 12000,
+                    capacity: 8,
+                    speed: 1.3,
+                    reliability: 0.95,
+                    energyCost: 0.85,
+                    warranty: 5,
+                    icon: '🏭',
+                    description: 'High-volume production. Rotating racks, consistent results.',
+                    lifespan: 15
+                }
+            ],
+            mixers: [
+                {
+                    id: 'hand_tools',
+                    name: 'Hand Tools Only',
+                    cost: 200,
+                    efficiency: 0.5,
+                    capacity: 5, // lbs of dough
+                    icon: '🥄',
+                    description: 'Manual mixing. Exhausting but cheap.'
+                },
+                {
+                    id: 'countertop_mixer',
+                    name: 'Countertop Stand Mixer',
+                    cost: 800,
+                    efficiency: 1.0,
+                    capacity: 10,
+                    icon: '🔄',
+                    description: 'Small batches. Good for artisan approach.'
+                },
+                {
+                    id: 'floor_mixer',
+                    name: 'Floor Stand Mixer (20qt)',
+                    cost: 3500,
+                    efficiency: 1.5,
+                    capacity: 30,
+                    icon: '⚙️',
+                    description: 'Commercial workhorse. Handles large batches.'
+                },
+                {
+                    id: 'spiral_mixer',
+                    name: 'Spiral Mixer (60qt)',
+                    cost: 8000,
+                    efficiency: 2.0,
+                    capacity: 80,
+                    icon: '🌀',
+                    description: 'Professional grade. Perfect for artisan bread.'
+                }
+            ],
+            displays: [
+                {
+                    id: 'folding_table',
+                    name: 'Folding Table',
+                    cost: 50,
+                    appeal: 0.7,
+                    capacity: 20,
+                    icon: '📋',
+                    description: 'Barely presentable. Customers notice.'
+                },
+                {
+                    id: 'basic_case',
+                    name: 'Basic Display Case',
+                    cost: 1200,
+                    appeal: 1.0,
+                    capacity: 40,
+                    icon: '🪟',
+                    description: 'Clean glass case. Professional appearance.'
+                },
+                {
+                    id: 'refrigerated_case',
+                    name: 'Refrigerated Display',
+                    cost: 3500,
+                    appeal: 1.3,
+                    capacity: 60,
+                    shelfLifeBonus: 2, // extra days
+                    icon: '❄️',
+                    description: 'Keeps products fresh longer. Attractive lighting.'
+                },
+                {
+                    id: 'european_case',
+                    name: 'European-Style Display',
+                    cost: 6500,
+                    appeal: 1.6,
+                    capacity: 80,
+                    shelfLifeBonus: 3,
+                    icon: '✨',
+                    description: 'Stunning presentation. Customers pay premium.'
+                }
+            ]
+        },
+
+        // STAFF - Detailed employee profiles
         staff: [
-            { id: 'solo', name: 'Solo Operation', cost: 0, bonus: 0, icon: '👤', description: 'You do everything yourself.' },
-            { id: 'assistant', name: 'Hire Assistant', cost: 1000, bonus: 0.2, icon: '👥', description: 'Speeds up baking by 20%.' }
+            {
+                id: 'solo',
+                name: 'Solo Operation',
+                monthlyCost: 0,
+                efficiency: 1.0,
+                skillLevel: 'owner',
+                hours: 'unlimited',
+                benefits: 0,
+                icon: '👤',
+                description: 'You do everything. Maximum control, maximum burnout risk.',
+                pros: ['No payroll', 'Full control'],
+                cons: ['Limited hours', 'Burnout risk', 'Can\'t scale']
+            },
+            {
+                id: 'part_time',
+                name: 'Part-Time Helper',
+                monthlyCost: 1200,
+                efficiency: 0.6,
+                skillLevel: 'entry',
+                hours: '20/week',
+                benefits: 0,
+                icon: '👨‍🍳',
+                description: 'High school student. Unreliable but affordable.',
+                pros: ['Cheap labor', 'Flexible'],
+                cons: ['High turnover', 'Training needed', 'Limited availability']
+            },
+            {
+                id: 'assistant_baker',
+                name: 'Assistant Baker',
+                monthlyCost: 2400,
+                efficiency: 1.2,
+                skillLevel: 'intermediate',
+                hours: 'full-time',
+                benefits: 300,
+                icon: '👨‍🍳',
+                description: 'Culinary school grad. Eager to learn, solid skills.',
+                pros: ['Full-time coverage', 'Growing skills', 'Reliable'],
+                cons: ['Moderate cost', 'Needs supervision']
+            },
+            {
+                id: 'head_baker',
+                name: 'Experienced Head Baker',
+                monthlyCost: 4000,
+                efficiency: 1.8,
+                skillLevel: 'expert',
+                hours: 'full-time',
+                benefits: 600,
+                icon: '👨‍🍳',
+                description: '10+ years experience. Can run operations independently.',
+                pros: ['Expert skills', 'Independent', 'Can train others'],
+                cons: ['Expensive', 'May demand equity']
+            },
+            {
+                id: 'small_team',
+                name: 'Small Team (3 people)',
+                monthlyCost: 6500,
+                efficiency: 2.5,
+                skillLevel: 'mixed',
+                hours: 'full coverage',
+                benefits: 900,
+                icon: '👥',
+                description: 'Baker + 2 assistants. Can handle growth.',
+                pros: ['Shift coverage', 'Redundancy', 'Growth ready'],
+                cons: ['High payroll', 'Management overhead']
+            }
         ],
+
+        // PERMITS & LICENSES - Comprehensive regulatory compliance
         paperwork: [
-            { id: 'license', name: 'Business License', cost: 500, icon: '📜' },
-            { id: 'health', name: 'Health Permit', cost: 300, icon: '🏥' }
+            // Required permits
+            {
+                id: 'business_license',
+                name: 'Business License',
+                cost: 500,
+                annual: 200,
+                required: true,
+                processingTime: 2, // days
+                icon: '📜',
+                description: 'Basic business registration with the city.'
+            },
+            {
+                id: 'health_permit',
+                name: 'Health Department Permit',
+                cost: 400,
+                annual: 300,
+                required: true,
+                processingTime: 5,
+                inspectionRequired: true,
+                icon: '🏥',
+                description: 'Mandatory health inspection and certification.'
+            },
+            {
+                id: 'food_handlers',
+                name: 'Food Handler Certifications',
+                cost: 150,
+                annual: 0,
+                required: true,
+                processingTime: 1,
+                icon: '👨‍🍳',
+                description: 'Required certification for all staff.'
+            },
+            // Optional but beneficial
+            {
+                id: 'liquor_license',
+                name: 'Liquor License (Beer/Wine)',
+                cost: 2000,
+                annual: 500,
+                required: false,
+                processingTime: 30,
+                revenueBonus: 1.15,
+                icon: '🍷',
+                description: 'Serve beer and wine. Increases revenue 15%.'
+            },
+            {
+                id: 'sidewalk_permit',
+                name: 'Sidewalk Café Permit',
+                cost: 300,
+                annual: 150,
+                required: false,
+                processingTime: 7,
+                trafficBonus: 1.1,
+                icon: '☕',
+                description: 'Outdoor seating. Attracts 10% more customers.'
+            },
+            {
+                id: 'catering_license',
+                name: 'Catering License',
+                cost: 600,
+                annual: 200,
+                required: false,
+                processingTime: 10,
+                icon: '🎉',
+                description: 'Unlock catering/events revenue stream.'
+            },
+            {
+                id: 'organic_cert',
+                name: 'Organic Certification',
+                cost: 1500,
+                annual: 400,
+                required: false,
+                processingTime: 45,
+                priceMultiplier: 1.25,
+                icon: '🌱',
+                description: 'Charge premium prices. Appeals to health-conscious.'
+            }
+        ],
+
+        // INSURANCE - Risk management options
+        insurance: [
+            {
+                id: 'basic_liability',
+                name: 'Basic Liability',
+                monthlyCost: 150,
+                coverage: 500000,
+                covers: ['slip_fall', 'property_damage'],
+                icon: '🛡️',
+                description: 'Minimum required coverage. $500k limit.'
+            },
+            {
+                id: 'standard_package',
+                name: 'Standard Business Package',
+                monthlyCost: 280,
+                coverage: 1000000,
+                covers: ['liability', 'property', 'equipment', 'business_interruption'],
+                icon: '🛡️',
+                description: 'Comprehensive protection. $1M coverage.'
+            },
+            {
+                id: 'premium_coverage',
+                name: 'Premium Coverage',
+                monthlyCost: 450,
+                coverage: 2000000,
+                covers: ['liability', 'property', 'equipment', 'business_interruption', 'cyber', 'employment'],
+                icon: '🛡️',
+                description: 'Full protection. $2M coverage plus cyber and employment.'
+            }
+        ],
+
+        // FINANCING - Capital sources
+        financing: [
+            {
+                id: 'personal_savings',
+                name: 'Personal Savings Only',
+                amount: 0,
+                interestRate: 0,
+                term: 0,
+                description: 'Bootstrap with your own money. No debt.'
+            },
+            {
+                id: 'sba_loan',
+                name: 'SBA Small Business Loan',
+                amount: 25000,
+                interestRate: 0.065, // 6.5%
+                term: 60, // months
+                monthlyPayment: 488,
+                description: 'Government-backed. Low rate, long term.'
+            },
+            {
+                id: 'bank_loan',
+                name: 'Bank Business Loan',
+                amount: 20000,
+                interestRate: 0.085, // 8.5%
+                term: 36,
+                monthlyPayment: 631,
+                description: 'Traditional bank loan. Moderate rate.'
+            },
+            {
+                id: 'credit_card',
+                name: 'Business Credit Card',
+                amount: 10000,
+                interestRate: 0.18, // 18%
+                term: 24,
+                monthlyPayment: 499,
+                description: 'Quick access. Very high interest rate.'
+            },
+            {
+                id: 'family_loan',
+                name: 'Family & Friends',
+                amount: 15000,
+                interestRate: 0.03, // 3%
+                term: 48,
+                monthlyPayment: 332,
+                description: 'Low interest but personal risk.'
+            }
+        ],
+
+        // UTILITIES & SERVICES
+        utilities: [
+            {
+                id: 'basic_power',
+                name: 'Standard Electric Service',
+                monthlyCost: 200,
+                reliability: 0.95,
+                description: 'Basic grid power. Occasional outages.'
+            },
+            {
+                id: 'commercial_power',
+                name: 'Commercial Electric + Backup',
+                monthlyCost: 350,
+                reliability: 0.99,
+                description: 'Priority service with backup generator.'
+            },
+            {
+                id: 'basic_internet',
+                name: 'Basic Internet',
+                monthlyCost: 60,
+                features: ['email', 'pos'],
+                description: 'Enough for POS and email.'
+            },
+            {
+                id: 'business_internet',
+                name: 'Business Fiber',
+                monthlyCost: 120,
+                features: ['email', 'pos', 'online_orders', 'cloud'],
+                description: 'Fast, reliable. Enables online ordering.'
+            }
         ]
     },
 
@@ -215,7 +705,7 @@ const GAME_CONFIG = {
             name: 'Fresh Bread',
             icon: '🍞',
             category: 'bread',
-            bakeTime: 3,
+            bakeTime: 0.1, // ~6 seconds in real time (was 3 minutes)
             retailPrice: 4.50,
             ingredients: { FLOUR: 2, SUGAR: 0.1, BUTTER: 0.2, YEAST: 0.5, MILK: 0.2 },
             shelfLife: 2,      // Days the product stays fresh
@@ -226,7 +716,7 @@ const GAME_CONFIG = {
             name: 'Croissant',
             icon: '🥐',
             category: 'pastry',
-            bakeTime: 4,
+            bakeTime: 0.1, // ~6 seconds
             retailPrice: 3.50,
             ingredients: { FLOUR: 0.5, BUTTER: 0.5, EGGS: 0.25, SUGAR: 0.1, YEAST: 0.2 },
             shelfLife: 1,
@@ -237,7 +727,7 @@ const GAME_CONFIG = {
             name: 'Chocolate Cookie',
             icon: '🍪',
             category: 'cookie',
-            bakeTime: 2,
+            bakeTime: 0.05, // ~3 seconds
             retailPrice: 2.00,
             ingredients: { FLOUR: 0.25, SUGAR: 0.15, BUTTER: 0.2, EGGS: 0.1, CHOCOLATE: 0.15 },
             shelfLife: 5,
@@ -248,7 +738,7 @@ const GAME_CONFIG = {
             name: 'Muffin',
             icon: '🧁',
             category: 'pastry',
-            bakeTime: 3,
+            bakeTime: 0.1, // ~6 seconds
             retailPrice: 2.75,
             ingredients: { FLOUR: 0.3, SUGAR: 0.15, BUTTER: 0.15, EGGS: 0.2, MILK: 0.1 },
             shelfLife: 3,
@@ -259,7 +749,7 @@ const GAME_CONFIG = {
             name: 'Chocolate Cake',
             icon: '🎂',
             category: 'cake',
-            bakeTime: 5,
+            bakeTime: 0.15, // ~9 seconds (bigger item)
             retailPrice: 25.00,
             ingredients: { FLOUR: 1.5, SUGAR: 1.0, BUTTER: 0.75, EGGS: 1.0, CHOCOLATE: 0.5, MILK: 0.5 },
             shelfLife: 4,

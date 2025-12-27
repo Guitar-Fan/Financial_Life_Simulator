@@ -35,7 +35,7 @@ class FinancialEngine {
 
         // Production
         this.productionQueue = [];
-        this.ovenCapacity = 2;
+        this.ovenCapacity = 8; // 4x original for faster gameplay
         this.bakingSpeedMultiplier = 1.0;
         this.trafficMultiplier = 1.0;
         this.rentAmount = GAME_CONFIG.DAILY_EXPENSES.rent.amount;
@@ -43,8 +43,13 @@ class FinancialEngine {
         // Prepared items (par-baked, frozen dough)
         this.preparedItems = [];
 
-        // Economic simulation engine
-        this.economy = new EconomySimulator();
+        // Economic simulation engine - use the newer comprehensive one
+        if (window.game && window.game.economy) {
+            this.economy = window.game.economy;
+        } else {
+            // Fallback to old simulator if not initialized
+            this.economy = new EconomySimulator();
+        }
         this.lastEconomyDay = 0;  // Track when we last simulated economy
         this.economyReport = null;  // Latest economy report
 
@@ -67,6 +72,24 @@ class FinancialEngine {
             daysOperated: 0
         };
 
+        // Staff & Operations system
+        this.staff = [];
+        this.shiftSchedule = {
+            openingHour: 6,
+            closingHour: 18,
+            isOpen: false
+        };
+        this.equipment = {
+            ovens: [],
+            mixers: [],
+            displays: []
+        };
+        
+        // Monthly recurring costs
+        this.monthlyInsurance = 0;
+        this.monthlyUtilities = 0;
+        this.monthlyStaffCost = 0;
+        
         // Event callbacks
         this.callbacks = {};
     }
@@ -80,6 +103,257 @@ class FinancialEngine {
         if (this.callbacks[event]) {
             this.callbacks[event].forEach(cb => cb(data));
         }
+    }
+
+    // ==================== STAFF MANAGEMENT ====================
+    hireStaff(staffConfig) {
+        // Assign a random face from available options
+        const faces = ['👨‍🍳', '👩‍🍳', '🧑‍🍳', '👨', '👩', '🧑', '👨‍🦱', '👩‍🦰', '👨‍🦳', '👩‍🦳'];
+        const randomFace = faces[Math.floor(Math.random() * faces.length)];
+        
+        const newStaff = {
+            id: Date.now() + Math.random(),
+            name: staffConfig.name,
+            face: randomFace,
+            role: staffConfig.id,
+            skillLevel: this.getSkillLevelValue(staffConfig.skillLevel),
+            efficiency: staffConfig.efficiency,
+            baseSalary: staffConfig.monthlyCost,
+            benefits: staffConfig.benefits || 0,
+            happiness: 75, // Start at 75%
+            fatigue: 0, // 0-100, affects efficiency
+            hoursWorkedToday: 0,
+            hoursWorkedThisWeek: 0,
+            daysWorked: 0,
+            trainingLevel: 0, // 0-5 levels
+            trainingCost: 200, // Cost per training level
+            hireDate: this.day
+        };
+        
+        this.staff.push(newStaff);
+        this.updateMonthlyStaffCost();
+        this.emit('staff_hired', newStaff);
+        return { success: true, staff: newStaff };
+    }
+
+    getSkillLevelValue(skillLevel) {
+        const levels = { owner: 5, expert: 4, intermediate: 3, entry: 2, mixed: 3 };
+        return levels[skillLevel] || 3;
+    }
+
+    fireStaff(staffId) {
+        const index = this.staff.findIndex(s => s.id === staffId);
+        if (index === -1) return { success: false, message: 'Staff not found' };
+        
+        const severancePay = this.staff[index].baseSalary / 2;
+        this.cash -= severancePay;
+        
+        const firedStaff = this.staff.splice(index, 1)[0];
+        this.updateMonthlyStaffCost();
+        this.emit('staff_fired', { staff: firedStaff, severance: severancePay });
+        return { success: true, severance: severancePay };
+    }
+
+    trainStaff(staffId) {
+        const staff = this.staff.find(s => s.id === staffId);
+        if (!staff) return { success: false, message: 'Staff not found' };
+        if (staff.trainingLevel >= 5) return { success: false, message: 'Max training reached' };
+        if (this.cash < staff.trainingCost) return { success: false, message: 'Not enough cash' };
+        
+        this.cash -= staff.trainingCost;
+        staff.trainingLevel++;
+        staff.efficiency += 0.1; // 10% efficiency boost per level
+        staff.skillLevel = Math.min(5, staff.skillLevel + 0.2);
+        staff.happiness += 10; // Training increases happiness
+        
+        this.emit('staff_trained', staff);
+        return { success: true, staff, cost: staff.trainingCost };
+    }
+
+    updateMonthlyStaffCost() {
+        this.monthlyStaffCost = this.staff.reduce((sum, s) => 
+            sum + s.baseSalary + s.benefits, 0);
+    }
+
+    getStaffEfficiency() {
+        if (this.staff.length === 0) return 1.0; // Solo operation
+        
+        let totalEfficiency = 0;
+        this.staff.forEach(staff => {
+            // Base efficiency
+            let eff = staff.efficiency;
+            
+            // Happiness modifier (-20% to +20%)
+            eff *= (0.8 + (staff.happiness / 100) * 0.4);
+            
+            // Fatigue penalty (-50% max)
+            eff *= (1 - staff.fatigue / 200);
+            
+            // Training bonus
+            eff *= (1 + staff.trainingLevel * 0.05);
+            
+            totalEfficiency += eff;
+        });
+        
+        return totalEfficiency;
+    }
+
+    // ==================== SHIFT MANAGEMENT ====================
+    setShiftSchedule(openingHour, closingHour) {
+        this.shiftSchedule.openingHour = openingHour;
+        this.shiftSchedule.closingHour = closingHour;
+        this.emit('schedule_changed', this.shiftSchedule);
+    }
+
+    openBakery() {
+        if (this.hour < this.shiftSchedule.openingHour) {
+            return { success: false, message: 'Too early to open!' };
+        }
+        this.shiftSchedule.isOpen = true;
+        this.emit('bakery_opened', { time: this.getTimeString() });
+        return { success: true };
+    }
+
+    closeBakery() {
+        this.shiftSchedule.isOpen = false;
+        // Add fatigue to staff based on hours worked
+        this.staff.forEach(staff => {
+            const hoursToday = staff.hoursWorkedToday;
+            if (hoursToday > 8) {
+                const overtime = hoursToday - 8;
+                staff.fatigue += overtime * 5; // 5 fatigue per overtime hour
+                staff.happiness -= overtime * 2; // Overtime reduces happiness
+            }
+            staff.fatigue = Math.min(100, staff.fatigue);
+            staff.happiness = Math.max(0, Math.min(100, staff.happiness));
+        });
+        this.emit('bakery_closed', { time: this.getTimeString() });
+        return { success: true };
+    }
+
+    processStaffHours(hours) {
+        this.staff.forEach(staff => {
+            staff.hoursWorkedToday += hours;
+            staff.hoursWorkedThisWeek += hours;
+        });
+    }
+
+    // ==================== EQUIPMENT MANAGEMENT ====================
+    addEquipment(type, equipmentConfig) {
+        const equipment = {
+            id: Date.now() + Math.random(),
+            type: type,
+            name: equipmentConfig.name,
+            capacity: equipmentConfig.capacity || 1,
+            condition: 100, // 0-100%
+            maintenanceCost: equipmentConfig.cost * 0.01, // 1% of cost per maintenance
+            breakdownProbability: 0.01, // 1% base
+            lastMaintenance: this.day,
+            purchaseDay: this.day,
+            totalRepairCosts: 0
+        };
+        
+        if (!this.equipment[type + 's']) {
+            this.equipment[type + 's'] = [];
+        }
+        this.equipment[type + 's'].push(equipment);
+        this.emit('equipment_added', equipment);
+        return equipment;
+    }
+
+    updateEquipmentCondition() {
+        const degradedEquipment = [];
+        const brokenEquipment = [];
+        
+        ['ovens', 'mixers', 'displays'].forEach(type => {
+            if (!this.equipment[type]) return;
+            
+            this.equipment[type].forEach(item => {
+                // Daily wear (0.5-2% per day based on usage)
+                const usageWear = 0.5 + Math.random() * 1.5;
+                item.condition = Math.max(0, item.condition - usageWear);
+                
+                // Increase breakdown probability as condition worsens
+                item.breakdownProbability = 0.01 + ((100 - item.condition) / 100) * 0.15;
+                
+                // Check for breakdown
+                if (Math.random() < item.breakdownProbability) {
+                    item.condition = Math.max(0, item.condition - 20);
+                    brokenEquipment.push(item);
+                }
+                
+                if (item.condition < 50) {
+                    degradedEquipment.push(item);
+                }
+            });
+        });
+        
+        return { degraded: degradedEquipment, broken: brokenEquipment };
+    }
+
+    repairEquipment(equipmentId) {
+        let equipment = null;
+        let type = null;
+        
+        ['ovens', 'mixers', 'displays'].forEach(t => {
+            if (!equipment && this.equipment[t]) {
+                const found = this.equipment[t].find(e => e.id === equipmentId);
+                if (found) {
+                    equipment = found;
+                    type = t;
+                }
+            }
+        });
+        
+        if (!equipment) return { success: false, message: 'Equipment not found' };
+        
+        const repairCost = equipment.maintenanceCost * (100 - equipment.condition) / 10;
+        if (this.cash < repairCost) return { success: false, message: 'Not enough cash' };
+        
+        this.cash -= repairCost;
+        equipment.condition = 100;
+        equipment.lastMaintenance = this.day;
+        equipment.totalRepairCosts += repairCost;
+        
+        this.emit('equipment_repaired', { equipment, cost: repairCost });
+        return { success: true, cost: repairCost };
+    }
+
+    maintainEquipment(equipmentId) {
+        let equipment = null;
+        ['ovens', 'mixers', 'displays'].forEach(t => {
+            if (!equipment && this.equipment[t]) {
+                const found = this.equipment[t].find(e => e.id === equipmentId);
+                if (found) equipment = found;
+            }
+        });
+        
+        if (!equipment) return { success: false, message: 'Equipment not found' };
+        if (this.cash < equipment.maintenanceCost) return { success: false, message: 'Not enough cash' };
+        
+        this.cash -= equipment.maintenanceCost;
+        equipment.condition = Math.min(100, equipment.condition + 15);
+        equipment.lastMaintenance = this.day;
+        equipment.breakdownProbability = Math.max(0.01, equipment.breakdownProbability - 0.02);
+        
+        this.emit('equipment_maintained', { equipment, cost: equipment.maintenanceCost });
+        return { success: true, cost: equipment.maintenanceCost };
+    }
+
+    getEquipmentEfficiency() {
+        let totalEfficiency = 1.0;
+        let count = 0;
+        
+        ['ovens', 'mixers', 'displays'].forEach(type => {
+            if (this.equipment[type]) {
+                this.equipment[type].forEach(item => {
+                    totalEfficiency += item.condition / 100;
+                    count++;
+                });
+            }
+        });
+        
+        return count > 0 ? totalEfficiency / count : 1.0;
     }
 
     // ==================== PURCHASING ====================
@@ -338,8 +612,8 @@ class FinancialEngine {
             return { success: false, message: 'Missing ingredients!', missing };
         }
 
-        // Check oven capacity
-        const activeBaking = this.productionQueue.filter(p => p.status === 'baking').length;
+        // Check oven capacity for final baking stage
+        const activeBaking = this.productionQueue.filter(p => p.currentStage === 'baking').length;
         if (activeBaking >= this.ovenCapacity) {
             return { success: false, message: 'Oven is full! Wait for items to finish.' };
         }
@@ -347,64 +621,241 @@ class FinancialEngine {
         // Consume ingredients and get quality info
         const { avgQuality, totalCost } = this.consumeIngredients(recipeKey, quantity);
 
-        // Add to queue with ingredient quality info
+        // Define preparation stages based on recipe complexity
+        const prepStages = this.getPrepStages(recipeKey);
+        
+        // Add to queue with multi-stage production
         const productionItem = {
-            id: Date.now(),
+            id: Date.now() + Math.random(),
             recipeKey,
             recipeName: recipe.name,
             recipeIcon: recipe.icon,
             quantity,
-            status: 'baking',
+            currentStage: prepStages[0].id,
+            stageIndex: 0,
+            stages: prepStages,
             progress: 0,
-            totalTime: recipe.bakeTime * 60 * 1000 / 10, // Faster for gameplay
+            totalTime: prepStages[0].duration,
             startTime: Date.now(),
             unitCost: totalCost / quantity,
-            ingredientQuality: avgQuality  // Track quality of ingredients used
+            ingredientQuality: avgQuality,
+            prepQuality: 100, // Starts at 100%, can degrade with poor prep
+            assignedEmployee: null, // Will be auto-assigned
+            employeeSkillImpact: 1.0 // Multiplier based on employee skill
         };
 
         this.productionQueue.push(productionItem);
+        
+        // Auto-assign employee if available
+        this.autoAssignEmployee(productionItem);
+        
         this.emit('baking_started', productionItem);
 
         const qualityLabel = this.getQualityLabel(avgQuality);
         return {
             success: true,
-            message: `Started baking ${quantity}x ${recipe.name}! ${qualityLabel.emoji} ${qualityLabel.label} ingredients`,
+            message: `Started preparing ${quantity}x ${recipe.name}! ${qualityLabel.emoji} ${qualityLabel.label} ingredients`,
             item: productionItem,
             ingredientQuality: avgQuality
         };
     }
+    
+    getPrepStages(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        const baseTime = recipe.bakeTime * 60 * 1000 / 10; // Converted to ms, sped up
+        
+        // Different recipes have different preparation stages
+        const stageTemplates = {
+            croissant: [
+                { id: 'mixing', name: '🥄 Mixing Dough', duration: baseTime * 0.2, skillRequired: 2 },
+                { id: 'laminating', name: '📐 Laminating', duration: baseTime * 0.3, skillRequired: 4 },
+                { id: 'shaping', name: '✂️ Shaping', duration: baseTime * 0.15, skillRequired: 3 },
+                { id: 'proofing', name: '⏱️ Proofing', duration: baseTime * 0.2, skillRequired: 1 },
+                { id: 'baking', name: '🔥 Baking', duration: baseTime * 0.15, skillRequired: 2 }
+            ],
+            baguette: [
+                { id: 'mixing', name: '🥄 Mixing Dough', duration: baseTime * 0.25, skillRequired: 2 },
+                { id: 'folding', name: '🤲 Folding', duration: baseTime * 0.2, skillRequired: 3 },
+                { id: 'shaping', name: '✂️ Shaping', duration: baseTime * 0.2, skillRequired: 3 },
+                { id: 'scoring', name: '🔪 Scoring', duration: baseTime * 0.1, skillRequired: 4 },
+                { id: 'baking', name: '🔥 Baking', duration: baseTime * 0.25, skillRequired: 2 }
+            ],
+            default: [
+                { id: 'prep', name: '🥄 Preparing', duration: baseTime * 0.3, skillRequired: 2 },
+                { id: 'mixing', name: '🌀 Mixing', duration: baseTime * 0.2, skillRequired: 2 },
+                { id: 'shaping', name: '👐 Shaping', duration: baseTime * 0.2, skillRequired: 2 },
+                { id: 'baking', name: '🔥 Baking', duration: baseTime * 0.3, skillRequired: 2 }
+            ]
+        };
+        
+        return stageTemplates[recipeKey] || stageTemplates.default;
+    }
+    
+    autoAssignEmployee(productionItem) {
+        if (this.staff.length === 0) {
+            productionItem.assignedEmployee = null;
+            return;
+        }
+        
+        // Find best available employee based on:
+        // 1. Not too fatigued
+        // 2. Skill level appropriate for current stage
+        // 3. Currently not assigned to too many tasks
+        
+        const currentStage = productionItem.stages[productionItem.stageIndex];
+        const availableStaff = this.staff.filter(s => s.fatigue < 80);
+        
+        if (availableStaff.length === 0) {
+            productionItem.assignedEmployee = null;
+            return;
+        }
+        
+        // Count current assignments
+        const assignments = {};
+        this.staff.forEach(s => assignments[s.id] = 0);
+        this.productionQueue.forEach(item => {
+            if (item.assignedEmployee) {
+                assignments[item.assignedEmployee.id] = (assignments[item.assignedEmployee.id] || 0) + 1;
+            }
+        });
+        
+        // Find employee with best skill match and fewest assignments
+        let bestEmployee = availableStaff[0];
+        let bestScore = -1000;
+        
+        availableStaff.forEach(employee => {
+            const skillMatch = employee.skillLevel >= currentStage.skillRequired ? 10 : -5;
+            const workload = -(assignments[employee.id] || 0) * 3;
+            const happiness = employee.happiness / 10;
+            const score = skillMatch + workload + happiness;
+            
+            if (score > bestScore) {
+                bestScore = score;
+                bestEmployee = employee;
+            }
+        });
+        
+        productionItem.assignedEmployee = bestEmployee;
+        
+        // Calculate skill impact on speed and quality
+        const stage = productionItem.stages[productionItem.stageIndex];
+        const skillDiff = bestEmployee.skillLevel - stage.skillRequired;
+        
+        // Better skills = faster and better quality
+        productionItem.employeeSkillImpact = 1.0 + (skillDiff * 0.1); // +10% per skill level above requirement
+        
+        return bestEmployee;
+    }
 
     updateProduction(deltaMs) {
         const completed = [];
+        const stageCompleted = [];
+        
+        // Calculate combined efficiency from staff and equipment
+        const staffEfficiency = this.getStaffEfficiency();
+        const equipmentEfficiency = this.getEquipmentEfficiency();
+        const combinedEfficiency = (staffEfficiency + equipmentEfficiency) / 2;
+        
+        // Apply combined efficiency to production speed
+        const baseDeltaMs = deltaMs * this.bakingSpeedMultiplier * combinedEfficiency;
 
         this.productionQueue.forEach(item => {
-            if (item.status === 'baking') {
-                item.progress += deltaMs;
+            // Apply employee skill impact if assigned
+            const employeeBonus = item.assignedEmployee ? item.employeeSkillImpact : 0.8; // 20% slower if no employee
+            const effectiveDeltaMs = baseDeltaMs * employeeBonus;
+            
+            item.progress += effectiveDeltaMs;
 
-                if (item.progress >= item.totalTime) {
-                    item.status = 'complete';
-
+            if (item.progress >= item.totalTime) {
+                // Stage complete!
+                const stage = item.stages[item.stageIndex];
+                
+                // Calculate quality impact of this stage
+                const qualityImpact = this.calculateStageQualityImpact(item, stage);
+                item.prepQuality = Math.max(0, Math.min(100, item.prepQuality * qualityImpact));
+                
+                stageCompleted.push({ item, stage });
+                
+                // Move to next stage
+                item.stageIndex++;
+                
+                if (item.stageIndex >= item.stages.length) {
+                    // All stages complete!
+                    const finalQuality = (item.ingredientQuality * 0.4) + (item.prepQuality * 0.6);
+                    
                     // Add to products as a batch with quality
                     this.products[item.recipeKey].batches.push({
                         quantity: item.quantity,
-                        quality: item.ingredientQuality || 100,  // Product starts with ingredient quality
+                        quality: finalQuality,
                         bakeDay: this.day,
                         unitCost: item.unitCost
                     });
 
                     completed.push(item);
+                } else {
+                    // Start next stage
+                    item.currentStage = item.stages[item.stageIndex].id;
+                    item.progress = 0;
+                    item.totalTime = item.stages[item.stageIndex].duration;
+                    
+                    // Reassign employee for new stage
+                    this.autoAssignEmployee(item);
                 }
             }
         });
 
         // Remove completed
-        this.productionQueue = this.productionQueue.filter(p => p.status === 'baking');
+        this.productionQueue = this.productionQueue.filter(item => {
+            return item.stageIndex < item.stages.length;
+        });
 
         completed.forEach(item => {
             this.emit('baking_complete', item);
+            // Add hours worked to employee
+            if (item.assignedEmployee) {
+                const hoursWorked = (Date.now() - item.startTime) / (1000 * 60 * 60);
+                item.assignedEmployee.hoursWorkedToday += hoursWorked;
+            }
+        });
+        
+        stageCompleted.forEach(({item, stage}) => {
+            this.emit('stage_complete', { item, stage });
         });
 
         return completed;
+    }
+    
+    calculateStageQualityImpact(item, stage) {
+        if (!item.assignedEmployee) {
+            // No employee = poor quality (80-90%)
+            return 0.8 + Math.random() * 0.1;
+        }
+        
+        const employee = item.assignedEmployee;
+        
+        // Base quality from employee skill vs requirement
+        let qualityMult = 1.0;
+        const skillDiff = employee.skillLevel - stage.skillRequired;
+        
+        if (skillDiff >= 2) {
+            qualityMult = 1.0 + Math.random() * 0.05; // Expert: 100-105%
+        } else if (skillDiff >= 0) {
+            qualityMult = 0.98 + Math.random() * 0.04; // Adequate: 98-102%
+        } else if (skillDiff >= -1) {
+            qualityMult = 0.92 + Math.random() * 0.08; // Struggling: 92-100%
+        } else {
+            qualityMult = 0.80 + Math.random() * 0.12; // Underqualified: 80-92%
+        }
+        
+        // Fatigue penalty
+        const fatiguePenalty = employee.fatigue / 200; // 0-0.5
+        qualityMult -= fatiguePenalty;
+        
+        // Happiness bonus
+        const happinessBonus = (employee.happiness - 50) / 500; // -0.1 to +0.1
+        qualityMult += happinessBonus;
+        
+        return Math.max(0.7, Math.min(1.1, qualityMult));
     }
 
     getProductStock(recipeKey) {
@@ -557,11 +1008,84 @@ class FinancialEngine {
             totalExpenses += amount;
             expenses.push({ ...expense, amount, key });
         });
+        
+        // Add prorated monthly costs (insurance, utilities, staff benefits)
+        const monthlyExpenses = [
+            { name: 'Insurance', amount: this.monthlyInsurance / 30, key: 'insurance' },
+            { name: 'Utilities', amount: this.monthlyUtilities / 30, key: 'utilities' },
+            { name: 'Staff Salaries', amount: this.monthlyStaffCost / 30, key: 'payroll' }
+        ];
+        
+        monthlyExpenses.forEach(exp => {
+            if (exp.amount > 0) {
+                totalExpenses += exp.amount;
+                expenses.push(exp);
+            }
+        });
 
         this.cash -= totalExpenses;
         this.allTimeStats.totalExpenses += totalExpenses;
 
         return { total: totalExpenses, expenses };
+    }
+    
+    processStaffEndOfDay() {
+        const report = {
+            totalStaff: this.staff.length,
+            avgHappiness: 0,
+            avgFatigue: 0,
+            overtimeHours: 0,
+            fatigueRecovery: 0
+        };
+        
+        if (this.staff.length === 0) return report;
+        
+        let totalHappiness = 0;
+        let totalFatigue = 0;
+        
+        this.staff.forEach(staff => {
+            // Fatigue recovery (20% per night)
+            const recovery = staff.fatigue * 0.2;
+            staff.fatigue = Math.max(0, staff.fatigue - recovery);
+            report.fatigueRecovery += recovery;
+            
+            // Check for overtime
+            if (staff.hoursWorkedToday > 8) {
+                report.overtimeHours += (staff.hoursWorkedToday - 8);
+            }
+            
+            // Small daily happiness decay if overworked
+            if (staff.hoursWorkedToday > 10) {
+                staff.happiness -= 2;
+            } else if (staff.hoursWorkedToday < 4) {
+                staff.happiness += 1; // Light day improves morale
+            }
+            
+            staff.happiness = Math.max(0, Math.min(100, staff.happiness));
+            totalHappiness += staff.happiness;
+            totalFatigue += staff.fatigue;
+            
+            staff.daysWorked++;
+        });
+        
+        report.avgHappiness = totalHappiness / this.staff.length;
+        report.avgFatigue = totalFatigue / this.staff.length;
+        
+        return report;
+    }
+    
+    calculateOvertimeCost() {
+        let overtimeCost = 0;
+        
+        this.staff.forEach(staff => {
+            if (staff.hoursWorkedToday > 8) {
+                const overtimeHours = staff.hoursWorkedToday - 8;
+                const hourlyRate = (staff.baseSalary / 30) / 8; // Daily rate / 8 hours
+                overtimeCost += overtimeHours * hourlyRate * 1.5; // 1.5x pay for overtime
+            }
+        });
+        
+        return overtimeCost;
     }
 
     // ==================== DAY MANAGEMENT ====================
@@ -571,22 +1095,34 @@ class FinancialEngine {
         // Update quality of ingredients and products (decay overnight)
         const spoiledIngredients = this.updateIngredientQuality();
         const staleProducts = this.updateProductQuality();
+        
+        // Process staff: payroll, fatigue recovery, happiness updates
+        const staffReport = this.processStaffEndOfDay();
+        
+        // Update equipment condition and check for breakdowns
+        const equipmentReport = this.updateEquipmentCondition();
+        
+        // Calculate overtime costs
+        const overtimeCost = this.calculateOvertimeCost();
 
         const summary = {
             day: this.day,
             revenue: this.dailyStats.revenue,
             cogs: this.dailyStats.cogs,
             grossProfit: this.dailyStats.grossProfit,
-            expenses: expenseResult.total,
+            expenses: expenseResult.total + overtimeCost,
             expenseDetails: expenseResult.expenses,
-            netProfit: this.dailyStats.grossProfit - expenseResult.total,
+            overtimeCost: overtimeCost,
+            netProfit: this.dailyStats.grossProfit - expenseResult.total - overtimeCost,
             customersServed: this.dailyStats.customersServed,
             customersMissed: this.dailyStats.customersMissed,
             itemsSold: this.dailyStats.itemsSold,
             cashEnd: this.cash,
-            spoiledIngredients: spoiledIngredients,  // Items that went bad
-            staleProducts: staleProducts,            // Products losing freshness
-            economyReport: this.economy.simulateDay(this.day) // Run economy sim
+            spoiledIngredients: spoiledIngredients,
+            staleProducts: staleProducts,
+            staffReport: staffReport,
+            equipmentReport: equipmentReport,
+            economyReport: this.economy.simulateDay(this.day)
         };
 
         this.allTimeStats.daysOperated++;
@@ -596,6 +1132,9 @@ class FinancialEngine {
             revenue: 0, cogs: 0, grossProfit: 0,
             customersServed: 0, customersMissed: 0, itemsSold: 0
         };
+        
+        // Reset staff daily hours
+        this.staff.forEach(s => s.hoursWorkedToday = 0);
 
         // Reset sold today
         Object.values(this.products).forEach(p => p.soldToday = 0);

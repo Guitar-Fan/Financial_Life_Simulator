@@ -5,6 +5,8 @@
 class GameController {
     constructor() {
         this.engine = null;
+        this.economy = null;
+        this.dashboard = null;
         this.tutorial = null;
         this.currentPhase = 'menu'; // menu, buying, baking, selling, summary
         this.phaseOrder = ['buying', 'baking', 'selling', 'summary'];
@@ -20,6 +22,12 @@ class GameController {
 
     init() {
         this.engine = new FinancialEngine();
+        this.economy = new EconomicSimulation();
+        
+        // Connect the economy to the engine
+        this.engine.economy = this.economy;
+        
+        this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
         this.tutorial = new TutorialSystem(this);
         this.setupEventListeners();
         this.showMainMenu();
@@ -63,6 +71,15 @@ class GameController {
             this.updateStats();
         });
     }
+    
+    setGameSpeed(speed) {
+        this.engine.gameSpeed = speed;
+        const indicator = document.getElementById('speed-indicator');
+        if (indicator) {
+            indicator.textContent = speed + 'x';
+            indicator.style.color = speed === 1 ? '#27ae60' : speed >= 5 ? '#e74c3c' : '#f39c12';
+        }
+    }
 
     // ==================== MAIN MENU ====================
     showMainMenu() {
@@ -82,7 +99,15 @@ class GameController {
                         <span class="btn-content">
                             <span class="btn-icon">🎮</span>
                             <span class="btn-title">New Game</span>
-                            <span class="btn-sub">Start fresh with $15,000</span>
+                            <span class="btn-sub">Full setup experience</span>
+                        </span>
+                    </button>
+                    
+                    <button class="menu-btn primary" id="btn-quick-start" role="button" tabindex="0" aria-label="Quick start with defaults" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
+                        <span class="btn-content">
+                            <span class="btn-icon">⚡</span>
+                            <span class="btn-title">Quick Start</span>
+                            <span class="btn-sub">Skip setup, use standard bakery</span>
                         </span>
                     </button>
 
@@ -118,6 +143,7 @@ class GameController {
         }
 
         const btnNew = document.getElementById('btn-new-game');
+        const btnQuick = document.getElementById('btn-quick-start');
         const btnTut = document.getElementById('btn-tutorial');
 
         // Common accessible activation (keyboard Enter/Space)
@@ -152,6 +178,12 @@ class GameController {
             animatePress(btnNew, e);
             setTimeout(() => this.startNewGame(), 180);
         });
+        
+        // Wire up Quick Start
+        makeAccessible(btnQuick, (e) => {
+            animatePress(btnQuick, e);
+            setTimeout(() => this.quickStart(), 180);
+        });
 
         // Wire up Tutorial
         makeAccessible(btnTut, (e) => {
@@ -160,11 +192,94 @@ class GameController {
         });
 
         // Give focus styles and hover micro-interactions
-        [btnNew, btnTut, btnContinue].forEach(b => {
+        [btnNew, btnQuick, btnTut, btnContinue].forEach(b => {
             if (!b) return;
             b.addEventListener('mouseenter', () => gsap.to(b.querySelector('.btn-icon'), { y: -4, duration: 0.18 }));
             b.addEventListener('mouseleave', () => gsap.to(b.querySelector('.btn-icon'), { y: 0, duration: 0.18 }));
             b.addEventListener('mousedown', (ev) => animatePress(b, ev));
+        });
+    }
+    
+    quickStart() {
+        this.engine.reset();
+        localStorage.removeItem('bakery_save');
+        this.applyDefaultSetup();
+        this.showModeHub();
+    }
+    
+    applyDefaultSetup() {
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        
+        // Default choices based on typical mid-range bakery
+        const defaultChoices = {
+            // Mid-tier suburban location
+            location: options.locations.find(l => l.id === 'suburbs_plaza'),
+            // Bootstrap with savings (no debt)
+            financing: options.financing.find(f => f.id === 'personal_savings'),
+            // Mid-tier equipment
+            equipment: {
+                oven: options.equipment.ovens.find(e => e.id === 'pro_deck'),
+                mixer: options.equipment.mixers.find(m => m.id === 'floor_mixer'),
+                display: options.equipment.displays.find(d => d.id === 'refrigerated_case')
+            },
+            // Required permits only
+            paperwork: options.paperwork.filter(p => p.required).map(p => p.id),
+            // Standard insurance
+            insurance: options.insurance.find(i => i.id === 'standard_package'),
+            // Mid-tier utilities (selecting from flat array)
+            utilities: [
+                options.utilities.find(u => u.id === 'commercial_power'),
+                options.utilities.find(u => u.id === 'business_internet')
+            ],
+            // Solo operation
+            staff: options.staff.find(s => s.id === 'solo')
+        };
+        
+        this.setupChoices = defaultChoices;
+        
+        // Apply to engine
+        this.engine.rentAmount = defaultChoices.location.rent;
+        this.engine.trafficMultiplier = defaultChoices.location.traffic;
+        this.engine.ovenCapacity = 8; // Already increased
+        this.engine.bakingSpeedMultiplier = defaultChoices.equipment.oven.speed * defaultChoices.equipment.mixer.efficiency;
+        
+        if (defaultChoices.staff.efficiency) {
+            this.engine.bakingSpeedMultiplier *= defaultChoices.staff.efficiency;
+        }
+        
+        if (defaultChoices.insurance) {
+            this.engine.monthlyInsurance = defaultChoices.insurance.monthlyCost;
+        }
+        
+        if (defaultChoices.utilities && defaultChoices.utilities.length > 0) {
+            this.engine.monthlyUtilities = defaultChoices.utilities.reduce((sum, u) => sum + u.monthlyCost, 0);
+        }
+        
+        // Deduct initial costs
+        const equipmentCost = defaultChoices.equipment.oven.cost + 
+                             defaultChoices.equipment.mixer.cost + 
+                             defaultChoices.equipment.display.cost;
+        const permitCost = options.paperwork
+            .filter(p => defaultChoices.paperwork.includes(p.id))
+            .reduce((sum, p) => sum + p.cost, 0);
+        const zoningCost = defaultChoices.location.zoningFees || 0;
+        const insuranceCost = defaultChoices.insurance.upfrontCost || 0;
+        
+        const totalStartupCosts = equipmentCost + permitCost + zoningCost + insuranceCost;
+        
+        // Ensure cash is a number before deducting
+        if (typeof this.engine.cash !== 'number' || isNaN(this.engine.cash)) {
+            this.engine.cash = GAME_CONFIG.STARTING_CASH;
+        }
+        this.engine.cash -= totalStartupCosts;
+        
+        // Show notification
+        this.showPopup({
+            icon: '⚡',
+            title: 'Quick Start Complete!',
+            message: `You've opened a standard suburban bakery with mid-tier equipment. Total startup costs: $${totalStartupCosts.toFixed(2)}. Good luck!`,
+            type: 'success',
+            autoClose: 3000
         });
     }
 
@@ -193,15 +308,18 @@ class GameController {
         const container = document.getElementById('game-container');
         this.setupChoices = {
             location: null,
-            equipment: null,
+            financing: null,
+            equipment: { oven: null, mixer: null, display: null },
             staff: null,
-            paperwork: []
+            paperwork: [],
+            insurance: null,
+            utilities: { power: null, internet: null }
         };
 
         // Clear container and add Phaser container
-        container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 600px; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
+        container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 720px; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
 
-        // Initialize Phaser Game
+        // Initialize Phaser Game with larger viewport
         const config = {
             type: Phaser.AUTO,
             width: 800,
@@ -219,21 +337,21 @@ class GameController {
         };
 
         this.phaserGame = new Phaser.Game(config);
-
-        // We keep the renderSetup method for the modal interactions to use
-        this.renderSetup = () => {
-            // This is now handled by the Phaser scene's modals updating the game state
-            // and potentially refreshing their own UI if needed.
-            // The selectSetup method still updates the state.
-        };
     }
 
     selectSetup(type, id) {
         const options = GAME_CONFIG.SETUP_OPTIONS;
+        
         if (type === 'location') {
             this.setupChoices.location = options.locations.find(l => l.id === id);
-        } else if (type === 'equipment') {
-            this.setupChoices.equipment = options.equipment.find(e => e.id === id);
+        } else if (type === 'financing') {
+            this.setupChoices.financing = options.financing.find(f => f.id === id);
+        } else if (type === 'equipment_oven') {
+            this.setupChoices.equipment.oven = options.equipment.ovens.find(e => e.id === id);
+        } else if (type === 'equipment_mixer') {
+            this.setupChoices.equipment.mixer = options.equipment.mixers.find(m => m.id === id);
+        } else if (type === 'equipment_display') {
+            this.setupChoices.equipment.display = options.equipment.displays.find(d => d.id === id);
         } else if (type === 'staff') {
             this.setupChoices.staff = options.staff.find(s => s.id === id);
         } else if (type === 'paperwork') {
@@ -242,15 +360,29 @@ class GameController {
             } else {
                 this.setupChoices.paperwork.push(id);
             }
+        } else if (type === 'insurance') {
+            this.setupChoices.insurance = options.insurance.find(i => i.id === id);
+        } else if (type === 'utility_power') {
+            this.setupChoices.utilities.power = options.utilities.find(u => u.id === id);
+        } else if (type === 'utility_internet') {
+            this.setupChoices.utilities.internet = options.utilities.find(u => u.id === id);
         }
-        this.renderSetup();
     }
 
     canFinishSetup() {
-        return this.setupChoices.location &&
-            this.setupChoices.equipment &&
-            this.setupChoices.staff &&
-            this.setupChoices.paperwork.length === GAME_CONFIG.SETUP_OPTIONS.paperwork.length;
+        const c = this.setupChoices;
+        // Minimum requirements: location, equipment (all 3), permits (all required), insurance, staff
+        const paperwork = GAME_CONFIG.SETUP_OPTIONS.paperwork;
+        const requiredPermits = paperwork.filter(p => p.required);
+        const hasAllRequired = requiredPermits.every(p => c.paperwork.includes(p.id));
+        
+        return c.location && 
+               c.equipment.oven && 
+               c.equipment.mixer && 
+               c.equipment.display &&
+               hasAllRequired &&
+               c.insurance &&
+               c.staff;
     }
 
     finishSetup() {
@@ -262,23 +394,32 @@ class GameController {
 
         // Apply choices to engine
         const choices = this.setupChoices;
+        
+        // Location
         this.engine.rentAmount = choices.location.rent;
         this.engine.trafficMultiplier = choices.location.traffic;
-        this.engine.ovenCapacity = choices.equipment.capacity;
-        this.engine.bakingSpeedMultiplier = 1.0 + (choices.staff.bonus || 0);
-
-        // Deduct costs
-        const totalCost = choices.equipment.cost + choices.staff.cost +
-            choices.paperwork.reduce((sum, id) => sum + GAME_CONFIG.SETUP_OPTIONS.paperwork.find(p => p.id === id).cost, 0);
-
-        this.engine.cash -= totalCost;
-
-        // Initialize day state without forcing a modal; the hub will route phases
-        this.phaseIndex = 0;
-        this.engine.isPaused = true;
-        this.engine.hour = GAME_CONFIG.TIME.OPENING_HOUR;
-        this.engine.minute = 0;
-
+        
+        // Equipment
+        this.engine.ovenCapacity = choices.equipment.oven.capacity;
+        this.engine.bakingSpeedMultiplier = choices.equipment.oven.speed * choices.equipment.mixer.efficiency;
+        
+        // Staff
+        if (choices.staff.efficiency) {
+            this.engine.bakingSpeedMultiplier *= choices.staff.efficiency;
+        }
+        
+        // Financing (debt already added in scene)
+        // Insurance (monthly costs)
+        if (choices.insurance) {
+            this.engine.monthlyInsurance = choices.insurance.monthlyCost;
+        }
+        
+        // Utilities
+        if (choices.utilities.power && choices.utilities.internet) {
+            this.engine.monthlyUtilities = choices.utilities.power.monthlyCost + choices.utilities.internet.monthlyCost;
+        }
+        
+        // Initialize day state
         // Move to free-roam mode hub
         this.showModeHub();
     }
@@ -286,6 +427,20 @@ class GameController {
     showModeHub() {
         this.currentPhase = 'hub';
         window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase: 'hub' } }));
+
+        // Show dashboard, staff, and equipment buttons
+        const dashboardBtn = document.getElementById('btn-dashboard');
+        const staffBtn = document.getElementById('btn-staff');
+        const equipmentBtn = document.getElementById('btn-equipment');
+        if (dashboardBtn) dashboardBtn.style.display = 'inline-block';
+        if (staffBtn) {
+            staffBtn.style.display = 'inline-block';
+            staffBtn.onclick = () => this.showStaffPanel();
+        }
+        if (equipmentBtn) {
+            equipmentBtn.style.display = 'inline-block';
+            equipmentBtn.onclick = () => this.showEquipmentPanel();
+        }
 
         const container = document.getElementById('game-container');
         container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 720px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
@@ -700,33 +855,55 @@ class GameController {
 
         container.innerHTML = `
             <div class="phase-header">
-                <h2>🍞 Bake Products</h2>
-                <p>Choose recipes to bake. Each recipe uses ingredients and takes time.</p>
+                <h2>🍞 Bakery Production</h2>
+                <p>Prepare and bake products. Each recipe goes through multiple stages.</p>
             </div>
             
-            <div class="baking-layout" id="bake-phase-container">
-                <div class="recipes-section">
-                    <h3>Recipes</h3>
-                    <div class="recipe-grid" id="recipe-grid"></div>
+            <div class="baking-layout-advanced" id="bake-phase-container">
+                <!-- Employee Panel -->
+                <div class="employee-panel">
+                    <h3>👨‍🍳 Staff</h3>
+                    <div class="employee-list" id="employee-list">
+                        ${this.renderEmployeePanel()}
+                    </div>
                 </div>
                 
-                <div class="oven-section">
-                    <h3>🔥 Oven (${this.engine.ovenCapacity} slots)</h3>
-                    <div class="oven-slots" id="oven-slots"></div>
+                <!-- Production Area -->
+                <div class="production-area">
+                    <div class="recipes-section">
+                        <h3>Recipes</h3>
+                        <div class="recipe-grid" id="recipe-grid"></div>
+                    </div>
                     
-                    <h3>📦 Ready Products</h3>
-                    <div class="ready-products" id="ready-products"></div>
+                    <div class="production-queue-section">
+                        <h3>🔄 Production Queue</h3>
+                        <div class="time-controls" style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                            <span style="font-size: 14px; color: #7f8c8d;">Time Speed:</span>
+                            <button class="btn btn-sm" onclick="window.game.setGameSpeed(1)" style="padding: 5px 10px; font-size: 12px;">1x</button>
+                            <button class="btn btn-sm" onclick="window.game.setGameSpeed(2)" style="padding: 5px 10px; font-size: 12px;">2x</button>
+                            <button class="btn btn-sm" onclick="window.game.setGameSpeed(5)" style="padding: 5px 10px; font-size: 12px;">5x</button>
+                            <button class="btn btn-sm" onclick="window.game.setGameSpeed(10)" style="padding: 5px 10px; font-size: 12px;">10x</button>
+                            <span id="speed-indicator" style="font-size: 14px; font-weight: bold; color: #27ae60;">1x</span>
+                        </div>
+                        <div class="production-slots" id="production-slots"></div>
+                    </div>
+                    
+                    <div class="ready-section">
+                        <h3>📦 Ready Products</h3>
+                        <div class="ready-products" id="ready-products"></div>
+                    </div>
                 </div>
             </div>
             
             <div class="phase-actions">
                 <button class="btn btn-secondary" id="btn-back-hub">Return to Hub</button>
-                <button class="btn btn-primary" id="btn-done-baking">Done Baking</button>
+                <button class="btn btn-success" id="btn-open-shop" style="background: #27ae60;">🏪 Open Shop (Keep Production)</button>
+                <button class="btn btn-primary" id="btn-done-baking">Done Production</button>
             </div>
         `;
 
         this.renderRecipes();
-        this.renderOven();
+        this.renderProductionQueue();
         this.renderReadyProducts();
 
         // Start baking timer
@@ -735,6 +912,11 @@ class GameController {
         document.getElementById('btn-back-hub').onclick = () => {
             this.stopBakingLoop();
             this.showModeHub();
+        };
+        
+        document.getElementById('btn-open-shop').onclick = () => {
+            // Don't stop baking loop - let it continue!
+            this.showSellingPhase();
         };
 
         document.getElementById('btn-done-baking').onclick = () => {
@@ -765,6 +947,52 @@ class GameController {
         };
 
         this.updateStats();
+    }
+    
+    renderEmployeePanel() {
+        if (this.engine.staff.length === 0) {
+            return '<div class="no-employees">No staff hired. Working solo! Hire staff in the Staff panel.</div>';
+        }
+        
+        return this.engine.staff.map(employee => {
+            const currentTask = this.engine.productionQueue.find(item => 
+                item.assignedEmployee && item.assignedEmployee.id === employee.id
+            );
+            
+            const taskInfo = currentTask 
+                ? `${currentTask.stages[currentTask.stageIndex].name} ${currentTask.recipeIcon}`
+                : 'Idle';
+            
+            return `
+                <div class="employee-card">
+                    <div class="employee-header">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 20px;">${employee.face}</span>
+                            <span class="employee-name">${employee.name}</span>
+                        </div>
+                        <span class="employee-skill">⭐${employee.skillLevel.toFixed(1)}</span>
+                    </div>
+                    <div class="employee-status">
+                        <div class="status-label">Task:</div>
+                        <div class="status-value">${taskInfo}</div>
+                    </div>
+                    <div class="employee-stats-mini">
+                        <div class="stat-mini">
+                            <span>😊</span>
+                            <div class="mini-bar">
+                                <div class="mini-fill" style="width: ${employee.happiness}%; background: ${employee.happiness > 70 ? '#2ecc71' : employee.happiness > 40 ? '#f39c12' : '#e74c3c'}"></div>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <span>😴</span>
+                            <div class="mini-bar">
+                                <div class="mini-fill" style="width: ${employee.fatigue}%; background: ${employee.fatigue > 70 ? '#e74c3c' : employee.fatigue > 40 ? '#f39c12' : '#2ecc71'}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     renderRecipes() {
@@ -831,32 +1059,65 @@ class GameController {
         });
     }
 
-    renderOven() {
-        const slots = document.getElementById('oven-slots');
+    renderProductionQueue() {
+        const slots = document.getElementById('production-slots');
         if (!slots) return;
 
-        const baking = this.engine.productionQueue.filter(p => p.status === 'baking');
+        const queue = this.engine.productionQueue;
 
-        let html = '';
-        for (let i = 0; i < this.engine.ovenCapacity; i++) {
-            const item = baking[i];
-            if (item) {
-                const progress = Math.min(100, (item.progress / item.totalTime) * 100);
-                html += `
-                    <div class="oven-slot active">
-                        <div class="oven-item">${item.recipeIcon} ${item.recipeName}</div>
-                        <div class="oven-progress">
-                            <div class="oven-progress-bar" style="width: ${progress}%"></div>
-                        </div>
-                        <div class="oven-time">${Math.ceil((item.totalTime - item.progress) / 1000)}s left</div>
-                    </div>
-                `;
-            } else {
-                html += `<div class="oven-slot empty">Empty Slot</div>`;
-            }
+        if (queue.length === 0) {
+            slots.innerHTML = '<div class="no-production">No items in production. Start a recipe!</div>';
+            return;
         }
 
+        const html = queue.map(item => {
+            const progress = Math.min(100, (item.progress / item.totalTime) * 100);
+            const currentStage = item.stages[item.stageIndex];
+            const employee = item.assignedEmployee;
+            
+            const employeeInfo = employee 
+                ? `<div class="assigned-employee">👨‍🍳 ${employee.name} (⭐${employee.skillLevel.toFixed(1)})</div>`
+                : '<div class="assigned-employee no-employee">⚠️ No employee (slower)</div>';
+            
+            const qualityColor = item.prepQuality > 90 ? '#2ecc71' : item.prepQuality > 70 ? '#f39c12' : '#e74c3c';
+            
+            return `
+                <div class="production-item">
+                    <div class="production-header">
+                        <span class="production-icon">${item.recipeIcon}</span>
+                        <span class="production-name">${item.recipeName} x${item.quantity}</span>
+                        <span class="production-quality" style="color: ${qualityColor}">Q: ${item.prepQuality.toFixed(0)}%</span>
+                    </div>
+                    ${employeeInfo}
+                    <div class="stage-info">
+                        <div class="stage-name">${currentStage.name}</div>
+                        <div class="stage-progress">
+                            <div class="stage-progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="stage-time">${Math.ceil((item.totalTime - item.progress) / 1000)}s</div>
+                    </div>
+                    <div class="stages-indicator">
+                        ${item.stages.map((stage, idx) => `
+                            <div class="stage-dot ${idx < item.stageIndex ? 'completed' : idx === item.stageIndex ? 'active' : 'pending'}" 
+                                 title="${stage.name}"></div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
         slots.innerHTML = html;
+        
+        // Update employee panel
+        const employeeList = document.getElementById('employee-list');
+        if (employeeList) {
+            employeeList.innerHTML = this.renderEmployeePanel();
+        }
+    }
+    
+    renderOven() {
+        // Legacy method - redirect to new production queue
+        this.renderProductionQueue();
     }
 
     renderReadyProducts() {
@@ -899,11 +1160,11 @@ class GameController {
             const completed = this.engine.updateProduction(delta);
 
             if (completed.length > 0) {
-                this.renderOven();
+                this.renderProductionQueue();
                 this.renderReadyProducts();
                 this.renderRecipes();
             } else if (this.engine.productionQueue.length > 0) {
-                this.renderOven();
+                this.renderProductionQueue();
             }
 
             this.bakingLoopId = requestAnimationFrame(loop);
@@ -931,21 +1192,40 @@ class GameController {
             <div class="phase-header">
                 <h2>💰 Open Shop - Day ${this.engine.day}</h2>
                 <p>Serve customers and make sales! Time: <span id="game-time">${this.engine.getTimeString()}</span></p>
+                <div class="time-controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center; justify-content: center;">
+                    <span style="font-size: 14px; color: #7f8c8d;">Time Speed:</span>
+                    <button class="btn btn-sm" onclick="window.game.setGameSpeed(1)" style="padding: 5px 10px; font-size: 12px;">1x</button>
+                    <button class="btn btn-sm" onclick="window.game.setGameSpeed(2)" style="padding: 5px 10px; font-size: 12px;">2x</button>
+                    <button class="btn btn-sm" onclick="window.game.setGameSpeed(5)" style="padding: 5px 10px; font-size: 12px;">5x</button>
+                    <button class="btn btn-sm" onclick="window.game.setGameSpeed(10)" style="padding: 5px 10px; font-size: 12px;">10x</button>
+                    <span id="speed-indicator" style="font-size: 14px; font-weight: bold; color: #27ae60;">1x</span>
+                </div>
             </div>
             
-            <div class="selling-layout" id="sell-phase-container">
+            <div class="selling-layout-advanced" id="sell-phase-container">
+                <!-- Employee Panel for Selling -->
+                <div class="employee-panel-selling">
+                    <h3>👨‍🍳 Staff</h3>
+                    <div class="employee-list-selling" id="employee-list-selling">
+                        ${this.renderEmployeeSelling()}
+                    </div>
+                </div>
+                
+                <!-- Shop Display -->
                 <div class="shop-display">
                     <h3>🏪 Your Display Case</h3>
                     <div class="display-products" id="display-products"></div>
                 </div>
                 
+                <!-- Customer Window -->
                 <div class="customer-window">
-                    <h3>👥 Customer Window</h3>
+                    <h3>👥 Customer Queue</h3>
                     <div class="customer-area" id="customer-area">
                         <div class="waiting-message">Waiting for customers...</div>
                     </div>
                 </div>
                 
+                <!-- Sales Stats -->
                 <div class="sales-stats">
                     <h3>📊 Today's Stats</h3>
                     <div class="stat-row"><span>Revenue:</span><span id="stat-revenue">$0.00</span></div>
@@ -986,6 +1266,40 @@ class GameController {
         if (Math.random() < 0.3) {
             setTimeout(() => this.triggerCrisis(), 5000);
         }
+    }
+    
+    renderEmployeeSelling() {
+        if (this.engine.staff.length === 0) {
+            return '<div class="no-employees">Solo operation - you handle all customers!</div>';
+        }
+        
+        return this.engine.staff.map(employee => {
+            const servingCustomer = employee.currentCustomer || null;
+            const taskInfo = servingCustomer 
+                ? `Serving ${servingCustomer.name} ${servingCustomer.face}`
+                : 'Ready to serve';
+            
+            return `
+                <div class="employee-card-selling">
+                    <div class="employee-header">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 20px;">${employee.face}</span>
+                            <span class="employee-name">${employee.name}</span>
+                        </div>
+                        <span class="employee-skill">⭐${employee.skillLevel.toFixed(1)}</span>
+                    </div>
+                    <div class="employee-status">
+                        <div class="status-value">${taskInfo}</div>
+                    </div>
+                    <div class="employee-stats-mini">
+                        <div class="stat-mini">
+                            <span>😊${employee.happiness.toFixed(0)}</span>
+                            <span>😴${employee.fatigue.toFixed(0)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     renderDisplayProducts() {
@@ -1276,7 +1590,18 @@ class GameController {
         this.stopBakingLoop();
         this.stopSellingLoop();
 
+        // Simulate economic changes for the new day
+        this.economy.simulateDay(this.engine.day);
+
         const summary = this.engine.endDay();
+        
+        // Record business metrics in economic simulation
+        this.economy.recordBusinessMetrics({
+            revenue: summary.revenue,
+            costs: summary.cogs + summary.expenses,
+            profit: summary.netProfit,
+            cash: summary.cashEnd
+        });
 
         // Build spoilage warning if any items went bad
         let spoilageHtml = '';
@@ -1476,6 +1801,368 @@ class GameController {
         }
 
         return overlay;
+    }
+
+    // ==================== STAFF MANAGEMENT PANEL ====================
+    showStaffPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>👥 Staff & Operations</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this.renderStaffList()}
+                    ${this.renderHireOptions()}
+                    ${this.renderShiftSchedule()}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        
+        // Animate in
+        gsap.from(panel.querySelector('.modal-content'), {
+            scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
+        });
+    }
+
+    renderStaffList() {
+        if (this.engine.staff.length === 0) {
+            return `
+                <div class="staff-section">
+                    <h3>Current Staff</h3>
+                    <p style="opacity: 0.6; padding: 20px; text-align: center;">
+                        No employees yet. Hire staff below to increase efficiency!
+                    </p>
+                </div>
+            `;
+        }
+
+        const staffEfficiency = this.engine.getStaffEfficiency().toFixed(2);
+        
+        return `
+            <div class="staff-section">
+                <h3>Current Staff (Efficiency: ${staffEfficiency}x)</h3>
+                <div class="staff-grid">
+                    ${this.engine.staff.map(staff => `
+                        <div class="staff-card">
+                            <div class="staff-header">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 24px;">${staff.face}</span>
+                                    <h4>${staff.name}</h4>
+                                </div>
+                                <span class="staff-role">${staff.role}</span>
+                            </div>
+                            <div class="staff-stats">
+                                <div class="stat-row">
+                                    <span>Skill Level:</span>
+                                    <div class="skill-bar">
+                                        <div class="skill-fill" style="width: ${staff.skillLevel * 20}%"></div>
+                                    </div>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Happiness:</span>
+                                    <div class="happiness-bar">
+                                        <div class="happiness-fill" style="width: ${staff.happiness}%; background: ${staff.happiness > 70 ? '#2ecc71' : staff.happiness > 40 ? '#f39c12' : '#e74c3c'}"></div>
+                                    </div>
+                                    <span>${staff.happiness}%</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Fatigue:</span>
+                                    <div class="fatigue-bar">
+                                        <div class="fatigue-fill" style="width: ${staff.fatigue}%; background: ${staff.fatigue > 70 ? '#e74c3c' : staff.fatigue > 40 ? '#f39c12' : '#2ecc71'}"></div>
+                                    </div>
+                                    <span>${staff.fatigue}%</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Efficiency:</span>
+                                    <strong>${(staff.efficiency * (0.8 + staff.happiness/250) * (1 - staff.fatigue/200)).toFixed(2)}x</strong>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Salary:</span>
+                                    <strong>$${staff.baseSalary}/month</strong>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Training:</span>
+                                    <strong>Level ${staff.trainingLevel}/5</strong>
+                                </div>
+                            </div>
+                            <div class="staff-actions">
+                                <button class="btn-small btn-primary" onclick="window.game.trainStaff(${staff.id})">
+                                    📚 Train ($${staff.trainingCost})
+                                </button>
+                                <button class="btn-small btn-danger" onclick="window.game.fireStaff(${staff.id})">
+                                    ❌ Fire
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    renderHireOptions() {
+        const options = GAME_CONFIG.SETUP_OPTIONS.staff;
+        
+        return `
+            <div class="staff-section">
+                <h3>Hire New Staff</h3>
+                <div class="hire-grid">
+                    ${options.map(staffOption => `
+                        <div class="hire-card">
+                            <div class="hire-icon">${staffOption.icon}</div>
+                            <h4>${staffOption.name}</h4>
+                            <p class="hire-desc">${staffOption.description}</p>
+                            <div class="hire-details">
+                                <div><strong>Salary:</strong> $${staffOption.monthlyCost}/month</div>
+                                <div><strong>Efficiency:</strong> ${staffOption.efficiency}x</div>
+                                <div><strong>Skill:</strong> ${staffOption.skillLevel}</div>
+                            </div>
+                            <button class="btn-primary" onclick="window.game.hireStaffOption('${staffOption.id}')">
+                                Hire
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    renderShiftSchedule() {
+        const schedule = this.engine.shiftSchedule;
+        
+        return `
+            <div class="staff-section">
+                <h3>⏰ Shift Schedule</h3>
+                <div class="schedule-controls">
+                    <div class="schedule-row">
+                        <label>Opening Hour:</label>
+                        <input type="number" min="0" max="23" value="${schedule.openingHour}" 
+                               onchange="window.game.updateOpeningHour(this.value)">
+                        <span>${schedule.openingHour}:00</span>
+                    </div>
+                    <div class="schedule-row">
+                        <label>Closing Hour:</label>
+                        <input type="number" min="0" max="23" value="${schedule.closingHour}" 
+                               onchange="window.game.updateClosingHour(this.value)">
+                        <span>${schedule.closingHour}:00</span>
+                    </div>
+                    <div class="schedule-row">
+                        <label>Status:</label>
+                        <span class="status-badge ${schedule.isOpen ? 'open' : 'closed'}">
+                            ${schedule.isOpen ? '🟢 OPEN' : '🔴 CLOSED'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ==================== EQUIPMENT MANAGEMENT PANEL ====================
+    showEquipmentPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>⚙️ Equipment & Maintenance</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this.renderEquipmentList()}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        
+        gsap.from(panel.querySelector('.modal-content'), {
+            scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
+        });
+    }
+
+    renderEquipmentList() {
+        const allEquipment = [
+            ...this.engine.equipment.ovens || [],
+            ...this.engine.equipment.mixers || [],
+            ...this.engine.equipment.displays || []
+        ];
+
+        if (allEquipment.length === 0) {
+            return `
+                <p style="opacity: 0.6; padding: 20px; text-align: center;">
+                    No equipment tracked yet. Equipment from your startup phase will appear here.
+                </p>
+            `;
+        }
+
+        const equipEfficiency = this.engine.getEquipmentEfficiency().toFixed(2);
+
+        return `
+            <div class="equipment-section">
+                <h3>All Equipment (Efficiency: ${equipEfficiency}x)</h3>
+                <div class="equipment-grid">
+                    ${allEquipment.map(equip => {
+                        const conditionClass = equip.condition > 70 ? 'good' : equip.condition > 40 ? 'fair' : 'poor';
+                        const daysSinceMaint = this.engine.day - equip.lastMaintenance;
+                        
+                        return `
+                            <div class="equipment-card ${conditionClass}">
+                                <div class="equipment-header">
+                                    <h4>${equip.name}</h4>
+                                    <span class="equipment-type">${equip.type}</span>
+                                </div>
+                                <div class="equipment-stats">
+                                    <div class="stat-row">
+                                        <span>Condition:</span>
+                                        <div class="condition-bar">
+                                            <div class="condition-fill" style="width: ${equip.condition}%; background: ${equip.condition > 70 ? '#2ecc71' : equip.condition > 40 ? '#f39c12' : '#e74c3c'}"></div>
+                                        </div>
+                                        <strong>${equip.condition.toFixed(0)}%</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Breakdown Risk:</span>
+                                        <strong>${(equip.breakdownProbability * 100).toFixed(1)}%</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Last Maintenance:</span>
+                                        <span>${daysSinceMaint} days ago</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Total Repairs:</span>
+                                        <strong>$${equip.totalRepairCosts.toFixed(2)}</strong>
+                                    </div>
+                                </div>
+                                <div class="equipment-actions">
+                                    <button class="btn-small btn-primary" onclick="window.game.maintainEquipmentById(${equip.id})">
+                                        🔧 Maintain ($${equip.maintenanceCost.toFixed(2)})
+                                    </button>
+                                    ${equip.condition < 80 ? `
+                                        <button class="btn-small btn-warning" onclick="window.game.repairEquipmentById(${equip.id})">
+                                            🛠️ Repair ($${((equip.maintenanceCost * (100 - equip.condition)) / 10).toFixed(2)})
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper methods for UI interactions
+    hireStaffOption(staffId) {
+        const staffConfig = GAME_CONFIG.SETUP_OPTIONS.staff.find(s => s.id === staffId);
+        if (!staffConfig) return;
+        
+        const result = this.engine.hireStaff(staffConfig);
+        if (result.success) {
+            this.showPopup({
+                icon: '✅',
+                title: 'Staff Hired!',
+                message: `${result.staff.face} ${staffConfig.name} has joined your team!`,
+                type: 'success',
+                autoClose: 2000
+            });
+            // Refresh the staff panel after a delay
+            setTimeout(() => {
+                const existingPanel = document.querySelector('.modal-overlay');
+                if (existingPanel) {
+                    existingPanel.remove();
+                    this.showStaffPanel();
+                }
+            }, 2100);
+        }
+    }
+
+    trainStaff(staffId) {
+        const result = this.engine.trainStaff(staffId);
+        if (result.success) {
+            this.showPopup({
+                icon: '📚',
+                title: 'Training Complete!',
+                message: `Staff training improved! Cost: $${result.cost}`,
+                type: 'success'
+            });
+            document.querySelector('.modal-overlay').remove();
+            this.showStaffPanel();
+        } else {
+            this.showPopup({
+                icon: '❌',
+                title: 'Cannot Train',
+                message: result.message,
+                type: 'error'
+            });
+        }
+    }
+
+    fireStaff(staffId) {
+        if (!confirm('Are you sure you want to fire this employee? Severance pay will be deducted.')) return;
+        
+        const result = this.engine.fireStaff(staffId);
+        if (result.success) {
+            this.showPopup({
+                icon: '👋',
+                title: 'Employee Dismissed',
+                message: `Severance paid: $${result.severance}`,
+                type: 'warning'
+            });
+            document.querySelector('.modal-overlay').remove();
+            this.showStaffPanel();
+        }
+    }
+
+    updateOpeningHour(hour) {
+        this.engine.shiftSchedule.openingHour = parseInt(hour);
+    }
+
+    updateClosingHour(hour) {
+        this.engine.shiftSchedule.closingHour = parseInt(hour);
+    }
+
+    maintainEquipmentById(equipId) {
+        const result = this.engine.maintainEquipment(equipId);
+        if (result.success) {
+            this.showPopup({
+                icon: '🔧',
+                title: 'Maintenance Complete!',
+                message: `Equipment maintained. Cost: $${result.cost.toFixed(2)}`,
+                type: 'success'
+            });
+            document.querySelector('.modal-overlay').remove();
+            this.showEquipmentPanel();
+        } else {
+            this.showPopup({
+                icon: '❌',
+                title: 'Cannot Maintain',
+                message: result.message,
+                type: 'error'
+            });
+        }
+    }
+
+    repairEquipmentById(equipId) {
+        const result = this.engine.repairEquipment(equipId);
+        if (result.success) {
+            this.showPopup({
+                icon: '🛠️',
+                title: 'Repair Complete!',
+                message: `Equipment fully repaired. Cost: $${result.cost.toFixed(2)}`,
+                type: 'success'
+            });
+            document.querySelector('.modal-overlay').remove();
+            this.showEquipmentPanel();
+        } else {
+            this.showPopup({
+                icon: '❌',
+                title: 'Cannot Repair',
+                message: result.message,
+                type: 'error'
+            });
+        }
     }
 }
 

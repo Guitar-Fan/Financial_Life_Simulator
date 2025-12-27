@@ -1,22 +1,3 @@
-Upgrade the start page buttons UI experience in main.html game, 
-do not mind interactive.html.
-
-Code an interactive tutorial with explantions in thought bubbles and 
-dialogue floating bubbles demonstrating how to do each phase idealy 
-like showing a good player's sample user's actions
-
-Add a stage before the bakery even starts buying inventory; 
-where user plays setting up the bakery, including choosing between locations, 
-paperwork with local and state government, buying building, equipment, hiring workers,
-buying furniture and decorations (could become later part of stages). I want bakery simulation to be free navigate sim, like many games
-such as 
-
-whenever I start up the tutorial, the explanation bubble disappears after around half
-a second of showing.
-
-Add a custom favicon that resembles a bakery
-
-
 detailed svg, gsap or phaser for graphics of environment, equipment, rooms and building,  not emojis
 
 Redesign game play to allow player to walk to the mode they want. 
@@ -47,3 +28,54 @@ A series of games aiming to simulate realistic scenarios’ aspects of finance,
 such as the money management behind small businesses, using real finance concepts and realistic stats.
 Financial principles demonstrated in game are based on well-known finance books, such as Rich Dad Poor Dad.
 Main game is a small bakery business simulation so teens can learn what’s behind starting a business.
+
+implement improvement 1 more obviously,include detailed charts in a dedicated menu chart
+items showing the finish
+
+upgrade the pre operational phase to be way more complicated and can be considered close to real world with more options, parameters for locations,
+ variability and complex decision making, better scene details
+
+now with the advanced pre-operation phase, code the other stages continuing with the pre-op 
+features and logic so the whole game is unified in functionality and 
+features. Also players may get lost in map, so have animated arrow that point to place
+player is supposed to go. Also implement improvement 1 from plan.md more obviously, include detailed charts 
+in a dedicated menu item that shows in game financial trends (tax, inflation, supply, )
+factors that can lower or increase price) and also tracks player's business financial stats
+
+pre op phase is good, but as soon as player moves to buy inventory,
+page is blank, dedicated finance tracking item in menu opens, but doesn't show
+anything. errors in eruda:
+
+charts on finance trends menu item keep expanding and show nothing, the time bakery
+items take irl is too long make it last like 2 secs, put back time speed multipliers
+also allow 4 times the amount of food items that can go into oven at once, (this is a game, some
+parts need to be sped up). Allow for users to bake while selling to customers.
+
+implement number 5 on plan.md: inventory and spoilage system. There is already
+some spoilage and inventory logic, but upgrade it significantly according to plan.md
+
+Could you add some sound effects to bakery game using howler.js
+
+Allow user to skip pre op phase using default standard settings of a normal bakery.
+
+When user is done with pre-op phase, show open bakery button on right side of map,
+so user doesn't have to walk to it. Also Quick start mode doesn't work, make
+sure features and functionality are consistant in quick start mode: TypeError: Cannot read properties of undefined (reading 'find')
+at GameController.applyDefaultSetup (https://symmetrical-waddle-pjrgxjg74g4pc9r7r-5500.app.github.dev/js/GameController.js:231:48)
+at GameController.quickStart (https://symmetrical-waddle-pjrgxjg74g4pc9r7r-5500.app.github.dev/js/GameController.js:206:14)
+at https://symmetrical-waddle-pjrgxjg74g4pc9r7r-5500.app.github.dev/js/GameController.js:185:35
+
+code gameplay to demonstrate the finance concept of "assets vs liabilities".
+at certain key moments of gameplay where a certain thing happens, or a user does
+something, it unlocks a financial "insight", similar to an achievement in other games
+where a in game nofication pops up and you unlocked a piece of financial wisdom in
+finance wisdom panel (name it something shorter, but similar vibes).
+
+Upgrade baking and selling phase to include autonomous employee function,
+with a dedicated part of screen for employees. Also upgrade baking and selling
+phase to be more complex and realistic in general (e.g. baking isn't just shoving
+ingredients in oven, chefs need to prepare it, takes time and expertise, preparation impacts
+quality)
+
+Make employees have faces. Also after hiring employees, the dialog box that
+says i hired won't disappear and players can't continue

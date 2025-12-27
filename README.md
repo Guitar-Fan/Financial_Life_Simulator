@@ -1,32 +1,75 @@
 ## Sweet Success Bakery Simulator
 
-An immersive, browser-based financial simulation game where you build and run your own bakery.
+An immersive, browser-based financial simulation game where you build and run your own bakery with realistic economic dynamics.
 
-### Features
+### 🎮 Latest Features (v3.1.0)
+
+#### 📊 Financial Dashboard
+- **Real-time market analytics** with Chart.js visualizations
+- **4 comprehensive tabs**: Overview, Market Conditions, Business Performance, Pricing Analysis
+- **Economic indicators**: Track inflation, supply/demand, price trends
+- **KPI tracking**: Revenue, costs, profit, cash flow with trend indicators
+- **Historical data**: 90-day rolling charts for informed decision-making
+- **Access**: Click "📊 Market" button in top navigation anytime during gameplay
+
+#### 🧭 Navigation Guidance System
+- **Animated arrow** follows your character during pre-operational setup
+- **Smart pathfinding**: Points to the next building you need to visit
+- **Helpful labels**: Shows exactly what you need to do ("Visit Bank", "Get Permits", etc.)
+- **Automatic updates**: Refreshes after each step completion
+- **Never get lost**: Perfect for new players navigating the complex setup phase
+
+#### 💹 Economic Simulation Engine
+- **Dynamic pricing**: Ingredient costs fluctuate based on real market forces
+- **Inflation tracking**: Realistic 3% base rate with -2% to +8% volatility
+- **Supply & Demand**: Category-based market dynamics (grains, dairy, produce)
+- **Seasonal effects**: Spring harvest bounty, winter produce scarcity
+- **Economic events**: Random market shocks (flour shortages, dairy surplus, etc.)
+- **Price indicators**: Green/red color coding shows when to buy
+- **Customer segments**: Different willingness to pay based on quality expectations
+
+### 🎯 Core Features
 - **Free-roam Hub:** Walk your character (WASD) to select game phases (Buy, Bake, Sell, Summary) in a custom-drawn bakery hub.
-- **Setup Phase:** Choose location, handle paperwork, buy equipment, and hire staff in a city map before opening your bakery.
+- **Setup Phase:** Realistic pre-operational decisions with 6 locations, tiered equipment, permits, insurance, financing, and staffing options
 - **Interactive Tutorial:** Step-by-step guidance with floating dialogue and demo actions.
 - **No Forced Progression:** Return to the hub after each phase; choose your next action freely.
-- **Custom Graphics:** Phaser 3, GSAP, and SVG for all visuals (no emojis or stock art).
+- **Custom Graphics:** Phaser 3, GSAP, and SVG for all visuals with procedural building generation
 - **Core Gameplay:**
-  - Buy ingredients from vendors
-  - Bake products using recipes
-  - Sell to customers with dynamic demand
-  - Review daily financial summary
+  - Buy ingredients from vendors at dynamic market prices
+  - Bake products using recipes with quality mechanics
+  - Sell to customers with realistic demand elasticity
+  - Review daily financial summary with economic updates
 
 ### Tech Stack
 - **Phaser 3** (game engine, scenes, physics)
 - **GSAP** (UI animation)
+- **Chart.js** (financial data visualization)
 - **Vanilla JS** (game logic, UI overlays)
 
 ### How to Play
-1. Start a new game and complete the setup phase in the city.
-2. Enter the bakery hub and walk to a pad to choose a mode.
-3. Buy, bake, sell, and review stats at your own pace.
-4. Use the tutorial for a guided experience.
+1. Start a new game and complete the realistic setup phase in the city (follow the navigation arrow!)
+2. Enter the bakery hub and walk to a pad to choose a mode
+3. Buy ingredients when prices are low (check the dashboard!)
+4. Bake quality products using fresh ingredients
+5. Sell to customers at optimal prices
+6. Review daily stats and economic conditions
+7. Repeat and grow your business!
+
+### Pro Tips
+- 📊 Check the **Financial Dashboard** daily for market conditions
+- 💚 Buy ingredients when they show **green** (below average price)
+- 📈 Watch for **economic events** that affect ingredient costs
+- 🎯 Match your **pricing to customer segments** and product quality
+- 📉 Adjust strategy based on **seasonal patterns**
 
 ### Run Locally
 Open `main.html` in your browser. No build step required.
+
+### Documentation
+- [QUICK_GUIDE.md](QUICK_GUIDE.md) - Complete guide to new features
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) - Technical implementation details
+- [VERSION.md](VERSION.md) - Version history
+- [PLAN.md](PLAN.md) - Future roadmap
 
 ---
 Created by Guitar-Fan. Contributions welcome!
