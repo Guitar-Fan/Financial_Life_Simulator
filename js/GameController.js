@@ -102,14 +102,6 @@ class GameController {
                             <span class="btn-sub">Full setup experience</span>
                         </span>
                     </button>
-                    
-                    <button class="menu-btn primary" id="btn-quick-start" role="button" tabindex="0" aria-label="Quick start with defaults" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
-                        <span class="btn-content">
-                            <span class="btn-icon">⚡</span>
-                            <span class="btn-title">Quick Start</span>
-                            <span class="btn-sub">Skip setup, use standard bakery</span>
-                        </span>
-                    </button>
 
                     <button class="menu-btn secondary" id="btn-continue" role="button" tabindex="0" aria-label="Continue saved game" style="display: none;">
                         <span class="btn-content">
@@ -143,7 +135,6 @@ class GameController {
         }
 
         const btnNew = document.getElementById('btn-new-game');
-        const btnQuick = document.getElementById('btn-quick-start');
         const btnTut = document.getElementById('btn-tutorial');
 
         // Common accessible activation (keyboard Enter/Space)
@@ -178,12 +169,6 @@ class GameController {
             animatePress(btnNew, e);
             setTimeout(() => this.startNewGame(), 180);
         });
-        
-        // Wire up Quick Start
-        makeAccessible(btnQuick, (e) => {
-            animatePress(btnQuick, e);
-            setTimeout(() => this.quickStart(), 180);
-        });
 
         // Wire up Tutorial
         makeAccessible(btnTut, (e) => {
@@ -192,7 +177,7 @@ class GameController {
         });
 
         // Give focus styles and hover micro-interactions
-        [btnNew, btnQuick, btnTut, btnContinue].forEach(b => {
+        [btnNew, btnTut, btnContinue].forEach(b => {
             if (!b) return;
             b.addEventListener('mouseenter', () => gsap.to(b.querySelector('.btn-icon'), { y: -4, duration: 0.18 }));
             b.addEventListener('mouseleave', () => gsap.to(b.querySelector('.btn-icon'), { y: 0, duration: 0.18 }));
@@ -200,89 +185,6 @@ class GameController {
         });
     }
     
-    quickStart() {
-        this.engine.reset();
-        localStorage.removeItem('bakery_save');
-        this.applyDefaultSetup();
-        this.showModeHub();
-    }
-    
-    applyDefaultSetup() {
-        const options = GAME_CONFIG.SETUP_OPTIONS;
-        
-        // Default choices based on typical mid-range bakery
-        const defaultChoices = {
-            // Mid-tier suburban location
-            location: options.locations.find(l => l.id === 'suburbs_plaza'),
-            // Bootstrap with savings (no debt)
-            financing: options.financing.find(f => f.id === 'personal_savings'),
-            // Mid-tier equipment
-            equipment: {
-                oven: options.equipment.ovens.find(e => e.id === 'pro_deck'),
-                mixer: options.equipment.mixers.find(m => m.id === 'floor_mixer'),
-                display: options.equipment.displays.find(d => d.id === 'refrigerated_case')
-            },
-            // Required permits only
-            paperwork: options.paperwork.filter(p => p.required).map(p => p.id),
-            // Standard insurance
-            insurance: options.insurance.find(i => i.id === 'standard_package'),
-            // Mid-tier utilities (selecting from flat array)
-            utilities: [
-                options.utilities.find(u => u.id === 'commercial_power'),
-                options.utilities.find(u => u.id === 'business_internet')
-            ],
-            // Solo operation
-            staff: options.staff.find(s => s.id === 'solo')
-        };
-        
-        this.setupChoices = defaultChoices;
-        
-        // Apply to engine
-        this.engine.rentAmount = defaultChoices.location.rent;
-        this.engine.trafficMultiplier = defaultChoices.location.traffic;
-        this.engine.ovenCapacity = 8; // Already increased
-        this.engine.bakingSpeedMultiplier = defaultChoices.equipment.oven.speed * defaultChoices.equipment.mixer.efficiency;
-        
-        if (defaultChoices.staff.efficiency) {
-            this.engine.bakingSpeedMultiplier *= defaultChoices.staff.efficiency;
-        }
-        
-        if (defaultChoices.insurance) {
-            this.engine.monthlyInsurance = defaultChoices.insurance.monthlyCost;
-        }
-        
-        if (defaultChoices.utilities && defaultChoices.utilities.length > 0) {
-            this.engine.monthlyUtilities = defaultChoices.utilities.reduce((sum, u) => sum + u.monthlyCost, 0);
-        }
-        
-        // Deduct initial costs
-        const equipmentCost = defaultChoices.equipment.oven.cost + 
-                             defaultChoices.equipment.mixer.cost + 
-                             defaultChoices.equipment.display.cost;
-        const permitCost = options.paperwork
-            .filter(p => defaultChoices.paperwork.includes(p.id))
-            .reduce((sum, p) => sum + p.cost, 0);
-        const zoningCost = defaultChoices.location.zoningFees || 0;
-        const insuranceCost = defaultChoices.insurance.upfrontCost || 0;
-        
-        const totalStartupCosts = equipmentCost + permitCost + zoningCost + insuranceCost;
-        
-        // Ensure cash is a number before deducting
-        if (typeof this.engine.cash !== 'number' || isNaN(this.engine.cash)) {
-            this.engine.cash = GAME_CONFIG.STARTING_CASH;
-        }
-        this.engine.cash -= totalStartupCosts;
-        
-        // Show notification
-        this.showPopup({
-            icon: '⚡',
-            title: 'Quick Start Complete!',
-            message: `You've opened a standard suburban bakery with mid-tier equipment. Total startup costs: $${totalStartupCosts.toFixed(2)}. Good luck!`,
-            type: 'success',
-            autoClose: 3000
-        });
-    }
-
     startNewGame() {
         this.engine.reset();
         localStorage.removeItem('bakery_save');

@@ -1,5 +1,3 @@
-detailed svg, gsap or phaser for graphics of environment, equipment, rooms and building,  not emojis
-
 Redesign game play to allow player to walk to the mode they want. 
 
 This game now has functional gameplay. There are 4 modes; buy inventory, produce goods, sell pastries
@@ -79,3 +77,9 @@ quality)
 
 Make employees have faces. Also after hiring employees, the dialog box that
 says i hired won't disappear and players can't continue
+
+delete quick start mode, but in pre-op mode, have a button to for user put in "default"
+options of every building, so the game treats it like the user entered it themselves, but
+the computer actually did. that way, everything is uniform, and less error prone.
+
+lets

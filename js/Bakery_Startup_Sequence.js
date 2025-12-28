@@ -347,6 +347,30 @@ class StartupScene extends Phaser.Scene {
             color: '#7f8c8d'
         }).setScrollFactor(0).setDepth(151);
         
+        // "Use Default Settings" button
+        this.defaultsBtn = this.add.text(700, 50, '⚙️ Use Default Settings', {
+            fontFamily: 'Fredoka, sans-serif',
+            fontSize: '20px',
+            backgroundColor: '#3498db',
+            padding: { x: 16, y: 10 },
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(300)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
+            this.applyDefaultSettings();
+        })
+        .on('pointerover', () => {
+            this.defaultsBtn.setBackgroundColor('#2980b9');
+        })
+        .on('pointerout', () => {
+            this.defaultsBtn.setBackgroundColor('#3498db');
+        });
+        
         this.updateHUD();
     }
 
@@ -1179,4 +1203,87 @@ class StartupScene extends Phaser.Scene {
             }
         }
     }
+
+    applyDefaultSettings() {
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        
+        // Default choices based on typical mid-range bakery
+        const defaultChoices = {
+            // Mid-tier suburban location
+            location: options.locations.find(l => l.id === 'suburbs_plaza'),
+            // Bootstrap with savings (no debt)
+            financing: options.financing.find(f => f.id === 'personal_savings'),
+            // Mid-tier equipment
+            equipment: {
+                oven: options.equipment.ovens.find(e => e.id === 'pro_deck'),
+                mixer: options.equipment.mixers.find(m => m.id === 'floor_mixer'),
+                display: options.equipment.displays.find(d => d.id === 'refrigerated_case')
+            },
+            // Required permits only
+            paperwork: options.paperwork.filter(p => p.required).map(p => p.id),
+            // Standard insurance
+            insurance: options.insurance.find(i => i.id === 'standard_package'),
+            // Mid-tier utilities (selecting from flat array)
+            utilities: [
+                options.utilities.find(u => u.id === 'commercial_power'),
+                options.utilities.find(u => u.id === 'business_internet')
+            ],
+            // Solo operation
+            staff: options.staff.find(s => s.id === 'solo')
+        };
+        
+        // Apply location
+        window.game.setupChoices.location = defaultChoices.location;
+        this.setupState.locationSelected = true;
+        
+        // Apply financing
+        window.game.setupChoices.financing = defaultChoices.financing;
+        this.setupState.financingDecided = true;
+        
+        // Apply equipment
+        window.game.setupChoices.equipment = defaultChoices.equipment;
+        this.setupState.equipmentBought.oven = true;
+        this.setupState.equipmentBought.mixer = true;
+        this.setupState.equipmentBought.display = true;
+        
+        // Apply paperwork
+        window.game.setupChoices.paperwork = defaultChoices.paperwork;
+        this.setupState.paperworkDone.required = true;
+        
+        // Apply insurance
+        window.game.setupChoices.insurance = defaultChoices.insurance;
+        this.setupState.insuranceSelected = true;
+        
+        // Apply utilities
+        window.game.setupChoices.utilities = defaultChoices.utilities;
+        this.setupState.utilitiesSetup = true;
+        
+        // Apply staff
+        window.game.setupChoices.staff = defaultChoices.staff;
+        this.setupState.staffHired = true;
+        
+        // Show notification
+        const notif = this.add.text(400, 100, '✅ Default settings applied to all buildings!', {
+            fontFamily: 'Fredoka, sans-serif',
+            fontSize: '24px',
+            backgroundColor: '#27ae60',
+            padding: { x: 16, y: 10 },
+            color: '#ffffff'
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(500);
+        
+        this.tweens.add({
+            targets: notif,
+            alpha: 0,
+            duration: 3000,
+            delay: 1500,
+            onComplete: () => notif.destroy()
+        });
+        
+        // Check if we can show finish button now
+        this.checkCompletion();
+    }
 }
+
