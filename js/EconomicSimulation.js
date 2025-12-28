@@ -363,6 +363,55 @@ class EconomicSimulation {
         
         return multiplier;
     }
+
+    save() {
+        // Deep clone to avoid accidental mutations when reloading
+        return JSON.parse(JSON.stringify({
+            day: this.day,
+            season: this.season,
+            dayOfWeek: this.dayOfWeek,
+            inflation: this.inflation,
+            ingredientPrices: this.ingredientPrices,
+            marketConditions: this.marketConditions,
+            activeEvents: this.activeEvents,
+            history: this.history
+        }));
+    }
+
+    load(snapshot) {
+        if (!snapshot) return;
+
+        this.day = snapshot.day || this.day;
+        this.season = snapshot.season || this.season;
+        this.dayOfWeek = snapshot.dayOfWeek ?? this.dayOfWeek;
+
+        if (snapshot.inflation) {
+            this.inflation = { ...this.inflation, ...snapshot.inflation };
+        }
+
+        if (snapshot.ingredientPrices) {
+            this.ingredientPrices = { ...snapshot.ingredientPrices };
+        }
+
+        if (snapshot.marketConditions) {
+            this.marketConditions = { ...snapshot.marketConditions };
+        }
+
+        if (snapshot.activeEvents) {
+            this.activeEvents = [...snapshot.activeEvents];
+        }
+
+        if (snapshot.history) {
+            this.history = { ...this.history, ...snapshot.history };
+        }
+
+        // Ensure history structures exist for each ingredient after loading
+        Object.keys(GAME_CONFIG.INGREDIENTS).forEach(key => {
+            if (!this.history.ingredientPrices[key]) {
+                this.history.ingredientPrices[key] = [];
+            }
+        });
+    }
 }
 
 window.EconomicSimulation = EconomicSimulation;

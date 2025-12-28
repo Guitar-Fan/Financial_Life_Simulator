@@ -982,6 +982,136 @@ const GAME_CONFIG = {
     DEMAND: {
         hourlyMultiplier: { 6: 0.3, 7: 0.8, 8: 1.5, 9: 1.2, 10: 0.8, 11: 1.0, 12: 1.3, 13: 1.0, 14: 0.7, 15: 0.9, 16: 1.1, 17: 0.8, 18: 0.4 },
         baseCustomersPerHour: 4
+    },
+
+    STRATEGY: {
+        PHILOSOPHIES: {
+            craftsmanship: {
+                id: 'craftsmanship',
+                name: 'Craftsmanship First',
+                icon: '🥐',
+                summary: 'Premium sourcing, slower growth, loyal superfans.',
+                defaults: {
+                    vendor: 'FARMERS',
+                    pricingStyle: 'premium',
+                    marketingFocus: 'PREMIUM',
+                    bufferDays: 2
+                },
+                modifiers: {
+                    qualityBias: 1.1,
+                    costDiscipline: 0.95,
+                    marketingTone: 'storytelling'
+                }
+            },
+            lean_optimist: {
+                id: 'lean_optimist',
+                name: 'Lean Optimizer',
+                icon: '🧮',
+                summary: 'Tight inventory, ruthless on costs, volume mindset.',
+                defaults: {
+                    vendor: 'SYSCO',
+                    pricingStyle: 'value',
+                    marketingFocus: 'BUDGET',
+                    bufferDays: 1
+                },
+                modifiers: {
+                    qualityBias: 0.9,
+                    costDiscipline: 1.1,
+                    marketingTone: 'deal'
+                }
+            },
+            neighborhood_builder: {
+                id: 'neighborhood_builder',
+                name: 'Neighborhood Builder',
+                icon: '🏘️',
+                summary: 'Stable margins, community events, balanced sourcing.',
+                defaults: {
+                    vendor: 'METRO',
+                    pricingStyle: 'balanced',
+                    marketingFocus: 'REGULAR',
+                    bufferDays: 1.5
+                },
+                modifiers: {
+                    qualityBias: 1.0,
+                    costDiscipline: 1.0,
+                    marketingTone: 'story'
+                }
+            }
+        },
+        PLAYBOOKS: {
+            steady_shop: {
+                id: 'steady_shop',
+                name: 'Steady Artisan Shop',
+                icon: '🧺',
+                summary: 'Moderate buffers, focus on best sellers.',
+                inventoryDays: 1.5,
+                cashFloor: 0.2,
+                dailyOutput: 18,
+                automationBias: { procurement: 'balanced', pricing: 'market' },
+                productionFocus: [
+                    { recipe: 'BREAD', weight: 0.35 },
+                    { recipe: 'CROISSANT', weight: 0.25 },
+                    { recipe: 'COOKIE', weight: 0.2 },
+                    { recipe: 'MUFFIN', weight: 0.2 }
+                ]
+            },
+            growth_push: {
+                id: 'growth_push',
+                name: 'Growth Push',
+                icon: '🚀',
+                summary: 'Aggressive hiring and display-filling output.',
+                inventoryDays: 2.2,
+                cashFloor: 0.1,
+                dailyOutput: 28,
+                automationBias: { procurement: 'aggressive', pricing: 'premium' },
+                productionFocus: [
+                    { recipe: 'CROISSANT', weight: 0.35 },
+                    { recipe: 'MUFFIN', weight: 0.25 },
+                    { recipe: 'COOKIE', weight: 0.2 },
+                    { recipe: 'CAKE', weight: 0.2 }
+                ]
+            },
+            lean_cashflow: {
+                id: 'lean_cashflow',
+                name: 'Lean Cashflow',
+                icon: '💼',
+                summary: 'Minimal inventory, safeguard liquidity.',
+                inventoryDays: 1,
+                cashFloor: 0.35,
+                dailyOutput: 14,
+                automationBias: { procurement: 'conservative', pricing: 'value' },
+                productionFocus: [
+                    { recipe: 'BREAD', weight: 0.4 },
+                    { recipe: 'COOKIE', weight: 0.3 },
+                    { recipe: 'MUFFIN', weight: 0.2 },
+                    { recipe: 'CROISSANT', weight: 0.1 }
+                ]
+            }
+        },
+        PRICING_STYLES: {
+            premium: {
+                id: 'premium',
+                label: 'Premium Experience',
+                description: 'Charge 15% more; best for high quality and events.',
+                priceMultiplier: 1.15,
+                elasticityBias: 0.9
+            },
+            balanced: {
+                id: 'balanced',
+                label: 'Market Rate',
+                description: 'Stick close to book price and ride demand swings.',
+                priceMultiplier: 1.0,
+                elasticityBias: 1.0
+            },
+            value: {
+                id: 'value',
+                label: 'Value Menu',
+                description: 'Trim 10% to move volume and attract budget shoppers.',
+                priceMultiplier: 0.9,
+                elasticityBias: 1.1
+            }
+        },
+        INVENTORY_BOUNDS: { minDays: 0.5, maxDays: 3 }
     }
 };
 

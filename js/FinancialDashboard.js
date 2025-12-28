@@ -7,10 +7,12 @@ class FinancialDashboard {
     constructor(gameController) {
         this.game = gameController;
         this.isOpen = false;
+        this.charts = {};
     }
     
     show() {
         this.isOpen = true;
+        this.destroyAllCharts();
         const container = document.getElementById('game-container');
         
         container.innerHTML = `
@@ -42,6 +44,46 @@ class FinancialDashboard {
         document.getElementById('btn-close-dashboard').onclick = () => {
             this.close();
         };
+    }
+
+    registerChart(key, ctx, config) {
+        this.destroyChart(key);
+        this.charts[key] = new Chart(ctx, config);
+        return this.charts[key];
+    }
+
+    destroyChart(key) {
+        if (this.charts[key]) {
+            this.charts[key].destroy();
+            delete this.charts[key];
+        }
+    }
+
+    destroyAllCharts() {
+        Object.keys(this.charts).forEach(key => this.destroyChart(key));
+    }
+
+    showChartEmptyState(canvas, message) {
+        if (!canvas || !canvas.parentElement) return;
+        let empty = canvas.parentElement.querySelector('.chart-empty-state');
+        if (!empty) {
+            empty = document.createElement('div');
+            empty.className = 'chart-empty-state';
+            empty.style.padding = '30px';
+            empty.style.textAlign = 'center';
+            empty.style.color = '#7f8c8d';
+            empty.style.fontStyle = 'italic';
+            canvas.parentElement.appendChild(empty);
+        }
+        empty.textContent = message;
+        canvas.style.display = 'none';
+    }
+
+    hideChartEmptyState(canvas) {
+        if (!canvas || !canvas.parentElement) return;
+        const empty = canvas.parentElement.querySelector('.chart-empty-state');
+        if (empty) empty.remove();
+        canvas.style.display = 'block';
     }
     
     setupTabs() {
@@ -302,11 +344,13 @@ class FinancialDashboard {
         
         const data = this.game.economy.history.inflation || [];
         if (data.length === 0) {
-            ctx.parentElement.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 40px;">No data yet - play more days to see trends</p>';
+            this.destroyChart('inflation');
+            this.showChartEmptyState(ctx, 'No data yet - play more days to see trends.');
             return;
         }
+        this.hideChartEmptyState(ctx);
         
-        new Chart(ctx, {
+        this.registerChart('inflation', ctx, {
             type: 'line',
             data: {
                 labels: data.map(d => `Day ${d.day}`),
@@ -335,16 +379,14 @@ class FinancialDashboard {
         
         const data = this.game.economy.history.ingredientPrices[ingredientKey] || [];
         if (data.length === 0) {
-            if (this.ingredientChart) this.ingredientChart.destroy();
-            ctx.parentElement.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 40px;">No price history yet</p>';
+            this.destroyChart('ingredientPrice');
+            this.showChartEmptyState(ctx, 'No price history yet. Purchase ingredients and advance time.');
             return;
         }
+        this.hideChartEmptyState(ctx);
         const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
         
-        // Destroy previous chart
-        if (this.ingredientChart) this.ingredientChart.destroy();
-        
-        this.ingredientChart = new Chart(ctx, {
+        this.registerChart('ingredientPrice', ctx, {
             type: 'line',
             data: {
                 labels: data.map(d => `Day ${d.day}`),
@@ -389,7 +431,7 @@ class FinancialDashboard {
         const conditions = this.game.economy.marketConditions;
         const categories = Object.keys(conditions);
         
-        new Chart(ctx, {
+        this.registerChart('supplyDemand', ctx, {
             type: 'bar',
             data: {
                 labels: categories.map(c => c.charAt(0).toUpperCase() + c.slice(1)),
@@ -423,8 +465,14 @@ class FinancialDashboard {
         
         const revenue = this.game.economy.history.revenue;
         const costs = this.game.economy.history.costs;
+        if (!revenue.length || !costs.length) {
+            this.destroyChart('revenue');
+            this.showChartEmptyState(ctx, 'Collect at least one day of revenue to unlock this chart.');
+            return;
+        }
+        this.hideChartEmptyState(ctx);
         
-        new Chart(ctx, {
+        this.registerChart('revenue', ctx, {
             type: 'line',
             data: {
                 labels: revenue.map(d => `Day ${d.day}`),
@@ -461,8 +509,14 @@ class FinancialDashboard {
         if (!ctx) return;
         
         const profit = this.game.economy.history.profit;
+        if (!profit.length) {
+            this.destroyChart('profit');
+            this.showChartEmptyState(ctx, 'Operate for a day to see profit trends.');
+            return;
+        }
+        this.hideChartEmptyState(ctx);
         
-        new Chart(ctx, {
+        this.registerChart('profit', ctx, {
             type: 'bar',
             data: {
                 labels: profit.map(d => `Day ${d.day}`),
@@ -488,8 +542,14 @@ class FinancialDashboard {
         if (!ctx) return;
         
         const cash = this.game.economy.history.cashBalance;
+        if (!cash.length) {
+            this.destroyChart('cash');
+            this.showChartEmptyState(ctx, 'No cash history yet. Complete a day to generate data.');
+            return;
+        }
+        this.hideChartEmptyState(ctx);
         
-        new Chart(ctx, {
+        this.registerChart('cash', ctx, {
             type: 'line',
             data: {
                 labels: cash.map(d => `Day ${d.day}`),
@@ -533,7 +593,9 @@ class FinancialDashboard {
             demands.push(demand.toFixed(1));
         }
         
-        new Chart(ctx, {
+        this.hideChartEmptyState(ctx);
+
+        this.registerChart('elasticity', ctx, {
             type: 'line',
             data: {
                 labels: prices,
@@ -559,6 +621,7 @@ class FinancialDashboard {
     
     close() {
         this.isOpen = false;
+        this.destroyAllCharts();
         // Return to previous phase or hub
         if (this.game.currentPhase === 'hub') {
             this.game.showModeHub();

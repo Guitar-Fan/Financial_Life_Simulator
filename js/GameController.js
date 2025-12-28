@@ -13,9 +13,15 @@ class GameController {
         this.phaseIndex = 0;
         this.isRunning = false;
         this.lastUpdate = 0;
-        this.customerQueue = [];
-        this.currentCustomer = null;
+        this.activeCustomers = [];
         this.crisisActive = false;
+        this.productionTargets = {};
+        this.philosophySystem = null;
+        this.strategySettings = null;
+        this.automationLog = [];
+        this.maxAutomationLog = 25;
+        this.automationEnabled = false;
+        this.lastAutomationState = null;
 
         this.init();
     }
@@ -30,6 +36,9 @@ class GameController {
         this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
         this.tutorial = new TutorialSystem(this);
         this.setupEventListeners();
+        this.initializeStrategyLayer();
+        this.updateAutomationAvailability();
+        this.renderAutomationFeed();
         this.showMainMenu();
     }
 
@@ -48,6 +57,10 @@ class GameController {
                 type: 'success',
                 autoClose: 2000
             });
+            this.renderReadyProducts();
+            this.renderProductionQueue();
+            this.renderDisplayProducts();
+            this.maintainProductionTargets();
             this.updateStats();
         });
 
@@ -63,13 +76,280 @@ class GameController {
 
         this.engine.on('sale', (data) => {
             window.dispatchEvent(new CustomEvent('engine:sale', { detail: data }));
+            this.renderDisplayProducts();
+            this.renderReadyProducts();
+            this.maintainProductionTargets();
             this.updateStats();
         });
 
         this.engine.on('purchase', (data) => {
             window.dispatchEvent(new CustomEvent('engine:purchase', { detail: data }));
+            this.maintainProductionTargets();
             this.updateStats();
         });
+
+        this.engine.on('staff_hired', (staff) => {
+            this.logAutomationEvent('staff', `${staff.name} joined the team`, { staff: staff.name });
+            this.updateAutomationAvailability();
+        });
+
+        this.engine.on('staff_fired', (info) => {
+            if (info?.staff?.name) {
+                this.logAutomationEvent('staff', `${info.staff.name} left the bakery`, { staff: info.staff.name, severity: 'warning' });
+            }
+            this.updateAutomationAvailability();
+        });
+
+        this.engine.on('staff_trained', (staff) => {
+            this.logAutomationEvent('staff', `${staff.name} completed training`, { staff: staff.name });
+            this.renderAutomationFeed();
+        });
+    }
+
+    hasOperationalStaff() {
+        return Array.isArray(this.engine?.staff) && this.engine.staff.length > 0;
+    }
+
+    updateAutomationAvailability() {
+        const wasEnabled = this.automationEnabled;
+        this.automationEnabled = this.hasOperationalStaff();
+        if (wasEnabled !== this.automationEnabled) {
+            if (this.automationEnabled) {
+                this.logAutomationEvent('ops', 'Automation activated — staff are now handling routines.');
+                this.onAutomationActivated();
+            } else {
+                this.logAutomationEvent('ops', 'Automation paused — hire staff to resume hands-off mode.', { severity: 'warning' });
+            }
+        }
+        this.renderAutomationFeed();
+    }
+
+    logAutomationEvent(type, message, meta = {}) {
+        const entry = {
+            id: Date.now() + Math.random(),
+            type,
+            message,
+            meta,
+            timestamp: new Date().toISOString()
+        };
+        this.automationLog.unshift(entry);
+        if (this.automationLog.length > this.maxAutomationLog) {
+            this.automationLog.pop();
+        }
+        this.renderAutomationFeed();
+    }
+
+    getAutomationIcon(type) {
+        const map = {
+            production: '🏭',
+            procurement: '📦',
+            ops: '⚙️',
+            service: '🧑‍🍳',
+            sale: '💰',
+            staff: '👥'
+        };
+        return map[type] || 'ℹ️';
+    }
+
+    renderAutomationFeed() {
+        if (typeof document === 'undefined') return;
+        let panel = document.getElementById('automation-feed-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'automation-feed-panel';
+            panel.className = 'automation-feed-panel';
+            document.body.appendChild(panel);
+        }
+
+        const statusLabel = this.automationEnabled ? 'Active' : 'Paused';
+        const statusClass = this.automationEnabled ? 'active' : 'paused';
+        const entriesHtml = this.automationLog.length === 0
+            ? '<div class="automation-empty">No automation events yet</div>'
+            : this.automationLog.slice(0, 6).map(entry => {
+                const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const icon = this.getAutomationIcon(entry.type);
+                const severity = entry.meta?.severity ? ` severity-${entry.meta.severity}` : '';
+                return `
+                    <div class="automation-entry ${entry.type}${severity}">
+                        <div class="automation-entry-icon">${icon}</div>
+                        <div class="automation-entry-body">
+                            <div class="automation-entry-message">${entry.message}</div>
+                            <div class="automation-entry-meta">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+        const staffHtml = (this.engine?.staff || []).map(staff => {
+            const isServing = staff.currentCustomer ? `Serving ${staff.currentCustomer.name}` : (staff.currentTaskId ? 'On prep task' : 'Idle');
+            return `
+                <div class="automation-staff-row">
+                    <span>${staff.face || '🧑‍🍳'}</span>
+                    <div>
+                        <div class="staff-name">${staff.name}</div>
+                        <div class="staff-task">${isServing}</div>
+                    </div>
+                </div>
+            `;
+        }).join('') || '<div class="automation-empty">No staff assigned</div>';
+
+        panel.innerHTML = `
+            <div class="automation-feed-header">
+                <div>
+                    <div class="automation-feed-title">Automation Feed</div>
+                    <div class="automation-feed-status ${statusClass}">${statusLabel}</div>
+                </div>
+                <span class="automation-feed-count">${this.automationLog.length}</span>
+            </div>
+            <div class="automation-feed-section">
+                ${entriesHtml}
+            </div>
+            <div class="automation-feed-section staff">
+                <div class="automation-feed-subtitle">On-duty Staff</div>
+                ${staffHtml}
+            </div>
+        `;
+    }
+
+    onAutomationActivated() {
+        // Kick off automation tasks the moment staffing allows it
+        this.maintainProductionTargets();
+        this.enforceInventoryPlan();
+        this.resumeWaitingCustomers();
+        this.renderCustomerArea();
+    }
+
+    manualAutomationTrigger(context) {
+        if (!this.hasOperationalStaff()) {
+            this.showPopup({
+                icon: '👥',
+                title: 'No Staff Available',
+                message: 'Hire at least one employee before deploying automation.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        this.updateAutomationAvailability();
+
+        const labels = {
+            buying: 'Buying',
+            baking: 'Baking',
+            selling: 'Selling'
+        };
+
+        let message = '';
+
+        switch (context) {
+            case 'buying':
+                this.enforceInventoryPlan();
+                this.renderInventory();
+                this.renderRecipeReference();
+                message = 'Procurement plan executed. Inventory updated.';
+                break;
+            case 'baking':
+                this.maintainProductionTargets();
+                this.renderProductionQueue();
+                this.renderReadyProducts();
+                this.renderRecipes();
+                const bakingList = document.getElementById('employee-list');
+                if (bakingList) bakingList.innerHTML = this.renderEmployeePanel();
+                message = 'Production queue synced with automation targets.';
+                break;
+            case 'selling':
+                this.resumeWaitingCustomers();
+                this.renderCustomerArea();
+                const sellList = document.getElementById('employee-list-selling');
+                if (sellList) sellList.innerHTML = this.renderEmployeeSelling();
+                message = 'Front-of-house staff reassigned to active customers.';
+                break;
+            default:
+                this.maintainProductionTargets();
+                this.enforceInventoryPlan();
+                break;
+        }
+
+        this.logAutomationEvent('ops', `Manual automation trigger — ${labels[context] || 'General'}`, {
+            context,
+            manual: true
+        });
+
+        if (message) {
+            this.showPopup({
+                icon: '🤖',
+                title: 'Staff Deployed',
+                message,
+                type: 'success',
+                autoClose: 1600
+            });
+        }
+    }
+
+    initializeStrategyLayer() {
+        if (!window.BusinessPhilosophy || !GAME_CONFIG.STRATEGY) {
+            console.warn('BusinessPhilosophy system unavailable; defaulting to manual controls.');
+            return;
+        }
+
+        this.philosophySystem = new BusinessPhilosophy(GAME_CONFIG.STRATEGY);
+        this.applyStrategySettings({ keepTargets: false, skipAutomation: true });
+    }
+
+    applyStrategySettings(options = {}) {
+        if (!this.philosophySystem) return;
+
+        if (options.philosophy) {
+            this.philosophySystem.selectPhilosophy(options.philosophy);
+        }
+        if (options.playbook) {
+            this.philosophySystem.selectPlaybook(options.playbook);
+        }
+        if (options.pricingStyle) {
+            this.philosophySystem.setPricingStyle(options.pricingStyle);
+        }
+        if (options.marketingFocus) {
+            this.philosophySystem.setMarketingFocus(options.marketingFocus);
+        }
+        if (options.bufferDays !== undefined) {
+            this.philosophySystem.setInventoryBufferDays(options.bufferDays);
+        }
+
+        this.strategySettings = this.philosophySystem.getStrategySnapshot();
+
+        if (!options.keepTargets) {
+            const refreshedTargets = this.philosophySystem.getProductionTargets();
+            if (refreshedTargets && Object.keys(refreshedTargets).length > 0) {
+                this.productionTargets = refreshedTargets;
+            }
+        }
+
+        this.engine.setStrategySettings(this.strategySettings);
+        if (!options.skipAutomation) {
+            this.maintainProductionTargets();
+            this.enforceInventoryPlan();
+        }
+    }
+
+    enforceInventoryPlan() {
+        if (!this.strategySettings || !this.engine?.ensureIngredientInventory || !this.automationEnabled) return;
+
+        const actions = this.engine.ensureIngredientInventory({
+            productionTargets: this.productionTargets,
+            bufferDays: this.strategySettings.inventoryBufferDays,
+            vendorPreference: this.strategySettings.vendorPriority
+        });
+
+        if (Array.isArray(actions) && actions.length > 0) {
+            actions.forEach(action => {
+                if (action.skipped) {
+                    this.logAutomationEvent('procurement', `Skipped ${action.ingredient} due to ${action.reason}`, { severity: 'warning' });
+                    return;
+                }
+                this.logAutomationEvent('procurement', `Ordered ${action.quantity}${action.unit || ''} ${action.ingredient} via ${action.vendor}`, {
+                    cost: action.cost ? `$${action.cost.toFixed(2)}` : undefined
+                });
+            });
+        }
     }
 
     setGameSpeed(speed) {
@@ -196,6 +476,10 @@ class GameController {
 
     startNewGame() {
         this.engine.reset();
+        if (this.strategySettings) {
+            this.engine.setStrategySettings(this.strategySettings);
+        }
+        this.updateAutomationAvailability();
         localStorage.removeItem('bakery_save');
         this.goToPhase('setup');
     }
@@ -205,6 +489,11 @@ class GameController {
         if (save) {
             this.engine.load(JSON.parse(save));
         }
+        if (this.strategySettings) {
+            this.engine.setStrategySettings(this.strategySettings);
+            this.enforceInventoryPlan();
+        }
+        this.updateAutomationAvailability();
         this.startDay();
     }
 
@@ -343,6 +632,7 @@ class GameController {
         const dashboardBtn = document.getElementById('btn-dashboard');
         const staffBtn = document.getElementById('btn-staff');
         const equipmentBtn = document.getElementById('btn-equipment');
+        const strategyBtn = document.getElementById('btn-strategy');
         if (dashboardBtn) dashboardBtn.style.display = 'inline-block';
         if (staffBtn) {
             staffBtn.style.display = 'inline-block';
@@ -351,6 +641,10 @@ class GameController {
         if (equipmentBtn) {
             equipmentBtn.style.display = 'inline-block';
             equipmentBtn.onclick = () => this.showEquipmentPanel();
+        }
+        if (strategyBtn) {
+            strategyBtn.style.display = 'inline-block';
+            strategyBtn.onclick = () => this.showStrategyPanel();
         }
 
         const container = document.getElementById('game-container');
@@ -430,6 +724,10 @@ class GameController {
             type: 'info',
             buttons: [{ text: 'Go to Bakery →', action: () => this.showModeHub() }]
         });
+
+        this.updateAutomationAvailability();
+        this.maintainProductionTargets();
+        this.enforceInventoryPlan();
     }
 
     goToPhase(phase) {
@@ -494,6 +792,9 @@ class GameController {
             <div class="phase-header">
                 <h2>📦 Buy Inventory</h2>
                 <p>Purchase ingredients from vendors. Check the recipe book to see what you need!</p>
+                <div class="phase-tools">
+                    <button class="btn btn-automation" id="btn-auto-buying">🤖 Deploy Staff Automation</button>
+                </div>
             </div>
             
             <div class="buying-layout" id="buy-phase-container">
@@ -527,6 +828,11 @@ class GameController {
                 </button>
             </div>
         `;
+
+        const autoBuyingBtn = document.getElementById('btn-auto-buying');
+        if (autoBuyingBtn) {
+            autoBuyingBtn.onclick = () => this.manualAutomationTrigger('buying');
+        }
 
         this.renderVendors();
         this.renderIngredients('METRO');
@@ -586,7 +892,7 @@ class GameController {
                     <div class="recipe-ref-header">
                         <span class="recipe-ref-icon">${recipe.icon}</span>
                         <span class="recipe-ref-name">${recipe.name}</span>
-                        <span class="recipe-ref-price">$${recipe.retailPrice.toFixed(2)}</span>
+                        <span class="recipe-ref-price">$${this.engine.getRecipeBasePrice(key).toFixed(2)}</span>
                     </div>
                     <div class="recipe-ref-ingredients">${ingredientsList}</div>
                     <div class="recipe-ref-status">
@@ -768,6 +1074,9 @@ class GameController {
             <div class="phase-header">
                 <h2>🍞 Bakery Production</h2>
                 <p>Prepare and bake products. Each recipe goes through multiple stages.</p>
+                <div class="phase-tools">
+                    <button class="btn btn-automation" id="btn-auto-baking">🤖 Deploy Staff Automation</button>
+                </div>
             </div>
             
             <div class="baking-layout-advanced" id="bake-phase-container">
@@ -813,9 +1122,15 @@ class GameController {
             </div>
         `;
 
+        const autoBakingBtn = document.getElementById('btn-auto-baking');
+        if (autoBakingBtn) {
+            autoBakingBtn.onclick = () => this.manualAutomationTrigger('baking');
+        }
+
         this.renderRecipes();
         this.renderProductionQueue();
         this.renderReadyProducts();
+        this.maintainProductionTargets();
 
         // Start baking timer
         this.startBakingLoop();
@@ -913,10 +1228,15 @@ class GameController {
         grid.innerHTML = Object.entries(GAME_CONFIG.RECIPES).map(([key, recipe]) => {
             const { canBake, missing } = this.engine.canBakeRecipe(key);
             const cost = this.engine.calculateProductCost(key);
-            const profit = recipe.retailPrice - cost;
-            const margin = ((profit / recipe.retailPrice) * 100).toFixed(0);
+            const sellingPrice = this.engine.getRecipeBasePrice(key);
+            const profit = sellingPrice - cost;
+            const margin = sellingPrice > 0 ? ((profit / sellingPrice) * 100).toFixed(0) : '0';
             const expectedQuality = this.engine.calculateProductQuality(key);
             const qualityLabel = this.engine.getQualityLabel(expectedQuality);
+            const target = this.productionTargets[key] || 0;
+            const pipeline = this.getPipelineQuantity(key);
+            const availableNow = this.engine.getProductStock(key);
+            const buffered = availableNow + pipeline;
 
             return `
                 <div class="recipe-card ${canBake ? '' : 'unavailable'}" data-recipe="${key}">
@@ -924,13 +1244,21 @@ class GameController {
                     <div class="recipe-name">${recipe.name}</div>
                     <div class="recipe-stats">
                         <div>Cost: $${cost.toFixed(2)}</div>
-                        <div>Sells: $${recipe.retailPrice.toFixed(2)}</div>
+                        <div>Sells: $${sellingPrice.toFixed(2)}</div>
                         <div class="recipe-profit">+$${profit.toFixed(2)} (${margin}%)</div>
                     </div>
                     <div class="recipe-quality" style="color: ${qualityLabel.color}">
                         ${qualityLabel.emoji} Expected: ${expectedQuality.toFixed(0)}% quality
                     </div>
                     <div class="recipe-time">⏱️ ${recipe.bakeTime} min | 📅 Fresh for ${recipe.shelfLife} days</div>
+                    <div class="automation-controls">
+                        <div class="automation-label">Auto target</div>
+                        <div class="automation-row">
+                            <input type="number" class="auto-target-input" data-recipe="${key}" min="0" value="${target}" />
+                            <button class="btn-auto-apply" data-recipe="${key}">Update</button>
+                        </div>
+                        <div class="automation-status">Buffer: ${buffered}/${target || 0} (incl. ${pipeline} in queue)</div>
+                    </div>
                     ${canBake
                     ? '<button class="btn-bake">🔥 Bake</button>'
                     : `<div class="missing-label">Missing: ${missing.map(m => m.ingredient).join(', ')}</div>`
@@ -968,6 +1296,68 @@ class GameController {
                 }
             };
         });
+
+        grid.querySelectorAll('.btn-auto-apply').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const recipe = btn.dataset.recipe;
+                const input = grid.querySelector(`.auto-target-input[data-recipe="${recipe}"]`);
+                const value = parseInt(input?.value, 10) || 0;
+                this.applyProductionTarget(recipe, value);
+            };
+        });
+
+        grid.querySelectorAll('.auto-target-input').forEach(input => {
+            input.onchange = (e) => {
+                e.stopPropagation();
+                const recipe = input.dataset.recipe;
+                const value = parseInt(input.value, 10) || 0;
+                this.applyProductionTarget(recipe, value);
+            };
+        });
+    }
+
+    applyProductionTarget(recipeKey, target) {
+        if (target < 0 || !Number.isFinite(target)) target = 0;
+        this.productionTargets[recipeKey] = target;
+        this.maintainProductionTargets();
+        this.renderRecipes();
+    }
+
+    getPipelineQuantity(recipeKey) {
+        return this.engine.productionQueue
+            .filter(item => item.recipeKey === recipeKey)
+            .reduce((sum, item) => sum + item.quantity, 0);
+    }
+
+    maintainProductionTargets() {
+        if (!this.productionTargets || !this.automationEnabled) return;
+
+        Object.entries(this.productionTargets).forEach(([recipeKey, target]) => {
+            if (!target || target <= 0) return;
+
+            const available = this.engine.getProductStock(recipeKey);
+            const pipeline = this.getPipelineQuantity(recipeKey);
+            let deficit = target - (available + pipeline);
+
+            while (deficit > 0) {
+                const result = this.engine.startBaking(recipeKey, 1);
+                if (!result.success) {
+                    // Stop attempting if we hit missing ingredients or capacity limits
+                    break;
+                }
+                const recipe = GAME_CONFIG.RECIPES[recipeKey];
+                this.logAutomationEvent('production', `Queued ${recipe?.name || recipeKey} (${target} target)`, {
+                    staff: result.item?.assignedEmployee?.name,
+                    quantity: result.item?.quantity || 1
+                });
+                deficit--;
+            }
+        });
+
+        this.renderProductionQueue();
+        this.renderReadyProducts();
+        this.enforceInventoryPlan();
     }
 
     renderProductionQueue() {
@@ -1043,7 +1433,7 @@ class GameController {
                 const quality = this.engine.getProductQuality(key);
                 const qualityLabel = this.engine.getQualityLabel(quality);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
-                const effectivePrice = recipe.retailPrice * priceMultiplier;
+                const effectivePrice = this.engine.getRecipeBasePrice(key) * priceMultiplier;
 
                 return `
                     <div class="ready-item">
@@ -1094,8 +1484,7 @@ class GameController {
     // ==================== SELLING PHASE ====================
     showSellingPhase() {
         this.engine.isPaused = false;
-        this.customerQueue = [];
-        this.currentCustomer = null;
+        this.activeCustomers = [];
 
         const container = document.getElementById('game-container');
 
@@ -1110,6 +1499,9 @@ class GameController {
                     <button class="btn btn-sm" onclick="window.game.setGameSpeed(5)" style="padding: 5px 10px; font-size: 12px;">5x</button>
                     <button class="btn btn-sm" onclick="window.game.setGameSpeed(10)" style="padding: 5px 10px; font-size: 12px;">10x</button>
                     <span id="speed-indicator" style="font-size: 14px; font-weight: bold; color: #27ae60;">1x</span>
+                </div>
+                <div class="phase-tools">
+                    <button class="btn btn-automation" id="btn-auto-selling">🤖 Deploy Staff Automation</button>
                 </div>
             </div>
             
@@ -1150,7 +1542,13 @@ class GameController {
             </div>
         `;
 
+        const autoSellingBtn = document.getElementById('btn-auto-selling');
+        if (autoSellingBtn) {
+            autoSellingBtn.onclick = () => this.manualAutomationTrigger('selling');
+        }
+
         this.renderDisplayProducts();
+        this.renderCustomerArea();
         this.startSellingLoop();
 
         document.getElementById('btn-close-shop').onclick = () => {
@@ -1224,13 +1622,13 @@ class GameController {
                 const quality = this.engine.getProductQuality(key);
                 const qualityLabel = this.engine.getQualityLabel(quality);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
-                const effectivePrice = recipe.retailPrice * priceMultiplier;
+                const effectivePrice = this.engine.getRecipeBasePrice(key) * priceMultiplier;
 
                 return `
                     <div class="display-item ${stock === 0 ? 'sold-out' : ''}">
                         <div class="display-icon">${recipe.icon}</div>
                         <div class="display-name">${recipe.name}</div>
-                        <div class="display-price" title="Base: $${recipe.retailPrice.toFixed(2)}">$${effectivePrice.toFixed(2)}</div>
+                        <div class="display-price" title="Base: $${this.engine.getRecipeBasePrice(key).toFixed(2)}">$${effectivePrice.toFixed(2)}</div>
                         <div class="display-quality" style="color: ${qualityLabel.color}">${qualityLabel.emoji}</div>
                         <div class="display-qty">${stock}x</div>
                     </div>
@@ -1238,6 +1636,119 @@ class GameController {
             }).join('');
 
         display.innerHTML = products;
+    }
+
+    getCustomerCapacity() {
+        const staffCount = Array.isArray(this.engine?.staff) ? this.engine.staff.length : 0;
+        const ownerCapacity = 1;
+        return Math.min(5, ownerCapacity + staffCount);
+    }
+
+    getCustomerById(customerId) {
+        return (this.activeCustomers || []).find(c => c.id === customerId);
+    }
+
+    manualServeCustomer(customerId) {
+        const customer = this.getCustomerById(customerId);
+        if (!customer) return;
+        this.completeCustomerSale({ customer, manualOverride: true });
+    }
+
+    cancelCustomerOrder(customerId) {
+        const customer = this.getCustomerById(customerId);
+        if (!customer) return;
+        this.refuseCustomer(customer);
+    }
+
+    removeCustomer(customer) {
+        this.releaseAssignedStaff(customer);
+        this.activeCustomers = (this.activeCustomers || []).filter(c => c !== customer);
+        this.renderCustomerArea();
+        this.resumeWaitingCustomers();
+    }
+
+    renderCustomerArea() {
+        const container = document.getElementById('customer-area');
+        if (!container) return;
+
+        if (!this.activeCustomers || this.activeCustomers.length === 0) {
+            container.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
+            return;
+        }
+
+        container.innerHTML = this.activeCustomers.map(customer => this.renderCustomerCard(customer)).join('');
+    }
+
+    renderCustomerCard(customer) {
+        const recipe = customer.wantsItem ? GAME_CONFIG.RECIPES[customer.wantsItem] : null;
+        const baseFace = customer.face || '🙂';
+        const baseName = customer.name || 'Customer';
+        const segmentIcon = customer.segment?.icon || '';
+        const segmentDesc = customer.segment?.description || '';
+        const state = customer.state || 'waiting';
+        const orderLine = customer.orderMessage || (recipe ? `I'll take the ${recipe.name}!` : 'Looking around...');
+
+        if (state === 'success') {
+            return `
+                <div class="customer-popup success" data-customer-id="${customer.id}">
+                    <div class="customer-face" style="font-size: 72px;">${customer.resultFace || '😊'}</div>
+                    <div class="customer-name">${baseName}</div>
+                    <div class="customer-dialogue">"${customer.resultMessage || 'Delicious!'}"</div>
+                    <div class="sale-amount">+$${(customer.resultRevenue || 0).toFixed(2)}</div>
+                </div>
+            `;
+        }
+
+        if (state === 'sad') {
+            return `
+                <div class="customer-popup sad" data-customer-id="${customer.id}">
+                    <div class="customer-face" style="font-size: 72px;">${customer.resultFace || '😔'}</div>
+                    <div class="customer-name">${baseName}</div>
+                    <div class="customer-dialogue">"${customer.resultMessage || 'Maybe next time.'}"</div>
+                </div>
+            `;
+        }
+
+        const requiresManual = customer.requiresManualService;
+        const staffLabel = requiresManual
+            ? 'Manual service needed — tap Serve Manually'
+            : customer.assignedStaff
+                ? `${customer.assignedStaff.face || '👨‍🍳'} ${customer.assignedStaff.name} is preparing the order`
+                : 'Owner is preparing the order';
+        const etaSeconds = Math.max(1, Math.round(((customer.serviceDuration || 2000) / 1000)));
+        const showProgress = !requiresManual && !!customer.serviceDuration;
+
+        return `
+            <div class="customer-popup ${requiresManual ? 'manual-needed' : ''}" data-customer-id="${customer.id}">
+                <div class="customer-face" style="font-size: 64px;">${baseFace}</div>
+                <div class="customer-name">
+                    ${baseName}
+                    ${segmentIcon ? `<span class="customer-segment" title="${segmentDesc}">${segmentIcon}</span>` : ''}
+                </div>
+                <div class="customer-dialogue">"${customer.greeting || 'Hello!'}"</div>
+                <div class="customer-order">"${orderLine}"</div>
+                <div class="auto-service">
+                    <div class="service-status">${staffLabel}${showProgress ? ` • ~${etaSeconds}s` : ''}</div>
+                    ${showProgress ? `
+                        <div class="service-progress">
+                            <div class="service-progress-fill" style="width: 0%;"></div>
+                        </div>
+                    ` : ''}
+                    <div class="service-actions">
+                        <button class="btn btn-secondary" onclick="window.game.manualServeCustomer('${customer.id}')">Serve Manually</button>
+                        <button class="btn btn-link" style="color: #c0392b;" onclick="window.game.cancelCustomerOrder('${customer.id}')">Cancel Order</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    resumeWaitingCustomers() {
+        if (!this.automationEnabled || !Array.isArray(this.activeCustomers) || this.activeCustomers.length === 0) return;
+        const waiting = this.activeCustomers.filter(customer => customer.requiresManualService);
+        if (waiting.length === 0) return;
+
+        waiting.forEach(customer => this.planCustomerService(customer, { silent: true }));
     }
 
     sellingLoopId = null;
@@ -1272,8 +1783,8 @@ class GameController {
                 return;
             }
 
-            // Spawn customers
-            if (!this.currentCustomer && !this.crisisActive) {
+            // Spawn customers while capacity allows
+            if (!this.crisisActive && this.activeCustomers.length < this.getCustomerCapacity()) {
                 const timeSinceLastCustomer = now - this.lastCustomerTime;
                 const hourMult = GAME_CONFIG.DEMAND.hourlyMultiplier[Math.floor(this.engine.hour)] || 0.5;
                 const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult) / 60 / 10;
@@ -1283,6 +1794,8 @@ class GameController {
                     this.lastCustomerTime = now;
                 }
             }
+
+            this.processAutoCustomers(now);
 
             // Update stats display
             this.updateSellingStats();
@@ -1298,6 +1811,10 @@ class GameController {
         if (this.sellingLoopId) {
             cancelAnimationFrame(this.sellingLoopId);
             this.sellingLoopId = null;
+        }
+        if (this.activeCustomers?.length) {
+            this.activeCustomers.forEach(customer => this.releaseAssignedStaff(customer));
+            this.activeCustomers = [];
         }
     }
 
@@ -1316,7 +1833,7 @@ class GameController {
                 const recipe = GAME_CONFIG.RECIPES[key];
                 const quality = this.engine.getProductQuality(key);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
-                const currentPrice = recipe.retailPrice * priceMultiplier;
+                const currentPrice = this.engine.getRecipeBasePrice(key) * priceMultiplier;
 
                 return this.engine.willCustomerBuy(key, segment, currentPrice);
             })
@@ -1341,105 +1858,117 @@ class GameController {
             }
         }
 
-        this.currentCustomer = {
-            ...customer,
-            segment,
-            greeting,
-            wantsItem
-        };
-
-        this.showCustomerPopup();
-    }
-
-    showCustomerPopup() {
-        const customer = this.currentCustomer;
-        const customerArea = document.getElementById('customer-area');
-
-        if (!customer.wantsItem) {
-            // Nothing available
+        if (!wantsItem) {
             const sadDialogue = GAME_CONFIG.CUSTOMER_DIALOGUES.sad;
             const message = sadDialogue[Math.floor(Math.random() * sadDialogue.length)];
 
-            customerArea.innerHTML = `
-                <div class="customer-popup">
-                    <div class="customer-face" style="font-size: 64px;">${customer.face}</div>
-                    <div class="customer-name">${customer.name}</div>
-                    <div class="customer-dialogue">"${message}"</div>
-                    <div class="customer-mood">😢 Disappointed</div>
-                </div>
-            `;
+            const customerArea = document.getElementById('customer-area');
+            if (customerArea) {
+                customerArea.innerHTML = `
+                    <div class="customer-popup">
+                        <div class="customer-face" style="font-size: 64px;">${customer.face}</div>
+                        <div class="customer-name">${customer.name}</div>
+                        <div class="customer-dialogue">"${message}"</div>
+                        <div class="customer-mood">😢 Disappointed</div>
+                    </div>
+                `;
+            }
 
             this.engine.missedCustomer();
 
             setTimeout(() => {
-                this.currentCustomer = null;
-                customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
+                if (customerArea) {
+                    customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
+                }
             }, 2000);
 
             return;
         }
 
-        const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
         const orderDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.ordering;
         const orderMsg = orderDialogues[Math.floor(Math.random() * orderDialogues.length)]
-            .replace('{item}', recipe.name);
+            .replace('{item}', GAME_CONFIG.RECIPES[wantsItem]?.name || wantsItem);
 
-        customerArea.innerHTML = `
-            <div class="customer-popup">
-                <div class="customer-face" style="font-size: 64px;">${customer.face}</div>
-                <div class="customer-name">
-                    ${customer.name} 
-                    <span class="customer-segment" title="${customer.segment.description}">${customer.segment.icon}</span>
-                </div>
-                <div class="customer-dialogue">"${customer.greeting}"</div>
-                <div class="customer-order">"${orderMsg}"</div>
-                <div class="customer-buttons">
-                    <button class="btn btn-success" id="btn-sell">Sell ${recipe.icon} ($${recipe.retailPrice.toFixed(2)})</button>
-                    <button class="btn btn-secondary" id="btn-refuse">Sorry, can't help</button>
-                </div>
-            </div>
-        `;
+        const newCustomer = {
+            id: `cust-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            ...customer,
+            segment,
+            greeting,
+            wantsItem,
+            orderMessage: orderMsg,
+            state: 'waiting',
+            assignedStaff: null,
+            requiresManualService: false
+        };
 
-        document.getElementById('btn-sell').onclick = () => this.completeCustomerSale();
-        document.getElementById('btn-refuse').onclick = () => this.refuseCustomer();
+        this.activeCustomers.push(newCustomer);
+        this.planCustomerService(newCustomer);
+        this.renderCustomerArea();
     }
 
-    completeCustomerSale() {
-        const customer = this.currentCustomer;
-        const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
 
+    completeCustomerSale(options = {}) {
+        let customer = options.customer;
+        if (!customer && options.customerId) {
+            customer = this.getCustomerById(options.customerId);
+        }
+        if (!customer) return;
+
+        const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
         const result = this.engine.processSale(customer.wantsItem, 1);
 
-        if (result.success) {
-            const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
-            const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)]
-                .replace('{item}', recipe.name);
-
-            const customerArea = document.getElementById('customer-area');
-            customerArea.innerHTML = `
-                <div class="customer-popup success">
-                    <div class="customer-face" style="font-size: 64px;">😊</div>
-                    <div class="customer-name">${customer.name}</div>
-                    <div class="customer-dialogue">"${msg}"</div>
-                    <div class="sale-amount">+$${result.revenue.toFixed(2)}</div>
-                </div>
-            `;
-
-            this.renderDisplayProducts();
-
-            setTimeout(() => {
-                this.currentCustomer = null;
-                customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
-            }, 1500);
+        if (!result.success) {
+            this.handleOutOfStock(customer);
+            return;
         }
+
+        const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
+        const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)]
+            .replace('{item}', recipe?.name || customer.wantsItem);
+
+        customer.state = 'success';
+        customer.resultMessage = msg;
+        customer.resultRevenue = result.revenue;
+        customer.resultFace = '😊';
+        this.releaseAssignedStaff(customer);
+        this.renderCustomerArea();
+
+        this.logAutomationEvent('sale', `${customer.name} bought ${recipe?.name || customer.wantsItem}`, {
+            product: recipe?.name,
+            amount: `$${result.revenue.toFixed(2)}`,
+            auto: !!options.auto
+        });
+
+        this.renderDisplayProducts();
+
+        setTimeout(() => {
+            const stillPresent = this.getCustomerById(customer.id);
+            if (stillPresent) {
+                this.removeCustomer(stillPresent);
+            }
+        }, 1200);
     }
 
-    refuseCustomer() {
-        this.engine.missedCustomer();
-        this.currentCustomer = null;
+    refuseCustomer(customerOrId) {
+        let customer = customerOrId;
+        if (typeof customer === 'string') {
+            customer = this.getCustomerById(customer);
+        }
+        if (!customer) return;
 
-        const customerArea = document.getElementById('customer-area');
-        customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
+        this.engine.missedCustomer();
+        customer.state = 'sad';
+        customer.resultFace = '😔';
+        customer.resultMessage = 'Maybe next time.';
+        this.releaseAssignedStaff(customer);
+        this.renderCustomerArea();
+
+        setTimeout(() => {
+            const stillPresent = this.getCustomerById(customer.id);
+            if (stillPresent) {
+                this.removeCustomer(stillPresent);
+            }
+        }, 1200);
     }
 
     updateSellingStats() {
@@ -1450,6 +1979,111 @@ class GameController {
         if (revenueEl) revenueEl.textContent = `$${this.engine.dailyStats.revenue.toFixed(2)}`;
         if (customersEl) customersEl.textContent = this.engine.dailyStats.customersServed;
         if (missedEl) missedEl.textContent = this.engine.dailyStats.customersMissed;
+    }
+
+    assignCustomerToStaff() {
+        if (!this.engine.staff || this.engine.staff.length === 0) return null;
+        const available = this.engine.staff.filter(staff => !staff.currentCustomer && staff.fatigue < 95);
+        if (available.length === 0) return null;
+        available.sort((a, b) => {
+            const skillDiff = b.skillLevel - a.skillLevel;
+            const fatigueDiff = a.fatigue - b.fatigue;
+            return skillDiff !== 0 ? skillDiff : fatigueDiff;
+        });
+        return available[0];
+    }
+
+    planCustomerService(customer, options = {}) {
+        const silent = options.silent || false;
+        if (!this.automationEnabled) {
+            customer.requiresManualService = true;
+            if (!silent) {
+                this.logAutomationEvent('service', `Automation paused — serve ${customer.name} manually`, { severity: 'warning' });
+            }
+            this.renderCustomerArea();
+            return;
+        }
+
+        const staff = this.assignCustomerToStaff(customer);
+        customer.assignedStaff = staff || null;
+
+        if (!staff) {
+            customer.requiresManualService = true;
+            if (!silent) {
+                this.logAutomationEvent('service', `All staff busy — ${customer.name} needs attention`, { severity: 'warning' });
+            }
+            this.renderCustomerArea();
+            return;
+        }
+
+        customer.requiresManualService = false;
+        customer.serviceStart = performance.now();
+
+        const baseDuration = 3500;
+        const skillMod = Math.max(0.5, 1 - (staff.skillLevel - 3) * 0.12);
+        const fatiguePenalty = (1 + staff.fatigue / 220);
+        customer.serviceDuration = baseDuration * skillMod * fatiguePenalty;
+        customer.serviceEndsAt = customer.serviceStart + customer.serviceDuration;
+
+        staff.currentCustomer = customer;
+        const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
+        this.logAutomationEvent('service', `${staff.name} serving ${customer.name} (${recipe?.name || customer.wantsItem})`, {
+            staff: staff.name,
+            customer: customer.name,
+            product: recipe?.name
+        });
+        this.renderCustomerArea();
+    }
+
+    processAutoCustomers(now) {
+        if (!this.activeCustomers || this.activeCustomers.length === 0) return;
+
+        const snapshot = [...this.activeCustomers];
+        snapshot.forEach(customer => {
+            if (!customer || customer.requiresManualService || !customer.serviceEndsAt) return;
+
+            const total = customer.serviceDuration || 1;
+            const elapsed = now - customer.serviceStart;
+            const progress = Math.min(1, elapsed / total);
+
+            const fill = document.querySelector(`[data-customer-id="${customer.id}"] .service-progress-fill`);
+            if (fill) {
+                fill.style.width = `${(progress * 100).toFixed(1)}%`;
+            }
+
+            if (progress >= 1) {
+                this.completeCustomerSale({ customer, auto: true });
+            }
+        });
+    }
+
+    releaseAssignedStaff(customer) {
+        if (customer && customer.assignedStaff && customer.assignedStaff.currentCustomer === customer) {
+            customer.assignedStaff.currentCustomer = null;
+        }
+        if (customer) {
+            customer.assignedStaff = null;
+        }
+    }
+
+    handleOutOfStock(customer) {
+        const sadDialogue = GAME_CONFIG.CUSTOMER_DIALOGUES.sad;
+        const message = sadDialogue[Math.floor(Math.random() * sadDialogue.length)];
+
+        customer.state = 'sad';
+        customer.resultMessage = message;
+        customer.resultFace = customer?.face || '😢';
+        this.releaseAssignedStaff(customer);
+        this.renderCustomerArea();
+
+        this.engine.missedCustomer();
+
+        setTimeout(() => {
+            const stillPresent = this.getCustomerById(customer.id);
+            if (stillPresent) {
+                this.removeCustomer(stillPresent);
+            }
+        }, 1500);
     }
 
     // ==================== CRISIS EVENTS ====================
@@ -1714,6 +2348,150 @@ class GameController {
         return overlay;
     }
 
+    showStrategyPanel() {
+        if (!GAME_CONFIG.STRATEGY) {
+            this.showPopup({ icon: 'ℹ️', title: 'Strategy Unavailable', message: 'Strategy systems are still loading.', type: 'info', autoClose: 1500 });
+            return;
+        }
+
+        const strategyConfig = GAME_CONFIG.STRATEGY;
+        const currentPhilosophy = this.strategySettings?.philosophy || 'craftsmanship';
+        const currentPlaybook = this.strategySettings?.playbook || 'steady_shop';
+        const currentPricing = this.strategySettings?.pricingStyle || 'balanced';
+        const currentMarketing = this.strategySettings?.marketingFocus || 'REGULAR';
+        const bounds = strategyConfig.INVENTORY_BOUNDS || { minDays: 0.5, maxDays: 3 };
+        const bufferValue = this.strategySettings?.inventoryBufferDays || 1.5;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal-content strategy-modal" style="max-width: 1100px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>🎯 Strategy Board</h2>
+                    <button class="modal-close" id="close-strategy-panel">×</button>
+                </div>
+                <div class="modal-body">
+                    <section class="strategy-section">
+                        <h3>Business Philosophy</h3>
+                        <div class="strategy-grid" id="philosophy-grid">
+                            ${Object.entries(strategyConfig.PHILOSOPHIES).map(([key, value]) => `
+                                <div class="strategy-card ${key === currentPhilosophy ? 'selected' : ''}" data-group="philosophy" data-key="${key}">
+                                    <div class="strategy-card-icon">${value.icon || '🎓'}</div>
+                                    <div class="strategy-card-title">${value.name}</div>
+                                    <p>${value.summary}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </section>
+
+                    <section class="strategy-section">
+                        <h3>Operating Playbook</h3>
+                        <div class="strategy-grid" id="playbook-grid">
+                            ${Object.entries(strategyConfig.PLAYBOOKS).map(([key, value]) => `
+                                <div class="strategy-card ${key === currentPlaybook ? 'selected' : ''}" data-group="playbook" data-key="${key}">
+                                    <div class="strategy-card-icon">${value.icon || '📋'}</div>
+                                    <div class="strategy-card-title">${value.name}</div>
+                                    <p>${value.summary}</p>
+                                    <div class="strategy-card-meta">Target Output: ${value.dailyOutput || 0} / Inventory Days: ${value.inventoryDays}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </section>
+
+                    <section class="strategy-section">
+                        <h3>Automation Knobs</h3>
+                        <div class="strategy-controls">
+                            <label for="buffer-range">Inventory Coverage (${bounds.minDays}-${bounds.maxDays} days)</label>
+                            <div class="strategy-control-row">
+                                <input type="range" id="buffer-range" min="${bounds.minDays}" max="${bounds.maxDays}" step="0.1" value="${bufferValue}">
+                                <span id="buffer-display">${bufferValue.toFixed(1)} days</span>
+                            </div>
+
+                            <label for="pricing-style-select">Pricing Style</label>
+                            <select id="pricing-style-select">
+                                ${Object.entries(strategyConfig.PRICING_STYLES).map(([key, style]) => `
+                                    <option value="${key}" ${key === currentPricing ? 'selected' : ''}>${style.label}</option>
+                                `).join('')}
+                            </select>
+                            <p class="strategy-hint" id="pricing-hint">${strategyConfig.PRICING_STYLES[currentPricing]?.description || ''}</p>
+
+                            <label for="marketing-focus-select">Marketing Focus</label>
+                            <select id="marketing-focus-select">
+                                ${Object.entries(GAME_CONFIG.CUSTOMER_SEGMENTS).map(([key, segment]) => `
+                                    <option value="${key}" ${key === currentMarketing ? 'selected' : ''}>${segment.icon || '👥'} ${segment.name}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </section>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn btn-secondary" id="cancel-strategy">Cancel</button>
+                    <button class="btn btn-primary" id="save-strategy">Save Strategy</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const closePanel = () => overlay.remove();
+        overlay.querySelector('#close-strategy-panel').onclick = closePanel;
+        overlay.querySelector('#cancel-strategy').onclick = closePanel;
+
+        let selectedPhilosophy = currentPhilosophy;
+        let selectedPlaybook = currentPlaybook;
+        let selectedPricing = currentPricing;
+        let selectedMarketing = currentMarketing;
+        let selectedBuffer = bufferValue;
+
+        overlay.querySelectorAll('.strategy-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const group = card.dataset.group;
+                const key = card.dataset.key;
+                if (group === 'philosophy') {
+                    selectedPhilosophy = key;
+                } else if (group === 'playbook') {
+                    selectedPlaybook = key;
+                }
+                overlay.querySelectorAll(`.strategy-card[data-group="${group}"]`).forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+        });
+
+        const bufferRange = overlay.querySelector('#buffer-range');
+        const bufferDisplay = overlay.querySelector('#buffer-display');
+        bufferRange.addEventListener('input', (e) => {
+            selectedBuffer = Number(e.target.value);
+            bufferDisplay.textContent = `${selectedBuffer.toFixed(1)} days`;
+        });
+
+        const pricingSelect = overlay.querySelector('#pricing-style-select');
+        const pricingHint = overlay.querySelector('#pricing-hint');
+        pricingSelect.addEventListener('change', (e) => {
+            selectedPricing = e.target.value;
+            pricingHint.textContent = strategyConfig.PRICING_STYLES[selectedPricing]?.description || '';
+        });
+
+        const marketingSelect = overlay.querySelector('#marketing-focus-select');
+        marketingSelect.addEventListener('change', (e) => {
+            selectedMarketing = e.target.value;
+        });
+
+        overlay.querySelector('#save-strategy').onclick = () => {
+            this.applyStrategySettings({
+                philosophy: selectedPhilosophy,
+                playbook: selectedPlaybook,
+                pricingStyle: selectedPricing,
+                marketingFocus: selectedMarketing,
+                bufferDays: selectedBuffer,
+                keepTargets: false
+            });
+            closePanel();
+            this.showPopup({ icon: '✅', title: 'Strategy Updated', message: 'Automation recalibrated to your new focus.', type: 'success', autoClose: 1500 });
+        };
+
+        gsap.from(overlay.querySelector('.strategy-modal'), { scale: 0.9, opacity: 0, duration: 0.25, ease: 'back.out(1.4)' });
+    }
+
     // ==================== STAFF MANAGEMENT PANEL ====================
     showStaffPanel() {
         const panel = document.createElement('div');
@@ -1971,6 +2749,7 @@ class GameController {
 
         const result = this.engine.hireStaff(staffConfig);
         if (result.success) {
+            this.updateAutomationAvailability();
             this.showPopup({
                 icon: '✅',
                 title: 'Staff Hired!',

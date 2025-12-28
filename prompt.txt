@@ -82,25 +82,48 @@ delete quick start mode, but in pre-op mode, have a button to for user put in "d
 options of every building, so the game treats it like the user entered it themselves, but
 the computer actually did. that way, everything is uniform, and less error prone.
 
-Transition the game architecture to make the labor part of game autonomous, such as buying
-inventory, baking and selling. Player is a business owner, not a self-employed baker. 
-Users can learn more about finance without having to do the actual labor.
-This game is meant to be a finance simulator, not a bakery simulator. Player will have to
-choose effective strategies and make unique, choices on how the bakery should run.
-Develop the plan to make the game less labor, more learning about finance, while
-still mostly about fun.
-do not use antigravity remote browser to check errors, only use error checking tools
-like syntax check. I'll handle to player level problems. Also I prefer you to create little
-edits at a time, not massive changes, unless absolutely necessary.
-
 make sure the architecture really has a lot of complexity in the beginning phase, as it is vital for
 a successful business to have the right direction and work philosophy from the start.
 So include a lot of complex and realistic multiple choice decisions that could involve
 sliding parameters to control certain aspects of the business, and actual popups 
 decisions.
 
-don't look at AI decisions, use my own logic. then
+Fix live updating of baking goods, fix errors moving on to day 2, fix market menu item charts
+being too big (and they keep expanding). After fixing errors, improve autonomous
+functionality of staff, requiring redesign of baking and sellings modes to be less manual labor for player,
+and more direction setting and decision making.
 
-now there are no console errors, but the start and how to play button doesn't work,
-don't spend a lot of time checking errors except for checking syntax errors, I'll
-check javascript console. 
+Transition the game architecture to make the labor part of game autonomous, such as buying
+inventory, baking and selling. Player is a business owner, not a self-employed baker. 
+This game is meant to be a finance simulator, not a bakery simulator. Player will have to
+choose effective strategies and make unique, choices on how the bakery should run.
+Develop the plan to make the game less labor, more learning about finance, while
+still mostly about fun. e.g. let user make custom recipes with certain ingredients, price and
+selling strategies, target customers, and other BUSINESS PHILOSOPHY directions/decisions.
+
+redesign phaser hub scene to be of similar complexity with intro phaser scene.
+
+what major improvements would you suggest is most impactful positively to 
+
+I see autonomous buying, baking and selling but it is kind of sneaky, hard to know
+exactly what happened, work on making autonomous workings more transparent and informative
+and update me visually on autonomous workings so I know outright what my employees are doing.
+Also the autonomous functionality happens even when I didn't hire anybody, which
+indicates hiring and staff system need more coding work, to work with autonomous
+functionality in union. Also make sure I have no basic html elements at all in pre op
+and op stage.
+
+allow for multiple customer support, increase customer physical window size, also
+when hiring a staff, autonomous function should immediately kick in. 
+
+significanly upgraded gameplay. Pre-op stage features more options and room for
+a unique business style. Added functional staffing along with autonomous gameplay,
+letting game buy inventory, bake amount of goods that you target. More realistic factors
+such a f
+
+have a button on each mode to initiate autonomous features of employees
+
+write me a human like 2 paragraph devlog that speaks engagingly to teens
+ what i've done with the game since the first commit that the game was 
+ functional until 50% of the way before now. don't talk about 50 percent to now
+ time period, so exclude automation mention.

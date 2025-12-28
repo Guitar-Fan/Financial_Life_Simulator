@@ -103,6 +103,20 @@ class FinancialEngine {
         this.monthlyUtilities = 0;
         this.monthlyStaffCost = 0;
 
+        // Strategy + automation defaults
+        this.strategySettings = {
+            philosophy: 'craftsmanship',
+            playbook: 'steady_shop',
+            pricingStyle: 'balanced',
+            inventoryBufferDays: 1.2,
+            vendorPriority: 'METRO',
+            marketingFocus: 'REGULAR',
+            cashFloorPercent: 0.15,
+            pricingElasticity: 1
+        };
+        this.pricingOverrides = {};
+        this.applyPricingStrategy();
+
         // Event callbacks
         this.callbacks = {};
     }
@@ -416,6 +430,119 @@ class FinancialEngine {
         return this.economy.getIngredientPrice(ingredientKey, vendorKey, quantity, this.day);
     }
 
+    setStrategySettings(settings = {}) {
+        if (!this.strategySettings) {
+            this.strategySettings = {};
+        }
+        this.strategySettings = {
+            ...this.strategySettings,
+            ...settings
+        };
+
+        if (!this.strategySettings.pricingStyle) {
+            this.strategySettings.pricingStyle = 'balanced';
+        }
+
+        const buffer = Number(this.strategySettings.inventoryBufferDays);
+        this.strategySettings.inventoryBufferDays = Math.max(0.25, Number.isFinite(buffer) ? buffer : 1);
+
+        this.applyPricingStrategy();
+    }
+
+    applyPricingStrategy() {
+        const styles = GAME_CONFIG.STRATEGY?.PRICING_STYLES || {};
+        const pricing = styles[this.strategySettings?.pricingStyle] || { priceMultiplier: 1, elasticityBias: 1 };
+        this.strategySettings.pricingElasticity = pricing.elasticityBias || 1;
+
+        this.pricingOverrides = {};
+        Object.entries(GAME_CONFIG.RECIPES).forEach(([key, recipe]) => {
+            const basePrice = (recipe?.retailPrice || 0) * (pricing.priceMultiplier || 1);
+            this.pricingOverrides[key] = Number(basePrice.toFixed(2));
+        });
+    }
+
+    getRecipeBasePrice(recipeKey) {
+        if (this.pricingOverrides?.[recipeKey]) {
+            return this.pricingOverrides[recipeKey];
+        }
+        return GAME_CONFIG.RECIPES[recipeKey]?.retailPrice || 0;
+    }
+
+    calculateIngredientDemand(targets = {}) {
+        const totals = {};
+        Object.entries(targets).forEach(([recipeKey, units]) => {
+            const recipe = GAME_CONFIG.RECIPES[recipeKey];
+            if (!recipe || !units) return;
+            Object.entries(recipe.ingredients).forEach(([ingredientKey, amount]) => {
+                totals[ingredientKey] = (totals[ingredientKey] || 0) + (amount * units);
+            });
+        });
+        return totals;
+    }
+
+    resolveVendorPreference(preference, ingredientKey) {
+        if (preference && GAME_CONFIG.VENDORS[preference]) {
+            return preference;
+        }
+
+        const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
+        const category = ingredient?.category;
+        const vendors = Object.entries(GAME_CONFIG.VENDORS);
+
+        if (!category || vendors.length === 0) {
+            return 'METRO';
+        }
+
+        if (preference === 'premium') {
+            const match = vendors
+                .filter(([, v]) => v.categories?.includes(category))
+                .sort((a, b) => (b[1].qualityMultiplier || 1) - (a[1].qualityMultiplier || 1))[0];
+            return match ? match[0] : 'METRO';
+        }
+
+        if (preference === 'value') {
+            const match = vendors
+                .filter(([, v]) => v.categories?.includes(category))
+                .sort((a, b) => (a[1].priceMultiplier || 1) - (b[1].priceMultiplier || 1))[0];
+            return match ? match[0] : 'METRO';
+        }
+
+        // balanced/default
+        const balanced = vendors.find(([key, v]) => key === 'METRO' && v.categories?.includes(category));
+        if (balanced) return balanced[0];
+
+        const fallback = vendors.find(([, v]) => v.categories?.includes(category));
+        return fallback ? fallback[0] : 'METRO';
+    }
+
+    ensureIngredientInventory({ productionTargets = {}, bufferDays, vendorPreference } = {}) {
+        const targets = productionTargets || {};
+        if (!targets || Object.keys(targets).length === 0) return;
+
+        const desiredBuffer = bufferDays || this.strategySettings?.inventoryBufferDays || 1;
+        const vendorKeyPreference = vendorPreference || this.strategySettings?.vendorPriority || 'METRO';
+        const ingredientDemand = this.calculateIngredientDemand(targets);
+
+        Object.entries(ingredientDemand).forEach(([ingredientKey, requiredPerDay]) => {
+            const desiredStock = requiredPerDay * desiredBuffer;
+            const currentStock = this.getIngredientStock(ingredientKey);
+            const deficit = desiredStock - currentStock;
+            if (deficit <= 0.05) return;
+
+            const vendorKey = this.resolveVendorPreference(vendorKeyPreference, ingredientKey);
+            const purchaseQty = Math.max(0.1, Number(deficit.toFixed(2)));
+            const unitPrice = this.getCurrentIngredientPrice(ingredientKey, vendorKey, purchaseQty);
+            const projectedCost = unitPrice * purchaseQty;
+            const reserveFloor = (this.strategySettings?.cashFloorPercent || 0.1) * this.cash;
+
+            if ((this.cash - projectedCost) <= reserveFloor) {
+                return;
+            }
+
+            this.purchaseIngredient(ingredientKey, purchaseQty, vendorKey);
+        });
+    }
+
     // ==================== CUSTOMER SEGMENTS ====================
     selectCustomerSegment() {
         const segments = GAME_CONFIG.CUSTOMER_SEGMENTS;
@@ -442,7 +569,7 @@ class FinancialEngine {
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
         if (!recipe) return false;
 
-        const referencePrice = recipe.retailPrice;
+        const referencePrice = this.getRecipeBasePrice(recipeKey);
         const quality = this.getProductQuality(recipeKey);
 
         // Quality bonus - higher quality increases willingness to pay
@@ -453,8 +580,10 @@ class FinancialEngine {
 
         // Apply event-based willingness modifier
         const willingnessMultiplier = this.economy.getCustomerWillingnessMultiplier();
+        const strategyElasticity = this.strategySettings?.pricingElasticity || 1;
+        const toleranceBoost = 1 / strategyElasticity;
 
-        return currentPrice <= maxWillingPrice * willingnessMultiplier;
+        return currentPrice <= maxWillingPrice * willingnessMultiplier * toleranceBoost;
     }
 
     getIngredientStock(key) {
@@ -654,7 +783,10 @@ class FinancialEngine {
             ingredientQuality: avgQuality,
             prepQuality: 100, // Starts at 100%, can degrade with poor prep
             assignedEmployee: null, // Will be auto-assigned
-            employeeSkillImpact: 1.0 // Multiplier based on employee skill
+            employeeSkillImpact: 1.0, // Multiplier based on employee skill
+            waitingForOven: false,
+            hasOvenSlot: false,
+            completed: false
         };
 
         this.productionQueue.push(productionItem);
@@ -675,7 +807,8 @@ class FinancialEngine {
 
     getPrepStages(recipeKey) {
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
-        const baseTime = recipe.bakeTime * 60 * 1000 / 10; // Converted to ms, sped up
+        // Convert bake minutes to milliseconds but aggressively speed up for gameplay pacing
+        const baseTime = Math.max(2000, (recipe.bakeTime * 60 * 1000) / 12);
 
         // Different recipes have different preparation stages
         const stageTemplates = {
@@ -707,6 +840,7 @@ class FinancialEngine {
     autoAssignEmployee(productionItem) {
         if (this.staff.length === 0) {
             productionItem.assignedEmployee = null;
+            productionItem.employeeSkillImpact = 0.7;
             return;
         }
 
@@ -748,35 +882,165 @@ class FinancialEngine {
             }
         });
 
+        if (productionItem.assignedEmployee && productionItem.assignedEmployee.id !== bestEmployee.id) {
+            productionItem.assignedEmployee.currentTaskId = null;
+        }
+
         productionItem.assignedEmployee = bestEmployee;
+        bestEmployee.currentTaskId = productionItem.id;
 
         // Calculate skill impact on speed and quality
         const stage = productionItem.stages[productionItem.stageIndex];
         const skillDiff = bestEmployee.skillLevel - stage.skillRequired;
 
         // Better skills = faster and better quality
-        productionItem.employeeSkillImpact = 1.0 + (skillDiff * 0.1); // +10% per skill level above requirement
+        productionItem.employeeSkillImpact = Math.max(0.5, 1.0 + (skillDiff * 0.1)); // Keep a reasonable floor
 
         return bestEmployee;
     }
 
     updateProduction(deltaMs) {
-        // Process oven items
-        if (this.equipment.oven) {
-            this.equipment.oven.slots.forEach(slot => {
-                if (slot.active) {
-                    // Apply efficiency multiplier
-                    const speedMult = this.bakingSpeedMultiplier || 1.0;
-                    const staffMult = slot.item.assignedEmployee ? slot.item.employeeSkillImpact : 1.0;
+        if (this.productionQueue.length === 0) return [];
 
-                    slot.progress += (deltaMs * speedMult * staffMult);
+        const completedItems = [];
+        let bakingSlotsInUse = this.getActiveBakingCount();
 
-                    if (slot.progress >= slot.totalTime) {
-                        this.finishBaking(slot);
+        this.productionQueue.forEach(item => {
+            if (item.completed) return;
+
+            const stage = item.stages[item.stageIndex];
+            if (!stage) return;
+
+            item.totalTime = stage.duration;
+
+            // Ensure oven capacity is respected before progressing baking stages
+            if (stage.id === 'baking') {
+                if (!item.hasOvenSlot) {
+                    if (bakingSlotsInUse < this.ovenCapacity) {
+                        item.hasOvenSlot = true;
+                        item.waitingForOven = false;
+                        bakingSlotsInUse++;
+                    } else {
+                        item.waitingForOven = true;
+                        return; // Wait until an oven slot frees up
                     }
                 }
-            });
+            }
+
+            const speedMultiplier = this.getProductionSpeedMultiplier(item, stage);
+            item.progress += deltaMs * speedMultiplier;
+
+            if (item.progress >= item.totalTime) {
+                const hadBakingSlot = stage.id === 'baking' && item.hasOvenSlot;
+                const result = this.completeProductionStage(item, stage);
+
+                if (hadBakingSlot) {
+                    bakingSlotsInUse = Math.max(0, bakingSlotsInUse - 1);
+                    item.hasOvenSlot = false;
+                }
+
+                if (result?.finished) {
+                    item.completed = true;
+                    completedItems.push(result.finished);
+                }
+            }
+        });
+
+        // Remove completed items from the queue
+        this.productionQueue = this.productionQueue.filter(item => !item.completed);
+
+        return completedItems;
+    }
+
+    getActiveBakingCount() {
+        return this.productionQueue.reduce((count, item) => {
+            const stage = item.stages[item.stageIndex];
+            if (!item.completed && stage && stage.id === 'baking' && item.hasOvenSlot) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
+    }
+
+    getProductionSpeedMultiplier(item, stage) {
+        const staffMult = item.assignedEmployee ? item.employeeSkillImpact : 0.7;
+        const equipmentMult = this.getEquipmentEfficiency();
+        const stagePressure = stage.id === 'baking' ? 1.1 : 1.0;
+        const base = this.bakingSpeedMultiplier || 1.0;
+        const gameSpeed = this.gameSpeed || 1.0;
+        return Math.max(0.25, staffMult * equipmentMult * base * stagePressure * gameSpeed);
+    }
+
+    completeProductionStage(item, stage) {
+        const qualityImpact = this.calculateStageQualityImpact(item, stage);
+        item.prepQuality = Math.max(40, Math.min(110, item.prepQuality * qualityImpact));
+
+        this.applyEmployeeWorkload(item.assignedEmployee, stage);
+
+        if (item.stageIndex >= item.stages.length - 1) {
+            return { finished: this.finishProductionItem(item) };
         }
+
+        // Advance to the next stage
+        item.stageIndex++;
+        const nextStage = item.stages[item.stageIndex];
+        item.currentStage = nextStage.id;
+        item.progress = 0;
+        item.totalTime = nextStage.duration;
+        item.waitingForOven = nextStage.id === 'baking';
+        item.hasOvenSlot = false;
+
+        this.autoAssignEmployee(item);
+
+        return { finished: null };
+    }
+
+    applyEmployeeWorkload(employee, stage) {
+        if (!employee) return;
+
+        const minutesWorked = Math.max(1, stage.duration / 60000);
+        const hoursWorked = minutesWorked / 60;
+
+        employee.hoursWorkedToday += hoursWorked;
+        employee.hoursWorkedThisWeek += hoursWorked;
+
+        const fatigueGain = minutesWorked * 0.5;
+        employee.fatigue = Math.min(100, employee.fatigue + fatigueGain);
+
+        if (stage.id === 'baking') {
+            employee.happiness = Math.min(100, employee.happiness + 0.2);
+        }
+    }
+
+    finishProductionItem(item) {
+        const recipe = GAME_CONFIG.RECIPES[item.recipeKey];
+        if (!recipe) return null;
+
+        const product = this.products[item.recipeKey];
+        const finalQuality = Math.max(0, Math.min(100, (item.ingredientQuality * 0.6) + (item.prepQuality * 0.4)));
+
+        product.batches.push({
+            quantity: item.quantity,
+            quality: finalQuality,
+            bakeDay: this.day,
+            ingredientQuality: item.ingredientQuality,
+            unitCost: item.unitCost
+        });
+
+        if (item.assignedEmployee) {
+            item.assignedEmployee.currentTaskId = null;
+        }
+
+        const summary = {
+            recipeKey: item.recipeKey,
+            recipeName: item.recipeName,
+            recipeIcon: item.recipeIcon,
+            quantity: item.quantity,
+            quality: finalQuality
+        };
+
+        this.emit('baking_complete', summary);
+        return summary;
     }
 
 
@@ -901,9 +1165,9 @@ class FinancialEngine {
             const batch = product.batches[0];
             const sellAmount = Math.min(batch.quantity, remaining);
 
-            // Quality-adjusted pricing
+            // Quality-adjusted pricing anchored to strategy base price
             const priceMultiplier = this.getQualityPriceMultiplier(batch.quality);
-            const unitRevenue = recipe.retailPrice * priceMultiplier;
+            const unitRevenue = this.getRecipeBasePrice(recipeKey) * priceMultiplier;
 
             totalRevenue += unitRevenue * sellAmount;
             totalCogs += batch.unitCost * sellAmount;
@@ -1157,7 +1421,9 @@ class FinancialEngine {
             ingredients: this.ingredients,
             products: this.products,
             allTimeStats: this.allTimeStats,
-            economy: this.economy.save()
+            economy: this.economy && typeof this.economy.save === 'function'
+                ? this.economy.save()
+                : null
         };
     }
 
@@ -1167,7 +1433,9 @@ class FinancialEngine {
         if (data.ingredients) this.ingredients = data.ingredients;
         if (data.products) this.products = data.products;
         if (data.allTimeStats) this.allTimeStats = data.allTimeStats;
-        if (data.economy) this.economy.load(data.economy);
+        if (data.economy && this.economy && typeof this.economy.load === 'function') {
+            this.economy.load(data.economy);
+        }
     }
 }
 

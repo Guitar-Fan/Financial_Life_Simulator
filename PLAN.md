@@ -8,6 +8,31 @@ Goal: evolve the game into a richer, more realistic, and more educational bakery
 - Operations depth (medium): staffing and scheduling adds meaningful choices.
 - Analytics & persistence (medium): enables learning feedback and longer campaigns.
 
+## Owner-Only Gameplay Architecture
+Move the player away from manual labor and toward strategic decision-making. The core loop becomes: analyze data → set strategy knobs → approve/adjust → review results.
+
+### Autonomous Operations Layer
+- Convert buying, baking, and selling into NPC-run flows. Staff execute production queues, purchasing agents replenish stock, and floor teams serve customers. Players set policies, not micro-actions.
+- Introduce "Operating Playbooks" that bundle recurring automation rules (e.g., conservative cash mode vs. aggressive growth). Switching playbooks immediately reconfigures staffing, inventory buffers, and marketing spend.
+- Expand staff AI to cover shift bidding, task routing, and escalation when bottlenecks appear. Track KPIs such as capacity utilization and service level to visualize automation efficiency.
+
+### Strategic Controls & Business Philosophy
+- Add a Business Philosophy board where players pick guiding principles (quality focus, cost leadership, community brand, etc.). Each principle modifies systems (ingredient sourcing, marketing tone, staffing morale).
+- Allow custom recipes. Players choose ingredients, prep complexity, and desired quality targets; the engine derives cost, bake time, and risk. Recipes can be bundled into product lines aimed at specific customer personas.
+- Create pricing and promotion workflows. For each recipe/product line, the player sets base price, discount cadence, loyalty perks, and bundling strategies. Tie these to elasticity curves and tracked experiments.
+- Implement market targeting. Players allocate marketing budgets toward customer cohorts (tourists, commuters, foodies) and neighborhoods. Each cohort has spending power, taste profile, and visit frequency.
+- Layer in sourcing strategies. Let players negotiate vendor contracts (fixed price vs. spot, bulk commits, ethical sourcing) and hedge via futures-like instruments that stabilize ingredient costs.
+
+### Finance-Forward Learning Loop
+- Replace manual baking mini-games with scenario planning: players specify production targets, capital expenditures, and risk appetite; automation attempts to execute and reports constraints.
+- Build dashboards focused on finance ratios (gross margin, contribution margin, asset turnover, leverage). Trigger contextual lessons when metrics drift.
+- Surface decision journals: every time the player changes philosophy, recipes, or prices, log the hypothesis and show outcome metrics later to reinforce financial thinking.
+
+### Fun Hooks While Staying Hands-Off
+- Introduce challenge cards (e.g., investor pitch, surprise inspection) that require choosing between strategic trade-offs rather than manual tasks.
+- Let players run "What-if Sims" that fast-forward a week under draft strategies, encouraging experimentation before committing capital.
+- Gamify staff automation by unlocking specialist roles (procurement analyst, culinary R&D, yield engineer) that open deeper policy controls when hired.
+
 ---
 
 ## Suggested Feature Areas & Implementation Notes
