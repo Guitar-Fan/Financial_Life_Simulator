@@ -82,4 +82,25 @@ delete quick start mode, but in pre-op mode, have a button to for user put in "d
 options of every building, so the game treats it like the user entered it themselves, but
 the computer actually did. that way, everything is uniform, and less error prone.
 
-lets
+Transition the game architecture to make the labor part of game autonomous, such as buying
+inventory, baking and selling. Player is a business owner, not a self-employed baker. 
+Users can learn more about finance without having to do the actual labor.
+This game is meant to be a finance simulator, not a bakery simulator. Player will have to
+choose effective strategies and make unique, choices on how the bakery should run.
+Develop the plan to make the game less labor, more learning about finance, while
+still mostly about fun.
+do not use antigravity remote browser to check errors, only use error checking tools
+like syntax check. I'll handle to player level problems. Also I prefer you to create little
+edits at a time, not massive changes, unless absolutely necessary.
+
+make sure the architecture really has a lot of complexity in the beginning phase, as it is vital for
+a successful business to have the right direction and work philosophy from the start.
+So include a lot of complex and realistic multiple choice decisions that could involve
+sliding parameters to control certain aspects of the business, and actual popups 
+decisions.
+
+don't look at AI decisions, use my own logic. then
+
+now there are no console errors, but the start and how to play button doesn't work,
+don't spend a lot of time checking errors except for checking syntax errors, I'll
+check javascript console. 

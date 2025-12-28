@@ -7,21 +7,21 @@ class TutorialSystem {
         this.dialogue = null;
         this.thought = null;
         this.highlight = null;
-        
+
         this.steps = [
             {
                 title: "Welcome to the Bakery!",
                 dialogue: "Welcome, apprentice! I'm Master Baker Pierre. I'll show you how to run a successful bakery. Ready to make some dough?",
                 thought: "He looks serious about his bread...",
                 target: null,
-                action: () => {}
+                action: () => { }
             },
             {
                 title: "The Daily Cycle",
                 dialogue: "Every day has four phases: Buying ingredients, Baking, Selling, and reviewing your Summary. But first, we need to set up your shop!",
                 thought: "Phase 0: Setup. Got it.",
                 target: "#btn-new-game",
-                action: () => {}
+                action: () => { }
             },
             {
                 title: "Bakery Setup",
@@ -79,10 +79,10 @@ class TutorialSystem {
                     if (gc.engine.getIngredientStock('FLOUR') < 2) {
                         gc.engine.purchaseIngredient('FLOUR', 10, 'SYSCO');
                     }
-                    
+
                     const result = gc.engine.startBaking('bread', 1);
                     if (result.success) {
-                         gc.showPopup({
+                        gc.showPopup({
                             icon: '🍞',
                             title: 'Demo Bake',
                             message: 'Baking started! Ingredients were consumed.',
@@ -106,7 +106,7 @@ class TutorialSystem {
                     // We need to ensure there is stock to sell
                     const products = Object.keys(gc.engine.products);
                     const productToSell = products.find(p => gc.engine.getProductStock(p) > 0);
-                    
+
                     if (productToSell) {
                         const result = gc.engine.processSale(productToSell, 1);
                         if (result.success) {
@@ -121,7 +121,7 @@ class TutorialSystem {
                             gc.renderDisplayProducts();
                         }
                     } else {
-                         gc.showPopup({
+                        gc.showPopup({
                             icon: '❌',
                             title: 'Demo Failed',
                             message: 'No products to sell! Bake something first.',
@@ -148,17 +148,17 @@ class TutorialSystem {
         // Create overlay elements
         this.overlay = document.createElement('div');
         this.overlay.id = 'tutorial-overlay';
-        
+
         this.highlight = document.createElement('div');
         this.highlight.className = 'tutorial-highlight';
-        
+
         this.character = document.createElement('div');
         this.character.className = 'tutorial-character';
         this.character.innerHTML = '👨‍🍳';
-        
+
         this.dialogue = document.createElement('div');
         this.dialogue.className = 'dialogue-bubble';
-        
+
         this.thought = document.createElement('div');
         this.thought.className = 'thought-bubble';
 
@@ -175,13 +175,13 @@ class TutorialSystem {
         skipBtn.style.cursor = 'pointer';
         skipBtn.style.zIndex = '2005';
         skipBtn.onclick = () => this.end();
-        
+
         this.overlay.appendChild(this.highlight);
         this.overlay.appendChild(this.character);
         this.overlay.appendChild(this.dialogue);
         this.overlay.appendChild(this.thought);
         this.overlay.appendChild(skipBtn);
-        
+
         document.body.appendChild(this.overlay);
 
         // Listen for phase changes from GameController
@@ -194,7 +194,7 @@ class TutorialSystem {
         this.currentStep = 0;
         this.overlay.classList.add('active');
         this.showStep();
-        
+
         // Animate character in
         gsap.from(this.character, {
             x: 200,
@@ -206,14 +206,14 @@ class TutorialSystem {
 
     showStep() {
         const step = this.steps[this.currentStep];
-        
+
         // Update text
         let buttonsHtml = '';
-        
+
         if (step.demonstration) {
             buttonsHtml += `<button class="tutorial-demo-btn">Show Me</button>`;
         }
-        
+
         buttonsHtml += `<button class="tutorial-next-btn" ${step.requirement ? 'disabled' : ''}>Next Step</button>`;
 
         this.dialogue.innerHTML = `
@@ -223,9 +223,9 @@ class TutorialSystem {
                 ${buttonsHtml}
             </div>
         `;
-        
+
         this.thought.textContent = step.thought;
-        
+
         // Handle highlight
         if (step.target) {
             const el = document.querySelector(step.target);
@@ -248,7 +248,7 @@ class TutorialSystem {
         // Add event listeners
         const nextBtn = this.dialogue.querySelector('.tutorial-next-btn');
         if (nextBtn) nextBtn.onclick = () => this.next();
-        
+
         const demoBtn = this.dialogue.querySelector('.tutorial-demo-btn');
         if (demoBtn) {
             demoBtn.onclick = () => {
@@ -266,7 +266,7 @@ class TutorialSystem {
         // Animate bubbles
         gsap.killTweensOf([this.dialogue, this.thought, this.character]);
         gsap.set([this.dialogue, this.thought], { opacity: 1, scale: 1, visibility: 'visible' });
-        
+
         gsap.from([this.dialogue, this.thought], {
             scale: 0.8,
             opacity: 0,
@@ -285,11 +285,11 @@ class TutorialSystem {
 
     setupRequirementListener(step, nextBtn) {
         const reqType = step.requirement;
-        
+
         const handler = (e) => {
             // Check if requirement is met
             let met = false;
-            
+
             if (typeof reqType === 'function') {
                 met = reqType(e);
             } else {
@@ -297,7 +297,7 @@ class TutorialSystem {
                 if (reqType === 'bake' && e.detail && e.detail.item) met = true;
                 if (reqType === 'sell' && e.detail && e.detail.revenue > 0) met = true;
             }
-            
+
             if (met) {
                 nextBtn.disabled = false;
                 nextBtn.classList.add('pulse');
@@ -309,9 +309,9 @@ class TutorialSystem {
                 }
             }
         };
-        
+
         let eventName = step.requirementEvent;
-        
+
         if (!eventName && typeof reqType === 'string') {
             const eventMap = {
                 'purchase': 'engine:purchase',
@@ -320,7 +320,7 @@ class TutorialSystem {
             };
             eventName = eventMap[reqType] || reqType;
         }
-        
+
         if (eventName) {
             window.addEventListener(eventName, handler);
             this.currentRequirementCleanup = () => window.removeEventListener(eventName, handler);
@@ -332,7 +332,7 @@ class TutorialSystem {
             this.currentRequirementCleanup();
             this.currentRequirementCleanup = null;
         }
-        
+
         this.currentStep++;
         if (this.currentStep < this.steps.length) {
             this.showStep();
@@ -341,14 +341,7 @@ class TutorialSystem {
         }
     }
 
-    next() {
-        this.currentStep++;
-        if (this.currentStep < this.steps.length) {
-            this.showStep();
-        } else {
-            this.end();
-        }
-    }
+
 
     handlePhaseChange(phase) {
         // Find step matching this phase trigger

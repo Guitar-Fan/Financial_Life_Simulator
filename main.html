@@ -2098,24 +2098,30 @@
             padding: 20px;
         }
 
-        .staff-section, .equipment-section {
+        .staff-section,
+        .equipment-section {
             margin-bottom: 30px;
         }
 
-        .staff-section h3, .equipment-section h3 {
+        .staff-section h3,
+        .equipment-section h3 {
             color: var(--accent);
             font-family: 'Fredoka', sans-serif;
             margin-bottom: 15px;
             font-size: 20px;
         }
 
-        .staff-grid, .hire-grid, .equipment-grid {
+        .staff-grid,
+        .hire-grid,
+        .equipment-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 15px;
         }
 
-        .staff-card, .hire-card, .equipment-card {
+        .staff-card,
+        .hire-card,
+        .equipment-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
@@ -2123,13 +2129,16 @@
             transition: all 0.3s;
         }
 
-        .staff-card:hover, .hire-card:hover, .equipment-card:hover {
+        .staff-card:hover,
+        .hire-card:hover,
+        .equipment-card:hover {
             border-color: var(--secondary);
             box-shadow: 0 5px 15px rgba(244, 164, 96, 0.3);
             transform: translateY(-2px);
         }
 
-        .staff-header, .equipment-header {
+        .staff-header,
+        .equipment-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -2138,13 +2147,15 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .staff-header h4, .equipment-header h4 {
+        .staff-header h4,
+        .equipment-header h4 {
             margin: 0;
             color: white;
             font-size: 16px;
         }
 
-        .staff-role, .equipment-type {
+        .staff-role,
+        .equipment-type {
             font-size: 11px;
             background: var(--primary);
             padding: 3px 8px;
@@ -2152,7 +2163,8 @@
             color: var(--accent);
         }
 
-        .staff-stats, .equipment-stats {
+        .staff-stats,
+        .equipment-stats {
             margin-bottom: 12px;
         }
 
@@ -2172,7 +2184,10 @@
             color: white;
         }
 
-        .skill-bar, .happiness-bar, .fatigue-bar, .condition-bar {
+        .skill-bar,
+        .happiness-bar,
+        .fatigue-bar,
+        .condition-bar {
             flex: 1;
             height: 8px;
             background: rgba(0, 0, 0, 0.3);
@@ -2181,13 +2196,17 @@
             margin: 0 10px;
         }
 
-        .skill-fill, .happiness-fill, .fatigue-fill, .condition-fill {
+        .skill-fill,
+        .happiness-fill,
+        .fatigue-fill,
+        .condition-fill {
             height: 100%;
             transition: width 0.3s;
             background: linear-gradient(90deg, #3498db, #2980b9);
         }
 
-        .staff-actions, .equipment-actions {
+        .staff-actions,
+        .equipment-actions {
             display: flex;
             gap: 8px;
         }
@@ -2329,7 +2348,8 @@
         }
 
         /* Advanced Baking & Selling Layouts */
-        .baking-layout-advanced, .selling-layout-advanced {
+        .baking-layout-advanced,
+        .selling-layout-advanced {
             display: grid;
             grid-template-columns: 250px 1fr;
             gap: 20px;
@@ -2338,7 +2358,8 @@
             overflow: hidden;
         }
 
-        .employee-panel, .employee-panel-selling {
+        .employee-panel,
+        .employee-panel-selling {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
@@ -2346,20 +2367,23 @@
             overflow-y: auto;
         }
 
-        .employee-panel h3, .employee-panel-selling h3 {
+        .employee-panel h3,
+        .employee-panel-selling h3 {
             color: var(--accent);
             font-family: 'Fredoka', sans-serif;
             margin-bottom: 15px;
             font-size: 18px;
         }
 
-        .employee-list, .employee-list-selling {
+        .employee-list,
+        .employee-list-selling {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
 
-        .employee-card, .employee-card-selling {
+        .employee-card,
+        .employee-card-selling {
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 8px;
@@ -2367,7 +2391,8 @@
             transition: all 0.2s;
         }
 
-        .employee-card:hover, .employee-card-selling:hover {
+        .employee-card:hover,
+        .employee-card-selling:hover {
             border-color: var(--secondary);
             box-shadow: 0 2px 8px rgba(244, 164, 96, 0.2);
         }
@@ -2573,8 +2598,17 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.2); }
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
         }
 
         .ready-section {
@@ -2646,7 +2680,7 @@
                 location.reload();
             }
         });
-        
+
         // Dashboard button handler
         document.getElementById('btn-dashboard').addEventListener('click', () => {
             if (window.game && window.game.dashboard) {

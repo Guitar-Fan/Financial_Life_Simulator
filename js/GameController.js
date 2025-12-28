@@ -23,10 +23,10 @@ class GameController {
     init() {
         this.engine = new FinancialEngine();
         this.economy = new EconomicSimulation();
-        
+
         // Connect the economy to the engine
         this.engine.economy = this.economy;
-        
+
         this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
         this.tutorial = new TutorialSystem(this);
         this.setupEventListeners();
@@ -71,7 +71,7 @@ class GameController {
             this.updateStats();
         });
     }
-    
+
     setGameSpeed(speed) {
         this.engine.gameSpeed = speed;
         const indicator = document.getElementById('speed-indicator');
@@ -83,6 +83,7 @@ class GameController {
 
     // ==================== MAIN MENU ====================
     showMainMenu() {
+        console.log('Displaying Main Menu');
         this.currentPhase = 'menu';
         const container = document.getElementById('game-container');
 
@@ -128,26 +129,6 @@ class GameController {
         `;
 
         // Reveal continue when a save exists
-        const btnContinue = document.getElementById('btn-continue');
-        if (localStorage.getItem('bakery_save')) {
-            btnContinue.style.display = 'block';
-            btnContinue.addEventListener('click', () => this.loadAndStart());
-        }
-
-        const btnNew = document.getElementById('btn-new-game');
-        const btnTut = document.getElementById('btn-tutorial');
-
-        // Common accessible activation (keyboard Enter/Space)
-        const makeAccessible = (el, handler) => {
-            el.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    el.click();
-                }
-            });
-            el.addEventListener('click', handler);
-        };
-
         // Button press animation + ripple using GSAP
         const animatePress = (btn, event) => {
             // small scale pulse
@@ -164,27 +145,55 @@ class GameController {
             gsap.fromTo(ripple, { scale: 0, opacity: 0.35 }, { scale: 6, opacity: 0, duration: 0.7, onComplete: () => ripple.remove() });
         };
 
-        // Wire up New Game
-        makeAccessible(btnNew, (e) => {
-            animatePress(btnNew, e);
-            setTimeout(() => this.startNewGame(), 180);
-        });
+        // Helper for consistent button wiring
+        const wireButton = (id, action) => {
+            const btn = document.getElementById(id);
+            if (!btn) return null;
 
-        // Wire up Tutorial
-        makeAccessible(btnTut, (e) => {
-            animatePress(btnTut, e);
-            setTimeout(() => this.showTutorial(), 180);
-        });
+            // Click handler (standard)
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log(`Button clicked: ${id}`);
+                animatePress(btn, e);
 
-        // Give focus styles and hover micro-interactions
-        [btnNew, btnTut, btnContinue].forEach(b => {
-            if (!b) return;
-            b.addEventListener('mouseenter', () => gsap.to(b.querySelector('.btn-icon'), { y: -4, duration: 0.18 }));
-            b.addEventListener('mouseleave', () => gsap.to(b.querySelector('.btn-icon'), { y: 0, duration: 0.18 }));
-            b.addEventListener('mousedown', (ev) => animatePress(b, ev));
-        });
+                // Use a standard delay for the animation
+                setTimeout(() => {
+                    console.log(`Executing action for: ${id}`);
+                    action();
+                }, 150);
+            };
+
+            // Keyboard accessibility
+            btn.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    btn.onclick(e);
+                }
+            };
+
+            // Hover effects
+            btn.onmouseenter = () => {
+                const icon = btn.querySelector('.btn-icon');
+                if (icon) gsap.to(icon, { y: -5, duration: 0.2, ease: 'back.out(2)' });
+            };
+            btn.onmouseleave = () => {
+                const icon = btn.querySelector('.btn-icon');
+                if (icon) gsap.to(icon, { y: 0, duration: 0.2, ease: 'power2.out' });
+            };
+
+            return btn;
+        };
+
+        const btnNew = wireButton('btn-new-game', () => this.startNewGame());
+        const btnContinue = wireButton('btn-continue', () => this.loadAndStart());
+        const btnTut = wireButton('btn-tutorial', () => this.showTutorial());
+
+        // Reveal continue when a save exists
+        if (btnContinue && localStorage.getItem('bakery_save')) {
+            btnContinue.style.display = 'block';
+        }
     }
-    
+
     startNewGame() {
         this.engine.reset();
         localStorage.removeItem('bakery_save');
@@ -243,7 +252,7 @@ class GameController {
 
     selectSetup(type, id) {
         const options = GAME_CONFIG.SETUP_OPTIONS;
-        
+
         if (type === 'location') {
             this.setupChoices.location = options.locations.find(l => l.id === id);
         } else if (type === 'financing') {
@@ -277,14 +286,14 @@ class GameController {
         const paperwork = GAME_CONFIG.SETUP_OPTIONS.paperwork;
         const requiredPermits = paperwork.filter(p => p.required);
         const hasAllRequired = requiredPermits.every(p => c.paperwork.includes(p.id));
-        
-        return c.location && 
-               c.equipment.oven && 
-               c.equipment.mixer && 
-               c.equipment.display &&
-               hasAllRequired &&
-               c.insurance &&
-               c.staff;
+
+        return c.location &&
+            c.equipment.oven &&
+            c.equipment.mixer &&
+            c.equipment.display &&
+            hasAllRequired &&
+            c.insurance &&
+            c.staff;
     }
 
     finishSetup() {
@@ -296,31 +305,31 @@ class GameController {
 
         // Apply choices to engine
         const choices = this.setupChoices;
-        
+
         // Location
         this.engine.rentAmount = choices.location.rent;
         this.engine.trafficMultiplier = choices.location.traffic;
-        
+
         // Equipment
         this.engine.ovenCapacity = choices.equipment.oven.capacity;
         this.engine.bakingSpeedMultiplier = choices.equipment.oven.speed * choices.equipment.mixer.efficiency;
-        
+
         // Staff
         if (choices.staff.efficiency) {
             this.engine.bakingSpeedMultiplier *= choices.staff.efficiency;
         }
-        
+
         // Financing (debt already added in scene)
         // Insurance (monthly costs)
         if (choices.insurance) {
             this.engine.monthlyInsurance = choices.insurance.monthlyCost;
         }
-        
+
         // Utilities
         if (choices.utilities.power && choices.utilities.internet) {
             this.engine.monthlyUtilities = choices.utilities.power.monthlyCost + choices.utilities.internet.monthlyCost;
         }
-        
+
         // Initialize day state
         // Move to free-roam mode hub
         this.showModeHub();
@@ -815,7 +824,7 @@ class GameController {
             this.stopBakingLoop();
             this.showModeHub();
         };
-        
+
         document.getElementById('btn-open-shop').onclick = () => {
             // Don't stop baking loop - let it continue!
             this.showSellingPhase();
@@ -850,21 +859,21 @@ class GameController {
 
         this.updateStats();
     }
-    
+
     renderEmployeePanel() {
         if (this.engine.staff.length === 0) {
             return '<div class="no-employees">No staff hired. Working solo! Hire staff in the Staff panel.</div>';
         }
-        
+
         return this.engine.staff.map(employee => {
-            const currentTask = this.engine.productionQueue.find(item => 
+            const currentTask = this.engine.productionQueue.find(item =>
                 item.assignedEmployee && item.assignedEmployee.id === employee.id
             );
-            
-            const taskInfo = currentTask 
+
+            const taskInfo = currentTask
                 ? `${currentTask.stages[currentTask.stageIndex].name} ${currentTask.recipeIcon}`
                 : 'Idle';
-            
+
             return `
                 <div class="employee-card">
                     <div class="employee-header">
@@ -976,13 +985,13 @@ class GameController {
             const progress = Math.min(100, (item.progress / item.totalTime) * 100);
             const currentStage = item.stages[item.stageIndex];
             const employee = item.assignedEmployee;
-            
-            const employeeInfo = employee 
+
+            const employeeInfo = employee
                 ? `<div class="assigned-employee">👨‍🍳 ${employee.name} (⭐${employee.skillLevel.toFixed(1)})</div>`
                 : '<div class="assigned-employee no-employee">⚠️ No employee (slower)</div>';
-            
+
             const qualityColor = item.prepQuality > 90 ? '#2ecc71' : item.prepQuality > 70 ? '#f39c12' : '#e74c3c';
-            
+
             return `
                 <div class="production-item">
                     <div class="production-header">
@@ -1009,14 +1018,14 @@ class GameController {
         }).join('');
 
         slots.innerHTML = html;
-        
+
         // Update employee panel
         const employeeList = document.getElementById('employee-list');
         if (employeeList) {
             employeeList.innerHTML = this.renderEmployeePanel();
         }
     }
-    
+
     renderOven() {
         // Legacy method - redirect to new production queue
         this.renderProductionQueue();
@@ -1169,18 +1178,18 @@ class GameController {
             setTimeout(() => this.triggerCrisis(), 5000);
         }
     }
-    
+
     renderEmployeeSelling() {
         if (this.engine.staff.length === 0) {
             return '<div class="no-employees">Solo operation - you handle all customers!</div>';
         }
-        
+
         return this.engine.staff.map(employee => {
             const servingCustomer = employee.currentCustomer || null;
-            const taskInfo = servingCustomer 
+            const taskInfo = servingCustomer
                 ? `Serving ${servingCustomer.name} ${servingCustomer.face}`
                 : 'Ready to serve';
-            
+
             return `
                 <div class="employee-card-selling">
                     <div class="employee-header">
@@ -1496,7 +1505,7 @@ class GameController {
         this.economy.simulateDay(this.engine.day);
 
         const summary = this.engine.endDay();
-        
+
         // Record business metrics in economic simulation
         this.economy.recordBusinessMetrics({
             revenue: summary.revenue,
@@ -1723,7 +1732,7 @@ class GameController {
             </div>
         `;
         document.body.appendChild(panel);
-        
+
         // Animate in
         gsap.from(panel.querySelector('.modal-content'), {
             scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
@@ -1743,7 +1752,7 @@ class GameController {
         }
 
         const staffEfficiency = this.engine.getStaffEfficiency().toFixed(2);
-        
+
         return `
             <div class="staff-section">
                 <h3>Current Staff (Efficiency: ${staffEfficiency}x)</h3>
@@ -1780,7 +1789,7 @@ class GameController {
                                 </div>
                                 <div class="stat-row">
                                     <span>Efficiency:</span>
-                                    <strong>${(staff.efficiency * (0.8 + staff.happiness/250) * (1 - staff.fatigue/200)).toFixed(2)}x</strong>
+                                    <strong>${(staff.efficiency * (0.8 + staff.happiness / 250) * (1 - staff.fatigue / 200)).toFixed(2)}x</strong>
                                 </div>
                                 <div class="stat-row">
                                     <span>Salary:</span>
@@ -1808,7 +1817,7 @@ class GameController {
 
     renderHireOptions() {
         const options = GAME_CONFIG.SETUP_OPTIONS.staff;
-        
+
         return `
             <div class="staff-section">
                 <h3>Hire New Staff</h3>
@@ -1835,7 +1844,7 @@ class GameController {
 
     renderShiftSchedule() {
         const schedule = this.engine.shiftSchedule;
-        
+
         return `
             <div class="staff-section">
                 <h3>⏰ Shift Schedule</h3>
@@ -1879,7 +1888,7 @@ class GameController {
             </div>
         `;
         document.body.appendChild(panel);
-        
+
         gsap.from(panel.querySelector('.modal-content'), {
             scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
         });
@@ -1907,10 +1916,10 @@ class GameController {
                 <h3>All Equipment (Efficiency: ${equipEfficiency}x)</h3>
                 <div class="equipment-grid">
                     ${allEquipment.map(equip => {
-                        const conditionClass = equip.condition > 70 ? 'good' : equip.condition > 40 ? 'fair' : 'poor';
-                        const daysSinceMaint = this.engine.day - equip.lastMaintenance;
-                        
-                        return `
+            const conditionClass = equip.condition > 70 ? 'good' : equip.condition > 40 ? 'fair' : 'poor';
+            const daysSinceMaint = this.engine.day - equip.lastMaintenance;
+
+            return `
                             <div class="equipment-card ${conditionClass}">
                                 <div class="equipment-header">
                                     <h4>${equip.name}</h4>
@@ -1949,7 +1958,7 @@ class GameController {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -1959,7 +1968,7 @@ class GameController {
     hireStaffOption(staffId) {
         const staffConfig = GAME_CONFIG.SETUP_OPTIONS.staff.find(s => s.id === staffId);
         if (!staffConfig) return;
-        
+
         const result = this.engine.hireStaff(staffConfig);
         if (result.success) {
             this.showPopup({
@@ -2003,7 +2012,7 @@ class GameController {
 
     fireStaff(staffId) {
         if (!confirm('Are you sure you want to fire this employee? Severance pay will be deducted.')) return;
-        
+
         const result = this.engine.fireStaff(staffId);
         if (result.success) {
             this.showPopup({

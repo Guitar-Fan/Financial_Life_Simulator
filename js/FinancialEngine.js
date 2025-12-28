@@ -53,6 +53,19 @@ class FinancialEngine {
         this.lastEconomyDay = 0;  // Track when we last simulated economy
         this.economyReport = null;  // Latest economy report
 
+        // Business Philosophy & Strategy
+        if (window.BusinessPhilosophy) {
+            this.philosophy = new BusinessPhilosophy();
+        } else {
+            console.log('BusinessPhilosophy class not found, initializing default strategy');
+            this.philosophy = {
+                modifiers: { ingredientCostMult: 1, productionSpeedMult: 1, customerVolumeMult: 1, interestRateMult: 1, maxLoanAmountMult: 1 },
+                getInitialCash: () => 2000,
+                getInitialDebt: () => 0,
+                recalculateModifiers: () => { }
+            };
+        }
+
         // Daily stats
         this.dailyStats = {
             revenue: 0,
@@ -84,12 +97,12 @@ class FinancialEngine {
             mixers: [],
             displays: []
         };
-        
+
         // Monthly recurring costs
         this.monthlyInsurance = 0;
         this.monthlyUtilities = 0;
         this.monthlyStaffCost = 0;
-        
+
         // Event callbacks
         this.callbacks = {};
     }
@@ -110,7 +123,7 @@ class FinancialEngine {
         // Assign a random face from available options
         const faces = ['👨‍🍳', '👩‍🍳', '🧑‍🍳', '👨', '👩', '🧑', '👨‍🦱', '👩‍🦰', '👨‍🦳', '👩‍🦳'];
         const randomFace = faces[Math.floor(Math.random() * faces.length)];
-        
+
         const newStaff = {
             id: Date.now() + Math.random(),
             name: staffConfig.name,
@@ -129,7 +142,7 @@ class FinancialEngine {
             trainingCost: 200, // Cost per training level
             hireDate: this.day
         };
-        
+
         this.staff.push(newStaff);
         this.updateMonthlyStaffCost();
         this.emit('staff_hired', newStaff);
@@ -144,10 +157,10 @@ class FinancialEngine {
     fireStaff(staffId) {
         const index = this.staff.findIndex(s => s.id === staffId);
         if (index === -1) return { success: false, message: 'Staff not found' };
-        
+
         const severancePay = this.staff[index].baseSalary / 2;
         this.cash -= severancePay;
-        
+
         const firedStaff = this.staff.splice(index, 1)[0];
         this.updateMonthlyStaffCost();
         this.emit('staff_fired', { staff: firedStaff, severance: severancePay });
@@ -159,42 +172,42 @@ class FinancialEngine {
         if (!staff) return { success: false, message: 'Staff not found' };
         if (staff.trainingLevel >= 5) return { success: false, message: 'Max training reached' };
         if (this.cash < staff.trainingCost) return { success: false, message: 'Not enough cash' };
-        
+
         this.cash -= staff.trainingCost;
         staff.trainingLevel++;
         staff.efficiency += 0.1; // 10% efficiency boost per level
         staff.skillLevel = Math.min(5, staff.skillLevel + 0.2);
         staff.happiness += 10; // Training increases happiness
-        
+
         this.emit('staff_trained', staff);
         return { success: true, staff, cost: staff.trainingCost };
     }
 
     updateMonthlyStaffCost() {
-        this.monthlyStaffCost = this.staff.reduce((sum, s) => 
+        this.monthlyStaffCost = this.staff.reduce((sum, s) =>
             sum + s.baseSalary + s.benefits, 0);
     }
 
     getStaffEfficiency() {
         if (this.staff.length === 0) return 1.0; // Solo operation
-        
+
         let totalEfficiency = 0;
         this.staff.forEach(staff => {
             // Base efficiency
             let eff = staff.efficiency;
-            
+
             // Happiness modifier (-20% to +20%)
             eff *= (0.8 + (staff.happiness / 100) * 0.4);
-            
+
             // Fatigue penalty (-50% max)
             eff *= (1 - staff.fatigue / 200);
-            
+
             // Training bonus
             eff *= (1 + staff.trainingLevel * 0.05);
-            
+
             totalEfficiency += eff;
         });
-        
+
         return totalEfficiency;
     }
 
@@ -252,7 +265,7 @@ class FinancialEngine {
             purchaseDay: this.day,
             totalRepairCosts: 0
         };
-        
+
         if (!this.equipment[type + 's']) {
             this.equipment[type + 's'] = [];
         }
@@ -264,37 +277,37 @@ class FinancialEngine {
     updateEquipmentCondition() {
         const degradedEquipment = [];
         const brokenEquipment = [];
-        
+
         ['ovens', 'mixers', 'displays'].forEach(type => {
             if (!this.equipment[type]) return;
-            
+
             this.equipment[type].forEach(item => {
                 // Daily wear (0.5-2% per day based on usage)
                 const usageWear = 0.5 + Math.random() * 1.5;
                 item.condition = Math.max(0, item.condition - usageWear);
-                
+
                 // Increase breakdown probability as condition worsens
                 item.breakdownProbability = 0.01 + ((100 - item.condition) / 100) * 0.15;
-                
+
                 // Check for breakdown
                 if (Math.random() < item.breakdownProbability) {
                     item.condition = Math.max(0, item.condition - 20);
                     brokenEquipment.push(item);
                 }
-                
+
                 if (item.condition < 50) {
                     degradedEquipment.push(item);
                 }
             });
         });
-        
+
         return { degraded: degradedEquipment, broken: brokenEquipment };
     }
 
     repairEquipment(equipmentId) {
         let equipment = null;
         let type = null;
-        
+
         ['ovens', 'mixers', 'displays'].forEach(t => {
             if (!equipment && this.equipment[t]) {
                 const found = this.equipment[t].find(e => e.id === equipmentId);
@@ -304,17 +317,17 @@ class FinancialEngine {
                 }
             }
         });
-        
+
         if (!equipment) return { success: false, message: 'Equipment not found' };
-        
+
         const repairCost = equipment.maintenanceCost * (100 - equipment.condition) / 10;
         if (this.cash < repairCost) return { success: false, message: 'Not enough cash' };
-        
+
         this.cash -= repairCost;
         equipment.condition = 100;
         equipment.lastMaintenance = this.day;
         equipment.totalRepairCosts += repairCost;
-        
+
         this.emit('equipment_repaired', { equipment, cost: repairCost });
         return { success: true, cost: repairCost };
     }
@@ -327,15 +340,15 @@ class FinancialEngine {
                 if (found) equipment = found;
             }
         });
-        
+
         if (!equipment) return { success: false, message: 'Equipment not found' };
         if (this.cash < equipment.maintenanceCost) return { success: false, message: 'Not enough cash' };
-        
+
         this.cash -= equipment.maintenanceCost;
         equipment.condition = Math.min(100, equipment.condition + 15);
         equipment.lastMaintenance = this.day;
         equipment.breakdownProbability = Math.max(0.01, equipment.breakdownProbability - 0.02);
-        
+
         this.emit('equipment_maintained', { equipment, cost: equipment.maintenanceCost });
         return { success: true, cost: equipment.maintenanceCost };
     }
@@ -343,7 +356,7 @@ class FinancialEngine {
     getEquipmentEfficiency() {
         let totalEfficiency = 1.0;
         let count = 0;
-        
+
         ['ovens', 'mixers', 'displays'].forEach(type => {
             if (this.equipment[type]) {
                 this.equipment[type].forEach(item => {
@@ -352,7 +365,7 @@ class FinancialEngine {
                 });
             }
         });
-        
+
         return count > 0 ? totalEfficiency / count : 1.0;
     }
 
@@ -623,7 +636,7 @@ class FinancialEngine {
 
         // Define preparation stages based on recipe complexity
         const prepStages = this.getPrepStages(recipeKey);
-        
+
         // Add to queue with multi-stage production
         const productionItem = {
             id: Date.now() + Math.random(),
@@ -645,10 +658,10 @@ class FinancialEngine {
         };
 
         this.productionQueue.push(productionItem);
-        
+
         // Auto-assign employee if available
         this.autoAssignEmployee(productionItem);
-        
+
         this.emit('baking_started', productionItem);
 
         const qualityLabel = this.getQualityLabel(avgQuality);
@@ -659,11 +672,11 @@ class FinancialEngine {
             ingredientQuality: avgQuality
         };
     }
-    
+
     getPrepStages(recipeKey) {
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
         const baseTime = recipe.bakeTime * 60 * 1000 / 10; // Converted to ms, sped up
-        
+
         // Different recipes have different preparation stages
         const stageTemplates = {
             croissant: [
@@ -687,29 +700,29 @@ class FinancialEngine {
                 { id: 'baking', name: '🔥 Baking', duration: baseTime * 0.3, skillRequired: 2 }
             ]
         };
-        
+
         return stageTemplates[recipeKey] || stageTemplates.default;
     }
-    
+
     autoAssignEmployee(productionItem) {
         if (this.staff.length === 0) {
             productionItem.assignedEmployee = null;
             return;
         }
-        
+
         // Find best available employee based on:
         // 1. Not too fatigued
         // 2. Skill level appropriate for current stage
         // 3. Currently not assigned to too many tasks
-        
+
         const currentStage = productionItem.stages[productionItem.stageIndex];
         const availableStaff = this.staff.filter(s => s.fatigue < 80);
-        
+
         if (availableStaff.length === 0) {
             productionItem.assignedEmployee = null;
             return;
         }
-        
+
         // Count current assignments
         const assignments = {};
         this.staff.forEach(s => assignments[s.id] = 0);
@@ -718,125 +731,67 @@ class FinancialEngine {
                 assignments[item.assignedEmployee.id] = (assignments[item.assignedEmployee.id] || 0) + 1;
             }
         });
-        
+
         // Find employee with best skill match and fewest assignments
         let bestEmployee = availableStaff[0];
         let bestScore = -1000;
-        
+
         availableStaff.forEach(employee => {
             const skillMatch = employee.skillLevel >= currentStage.skillRequired ? 10 : -5;
             const workload = -(assignments[employee.id] || 0) * 3;
             const happiness = employee.happiness / 10;
             const score = skillMatch + workload + happiness;
-            
+
             if (score > bestScore) {
                 bestScore = score;
                 bestEmployee = employee;
             }
         });
-        
+
         productionItem.assignedEmployee = bestEmployee;
-        
+
         // Calculate skill impact on speed and quality
         const stage = productionItem.stages[productionItem.stageIndex];
         const skillDiff = bestEmployee.skillLevel - stage.skillRequired;
-        
+
         // Better skills = faster and better quality
         productionItem.employeeSkillImpact = 1.0 + (skillDiff * 0.1); // +10% per skill level above requirement
-        
+
         return bestEmployee;
     }
 
     updateProduction(deltaMs) {
-        const completed = [];
-        const stageCompleted = [];
-        
-        // Calculate combined efficiency from staff and equipment
-        const staffEfficiency = this.getStaffEfficiency();
-        const equipmentEfficiency = this.getEquipmentEfficiency();
-        const combinedEfficiency = (staffEfficiency + equipmentEfficiency) / 2;
-        
-        // Apply combined efficiency to production speed
-        const baseDeltaMs = deltaMs * this.bakingSpeedMultiplier * combinedEfficiency;
+        // Process oven items
+        if (this.equipment.oven) {
+            this.equipment.oven.slots.forEach(slot => {
+                if (slot.active) {
+                    // Apply efficiency multiplier
+                    const speedMult = this.bakingSpeedMultiplier || 1.0;
+                    const staffMult = slot.item.assignedEmployee ? slot.item.employeeSkillImpact : 1.0;
 
-        this.productionQueue.forEach(item => {
-            // Apply employee skill impact if assigned
-            const employeeBonus = item.assignedEmployee ? item.employeeSkillImpact : 0.8; // 20% slower if no employee
-            const effectiveDeltaMs = baseDeltaMs * employeeBonus;
-            
-            item.progress += effectiveDeltaMs;
+                    slot.progress += (deltaMs * speedMult * staffMult);
 
-            if (item.progress >= item.totalTime) {
-                // Stage complete!
-                const stage = item.stages[item.stageIndex];
-                
-                // Calculate quality impact of this stage
-                const qualityImpact = this.calculateStageQualityImpact(item, stage);
-                item.prepQuality = Math.max(0, Math.min(100, item.prepQuality * qualityImpact));
-                
-                stageCompleted.push({ item, stage });
-                
-                // Move to next stage
-                item.stageIndex++;
-                
-                if (item.stageIndex >= item.stages.length) {
-                    // All stages complete!
-                    const finalQuality = (item.ingredientQuality * 0.4) + (item.prepQuality * 0.6);
-                    
-                    // Add to products as a batch with quality
-                    this.products[item.recipeKey].batches.push({
-                        quantity: item.quantity,
-                        quality: finalQuality,
-                        bakeDay: this.day,
-                        unitCost: item.unitCost
-                    });
-
-                    completed.push(item);
-                } else {
-                    // Start next stage
-                    item.currentStage = item.stages[item.stageIndex].id;
-                    item.progress = 0;
-                    item.totalTime = item.stages[item.stageIndex].duration;
-                    
-                    // Reassign employee for new stage
-                    this.autoAssignEmployee(item);
+                    if (slot.progress >= slot.totalTime) {
+                        this.finishBaking(slot);
+                    }
                 }
-            }
-        });
-
-        // Remove completed
-        this.productionQueue = this.productionQueue.filter(item => {
-            return item.stageIndex < item.stages.length;
-        });
-
-        completed.forEach(item => {
-            this.emit('baking_complete', item);
-            // Add hours worked to employee
-            if (item.assignedEmployee) {
-                const hoursWorked = (Date.now() - item.startTime) / (1000 * 60 * 60);
-                item.assignedEmployee.hoursWorkedToday += hoursWorked;
-            }
-        });
-        
-        stageCompleted.forEach(({item, stage}) => {
-            this.emit('stage_complete', { item, stage });
-        });
-
-        return completed;
+            });
+        }
     }
-    
+
+
     calculateStageQualityImpact(item, stage) {
         if (!item.assignedEmployee) {
             // No employee = poor quality (80-90%)
             return 0.8 + Math.random() * 0.1;
         }
-        
+
         const employee = item.assignedEmployee;
-        
+
         // Base quality from employee skill vs requirement
         let qualityMult = 1.0;
         const skillDiff = employee.skillLevel - stage.skillRequired;
-        
+
         if (skillDiff >= 2) {
             qualityMult = 1.0 + Math.random() * 0.05; // Expert: 100-105%
         } else if (skillDiff >= 0) {
@@ -846,15 +801,15 @@ class FinancialEngine {
         } else {
             qualityMult = 0.80 + Math.random() * 0.12; // Underqualified: 80-92%
         }
-        
+
         // Fatigue penalty
         const fatiguePenalty = employee.fatigue / 200; // 0-0.5
         qualityMult -= fatiguePenalty;
-        
+
         // Happiness bonus
         const happinessBonus = (employee.happiness - 50) / 500; // -0.1 to +0.1
         qualityMult += happinessBonus;
-        
+
         return Math.max(0.7, Math.min(1.1, qualityMult));
     }
 
@@ -1008,14 +963,14 @@ class FinancialEngine {
             totalExpenses += amount;
             expenses.push({ ...expense, amount, key });
         });
-        
+
         // Add prorated monthly costs (insurance, utilities, staff benefits)
         const monthlyExpenses = [
             { name: 'Insurance', amount: this.monthlyInsurance / 30, key: 'insurance' },
             { name: 'Utilities', amount: this.monthlyUtilities / 30, key: 'utilities' },
             { name: 'Staff Salaries', amount: this.monthlyStaffCost / 30, key: 'payroll' }
         ];
-        
+
         monthlyExpenses.forEach(exp => {
             if (exp.amount > 0) {
                 totalExpenses += exp.amount;
@@ -1028,7 +983,7 @@ class FinancialEngine {
 
         return { total: totalExpenses, expenses };
     }
-    
+
     processStaffEndOfDay() {
         const report = {
             totalStaff: this.staff.length,
@@ -1037,46 +992,46 @@ class FinancialEngine {
             overtimeHours: 0,
             fatigueRecovery: 0
         };
-        
+
         if (this.staff.length === 0) return report;
-        
+
         let totalHappiness = 0;
         let totalFatigue = 0;
-        
+
         this.staff.forEach(staff => {
             // Fatigue recovery (20% per night)
             const recovery = staff.fatigue * 0.2;
             staff.fatigue = Math.max(0, staff.fatigue - recovery);
             report.fatigueRecovery += recovery;
-            
+
             // Check for overtime
             if (staff.hoursWorkedToday > 8) {
                 report.overtimeHours += (staff.hoursWorkedToday - 8);
             }
-            
+
             // Small daily happiness decay if overworked
             if (staff.hoursWorkedToday > 10) {
                 staff.happiness -= 2;
             } else if (staff.hoursWorkedToday < 4) {
                 staff.happiness += 1; // Light day improves morale
             }
-            
+
             staff.happiness = Math.max(0, Math.min(100, staff.happiness));
             totalHappiness += staff.happiness;
             totalFatigue += staff.fatigue;
-            
+
             staff.daysWorked++;
         });
-        
+
         report.avgHappiness = totalHappiness / this.staff.length;
         report.avgFatigue = totalFatigue / this.staff.length;
-        
+
         return report;
     }
-    
+
     calculateOvertimeCost() {
         let overtimeCost = 0;
-        
+
         this.staff.forEach(staff => {
             if (staff.hoursWorkedToday > 8) {
                 const overtimeHours = staff.hoursWorkedToday - 8;
@@ -1084,7 +1039,7 @@ class FinancialEngine {
                 overtimeCost += overtimeHours * hourlyRate * 1.5; // 1.5x pay for overtime
             }
         });
-        
+
         return overtimeCost;
     }
 
@@ -1095,13 +1050,13 @@ class FinancialEngine {
         // Update quality of ingredients and products (decay overnight)
         const spoiledIngredients = this.updateIngredientQuality();
         const staleProducts = this.updateProductQuality();
-        
+
         // Process staff: payroll, fatigue recovery, happiness updates
         const staffReport = this.processStaffEndOfDay();
-        
+
         // Update equipment condition and check for breakdowns
         const equipmentReport = this.updateEquipmentCondition();
-        
+
         // Calculate overtime costs
         const overtimeCost = this.calculateOvertimeCost();
 
@@ -1132,7 +1087,7 @@ class FinancialEngine {
             revenue: 0, cogs: 0, grossProfit: 0,
             customersServed: 0, customersMissed: 0, itemsSold: 0
         };
-        
+
         // Reset staff daily hours
         this.staff.forEach(s => s.hoursWorkedToday = 0);
 
