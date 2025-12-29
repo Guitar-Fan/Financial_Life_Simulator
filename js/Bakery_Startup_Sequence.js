@@ -77,6 +77,18 @@ class StartupScene extends Phaser.Scene {
         this.createTreeTexture();
         this.createBenchTexture();
         this.createStreetlightTexture();
+        this.createGlowTexture('city_glow', 0xfbd789);
+        this.createGlowTexture('city_glow_cool', 0x7ed6ff);
+    }
+
+    createGlowTexture(key, tint = 0xffffff) {
+        const gfx = this.make.graphics({ x: 0, y: 0, add: false });
+        const radius = 80;
+        for (let i = 0; i < 7; i++) {
+            gfx.fillStyle(tint, 0.22 - (i * 0.03));
+            gfx.fillCircle(radius, radius, radius - i * 11);
+        }
+        gfx.generateTexture(key, radius * 2, radius * 2);
     }
 
     createDetailedBuilding(key, primaryColor, accentColor, label) {
@@ -207,26 +219,134 @@ class StartupScene extends Phaser.Scene {
         gfx.generateTexture('streetlight', 40, 50);
     }
 
+    paintSkyDome() {
+        const gradient = this.add.graphics({ x: 0, y: 0 });
+        const top = Phaser.Display.Color.HexStringToColor('#040713');
+        const bottom = Phaser.Display.Color.HexStringToColor('#2a1320');
+        const steps = 240;
+        for (let i = 0; i <= steps; i++) {
+            const color = Phaser.Display.Color.Interpolate.ColorWithColor(top, bottom, steps, i);
+            gradient.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
+            gradient.fillRect(0, (i / steps) * 1200, 1600, 1200 / steps);
+        }
+        gradient.setDepth(-10);
+    }
+
+    createParallaxBackdrop() {
+        const skyline = this.add.graphics();
+        skyline.setDepth(-9);
+        const palette = [0x0c1121, 0x131a2c, 0x1e223a];
+        for (let i = 0; i < 24; i++) {
+            const width = Phaser.Math.Between(60, 160);
+            const height = Phaser.Math.Between(140, 320);
+            const x = i * 70 + Phaser.Math.Between(-30, 30);
+            const y = 360 - height;
+            skyline.fillStyle(palette[i % palette.length], 0.9);
+            skyline.fillRect(x, y, width, height);
+        }
+
+        const rays = this.add.graphics({ x: 0, y: 0 });
+        rays.setDepth(-8);
+        rays.fillStyle(0xfbd789, 0.07);
+        for (let i = 0; i < 5; i++) {
+            const polygon = new Phaser.Geom.Polygon([
+                200 + i * 120, 0,
+                320 + i * 130, 0,
+                600 + i * 80, 600,
+                480 + i * 80, 600
+            ]);
+            rays.beginPath();
+            rays.fillPoints(polygon.points, true);
+            rays.closePath();
+        }
+
+        const sun = this.add.image(260, 200, 'city_glow')
+            .setBlendMode(Phaser.BlendModes.ADD)
+            .setScale(2.8)
+            .setDepth(-9)
+            .setAlpha(0.4);
+        this.tweens.add({
+            targets: sun,
+            alpha: { from: 0.35, to: 0.55 },
+            duration: 4500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'sine.inOut'
+        });
+    }
+
+    createAmbientDrift() {
+        this.ambientGlows = [];
+        for (let i = 0; i < 40; i++) {
+            const glow = this.add.image(
+                Phaser.Math.Between(0, 1600),
+                Phaser.Math.Between(0, 1200),
+                'city_glow_cool'
+            )
+                .setBlendMode(Phaser.BlendModes.ADD)
+                .setScale(Phaser.Math.FloatBetween(0.25, 0.6))
+                .setAlpha(Phaser.Math.FloatBetween(0.18, 0.4))
+                .setDepth(-7 + Math.random() * 0.4);
+
+            const driftX = glow.x + Phaser.Math.Between(-130, 130);
+            const driftY = glow.y + Phaser.Math.Between(-90, 90);
+
+            this.tweens.add({
+                targets: glow,
+                x: driftX,
+                y: driftY,
+                alpha: { from: glow.alpha, to: glow.alpha * 0.4 },
+                duration: Phaser.Math.Between(5000, 9000),
+                yoyo: true,
+                repeat: -1,
+                ease: 'sine.inOut',
+                delay: i * 80
+            });
+
+            this.ambientGlows.push(glow);
+        }
+    }
+
     create() {
         this.startingCash = window.game.engine.cash;
         
         // === LARGER WORLD (1600x1200) ===
         this.physics.world.setBounds(0, 0, 1600, 1200);
         this.cameras.main.setBounds(0, 0, 1600, 1200);
+
+        this.paintSkyDome();
+        this.createParallaxBackdrop();
+        this.createAmbientDrift();
         
         // === BACKGROUND ===
         // Multiple ground types for visual interest
-        this.add.tileSprite(800, 600, 1600, 1200, 'grass');
-        
-        // Plaza area in center
-        this.add.rectangle(800, 600, 400, 400, 0xecf0f1).setAlpha(0.7);
+        const ground = this.add.tileSprite(800, 600, 1600, 1200, 'grass');
+        ground.setTint(0x18221f);
+
+        // Plaza area in center (isometric diamond)
+        const plaza = this.add.graphics({ x: 0, y: 0 });
+        plaza.fillGradientStyle(0x3c2518, 0x2e1a12, 0x1a0d07, 0x1a0d07, 0.9, 0.9, 0.95, 0.95);
+        plaza.beginPath();
+        plaza.moveTo(380, 420);
+        plaza.lineTo(1220, 420);
+        plaza.lineTo(1500, 900);
+        plaza.lineTo(100, 900);
+        plaza.closePath();
+        plaza.fillPath();
+
+        this.add.image(800, 520, 'city_glow')
+            .setScale(4.2)
+            .setBlendMode(Phaser.BlendModes.ADD)
+            .setDepth(-6)
+            .setAlpha(0.25);
+        this.add.rectangle(800, 860, 1600, 300, 0x050203, 0.45).setDepth(-6);
         
         // === ROADS ===
         // Main boulevard (vertical)
-        this.add.tileSprite(800, 600, 128, 1200, 'main_road');
+        this.add.tileSprite(800, 600, 128, 1200, 'main_road').setTint(0x0f1826);
         // Cross streets (horizontal)
-        this.add.tileSprite(800, 300, 1600, 96, 'side_road');
-        this.add.tileSprite(800, 900, 1600, 96, 'side_road');
+        this.add.tileSprite(800, 300, 1600, 96, 'side_road').setTint(0x172437);
+        this.add.tileSprite(800, 900, 1600, 96, 'side_road').setTint(0x172437);
         
         // === DECORATIVE ELEMENTS ===
         // Trees
@@ -248,6 +368,19 @@ class StartupScene extends Phaser.Scene {
         this.add.image(900, 300, 'streetlight');
         this.add.image(700, 900, 'streetlight');
         this.add.image(900, 900, 'streetlight');
+
+        [
+            { x: 700, y: 300 },
+            { x: 900, y: 300 },
+            { x: 700, y: 900 },
+            { x: 900, y: 900 }
+        ].forEach(light => {
+            this.add.image(light.x, light.y - 10, 'city_glow_cool')
+                .setScale(0.55)
+                .setBlendMode(Phaser.BlendModes.ADD)
+                .setAlpha(0.5)
+                .setDepth(5);
+        });
 
         // === PLAYER ===
         this.player = this.physics.add.sprite(800, 600, 'player');
@@ -413,6 +546,11 @@ class StartupScene extends Phaser.Scene {
     }
 
     addBuilding(x, y, key, label, callback, hint) {
+        const shadow = this.add.image(x + 18, y + 60, key)
+            .setTint(0x000000)
+            .setAlpha(0.22)
+            .setScale(1.08, 0.65)
+            .setDepth(45);
         const building = this.buildings.create(x, y, key);
         building.refreshBody();
         building.setDepth(50);
@@ -1178,12 +1316,13 @@ class StartupScene extends Phaser.Scene {
             if (!this.finishBtn) {
                 this.finishBtn = this.add.text(700, 450, '🏪 OPEN BAKERY', {
                     fontFamily: 'Fredoka, sans-serif',
-                    fontSize: '28px',
-                    backgroundColor: '#2ecc71',
-                    padding: { x: 20, y: 12 },
-                    color: '#ffffff',
-                    stroke: '#000000',
-                    strokeThickness: 4
+                    fontSize: '32px',
+                    backgroundColor: '#39ef7c',
+                    padding: { x: 28, y: 16 },
+                    color: '#04160b',
+                    stroke: '#062814',
+                    strokeThickness: 4,
+                    shadow: { color: '#39ef7c', blur: 20, fill: true }
                 })
                 .setOrigin(0.5)
                 .setScrollFactor(0) // Fix to camera
@@ -1191,14 +1330,23 @@ class StartupScene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true })
                 .on('pointerdown', () => {
                     window.game.finishSetup();
+                })
+                .on('pointerover', () => {
+                    this.finishBtn.setBackgroundColor('#56ff9d');
+                    this.finishBtn.setStyle({ shadow: { color: '#56ff9d', blur: 30, fill: true } });
+                })
+                .on('pointerout', () => {
+                    this.finishBtn.setBackgroundColor('#39ef7c');
+                    this.finishBtn.setStyle({ shadow: { color: '#39ef7c', blur: 20, fill: true } });
                 });
                 
                 this.tweens.add({
                     targets: this.finishBtn,
-                    scale: 1.1,
-                    duration: 500,
+                    scale: 1.08,
+                    duration: 450,
                     yoyo: true,
-                    repeat: -1
+                    repeat: -1,
+                    ease: 'sine.inOut'
                 });
             }
         }

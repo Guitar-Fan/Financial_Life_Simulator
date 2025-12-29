@@ -624,7 +624,7 @@ const GAME_CONFIG = {
             rating: 4,
             priceMultiplier: 0.85,
             qualityMultiplier: 0.90,  // Lower starting quality
-            categories: ['dry']
+            categories: ['dry', 'dairy']
         },
         FARMERS: {
             id: 'farmers',
@@ -634,7 +634,7 @@ const GAME_CONFIG = {
             rating: 5,
             priceMultiplier: 1.1,
             qualityMultiplier: 1.10,  // Higher starting quality
-            categories: ['dairy']
+            categories: ['dairy', 'produce']
         },
         METRO: {
             id: 'metro',
@@ -644,7 +644,37 @@ const GAME_CONFIG = {
             rating: 3,
             priceMultiplier: 1.0,
             qualityMultiplier: 1.0,
-            categories: ['dry', 'dairy']
+            categories: ['dry', 'dairy', 'produce']
+        },
+        ARTISAN_MILLS: {
+            id: 'artisan_mills',
+            name: 'Artisan Mills Co.',
+            icon: '🌾',
+            specialty: 'Heritage grains & specialty flours',
+            rating: 5,
+            priceMultiplier: 1.2,
+            qualityMultiplier: 1.25,
+            categories: ['dry']
+        },
+        GREEN_COLLECTIVE: {
+            id: 'green_collective',
+            name: 'Green Market Collective',
+            icon: '🥝',
+            specialty: 'Organic fruit & toppings',
+            rating: 5,
+            priceMultiplier: 1.25,
+            qualityMultiplier: 1.3,
+            categories: ['produce']
+        },
+        SWEETWORKS: {
+            id: 'sweetworks',
+            name: 'SweetWorks Imports',
+            icon: '🍬',
+            specialty: 'Chocolate, nuts, and finishing sugars',
+            rating: 4,
+            priceMultiplier: 1.15,
+            qualityMultiplier: 1.2,
+            categories: ['dry']
         }
     },
 
@@ -667,35 +697,144 @@ const GAME_CONFIG = {
     INGREDIENTS: {
         FLOUR: {
             id: 'flour', name: 'All-Purpose Flour', icon: '🌾', unit: 'lb', basePrice: 0.50, category: 'dry',
-            shelfLife: 30, baseQuality: 100, decayRate: 2
+            shelfLife: 30, baseQuality: 100, decayRate: 2, role: 'base'
         },
         SUGAR: {
             id: 'sugar', name: 'Sugar', icon: '🧂', unit: 'lb', basePrice: 0.55, category: 'dry',
-            shelfLife: 60, baseQuality: 100, decayRate: 1
+            shelfLife: 60, baseQuality: 100, decayRate: 1, role: 'base'
+        },
+        BROWN_SUGAR: {
+            id: 'brown_sugar', name: 'Brown Sugar', icon: '🍯', unit: 'lb', basePrice: 0.65, category: 'dry',
+            shelfLife: 45, baseQuality: 100, decayRate: 2, role: 'base'
+        },
+        WHOLE_WHEAT: {
+            id: 'whole_wheat', name: 'Whole Wheat Flour', icon: '🌾', unit: 'lb', basePrice: 0.70, category: 'dry',
+            shelfLife: 25, baseQuality: 100, decayRate: 3, role: 'base'
+        },
+        ALMOND_FLOUR: {
+            id: 'almond_flour', name: 'Almond Flour', icon: '🌰', unit: 'lb', basePrice: 3.20, category: 'dry',
+            shelfLife: 35, baseQuality: 100, decayRate: 4, role: 'base'
         },
         BUTTER: {
             id: 'butter', name: 'Butter', icon: '🧈', unit: 'lb', basePrice: 3.50, category: 'dairy',
-            shelfLife: 14, baseQuality: 100, decayRate: 5
+            shelfLife: 14, baseQuality: 100, decayRate: 5, role: 'base'
+        },
+        HEAVY_CREAM: {
+            id: 'heavy_cream', name: 'Heavy Cream', icon: '🥛', unit: 'quart', basePrice: 4.10, category: 'dairy',
+            shelfLife: 10, baseQuality: 100, decayRate: 8, role: 'base'
+        },
+        CREAM_CHEESE: {
+            id: 'cream_cheese', name: 'Cream Cheese', icon: '🧀', unit: 'lb', basePrice: 4.60, category: 'dairy',
+            shelfLife: 12, baseQuality: 100, decayRate: 7, role: 'base'
         },
         EGGS: {
             id: 'eggs', name: 'Eggs', icon: '🥚', unit: 'dozen', basePrice: 3.25, category: 'dairy',
-            shelfLife: 21, baseQuality: 100, decayRate: 4
+            shelfLife: 21, baseQuality: 100, decayRate: 4, role: 'base'
         },
         MILK: {
             id: 'milk', name: 'Milk', icon: '🥛', unit: 'gallon', basePrice: 4.50, category: 'dairy',
-            shelfLife: 7, baseQuality: 100, decayRate: 10
+            shelfLife: 7, baseQuality: 100, decayRate: 10, role: 'base'
         },
         YEAST: {
             id: 'yeast', name: 'Yeast', icon: '🫧', unit: 'pack', basePrice: 1.00, category: 'dry',
-            shelfLife: 14, baseQuality: 100, decayRate: 5
+            shelfLife: 14, baseQuality: 100, decayRate: 5, role: 'base'
         },
         CHOCOLATE: {
-            id: 'chocolate', name: 'Chocolate', icon: '🍫', unit: 'lb', basePrice: 8.00, category: 'dry',
-            shelfLife: 90, baseQuality: 100, decayRate: 1
+            id: 'chocolate', name: 'Couverture Chocolate', icon: '🍫', unit: 'lb', basePrice: 8.00, category: 'dry',
+            shelfLife: 90, baseQuality: 100, decayRate: 1, role: 'extra'
         },
         VANILLA: {
-            id: 'vanilla', name: 'Vanilla', icon: '🌸', unit: 'bottle', basePrice: 5.00, category: 'dry',
-            shelfLife: 365, baseQuality: 100, decayRate: 0.5
+            id: 'vanilla', name: 'Vanilla Extract', icon: '🌸', unit: 'bottle', basePrice: 5.00, category: 'dry',
+            shelfLife: 365, baseQuality: 100, decayRate: 0.5, role: 'extra'
+        },
+        MATCHA: {
+            id: 'matcha', name: 'Matcha Powder', icon: '🍵', unit: 'tin', basePrice: 7.50, category: 'dry',
+            shelfLife: 120, baseQuality: 100, decayRate: 3, role: 'extra'
+        },
+        SEA_SALT: {
+            id: 'sea_salt', name: 'Sea Salt Flakes', icon: '🧂', unit: 'tin', basePrice: 2.75, category: 'dry',
+            shelfLife: 365, baseQuality: 100, decayRate: 0.5, role: 'extra'
+        },
+        PISTACHIOS: {
+            id: 'pistachios', name: 'Roasted Pistachios', icon: '🥜', unit: 'lb', basePrice: 9.5, category: 'dry',
+            shelfLife: 60, baseQuality: 100, decayRate: 4, role: 'extra'
+        },
+        CARAMEL: {
+            id: 'caramel', name: 'Caramel Drizzle', icon: '🍮', unit: 'bottle', basePrice: 4.20, category: 'dry',
+            shelfLife: 45, baseQuality: 100, decayRate: 6, role: 'extra'
+        },
+        STRAWBERRIES: {
+            id: 'strawberries', name: 'Strawberries', icon: '🍓', unit: 'lb', basePrice: 4.00, category: 'produce',
+            shelfLife: 5, baseQuality: 100, decayRate: 18, role: 'extra'
+        },
+        BLUEBERRIES: {
+            id: 'blueberries', name: 'Blueberries', icon: '🫐', unit: 'lb', basePrice: 4.30, category: 'produce',
+            shelfLife: 6, baseQuality: 100, decayRate: 15, role: 'extra'
+        },
+        CITRUS_ZEST: {
+            id: 'citrus_zest', name: 'Citrus Zest Blend', icon: '🍋', unit: 'jar', basePrice: 3.25, category: 'produce',
+            shelfLife: 20, baseQuality: 100, decayRate: 8, role: 'extra'
+        },
+        TOASTED_COCONUT: {
+            id: 'toasted_coconut', name: 'Toasted Coconut', icon: '🥥', unit: 'lb', basePrice: 5.25, category: 'produce',
+            shelfLife: 40, baseQuality: 100, decayRate: 6, role: 'extra'
+        },
+        WHIPPED_CREAM: {
+            id: 'whipped_cream', name: 'Whipped Cream', icon: '🍦', unit: 'canister', basePrice: 3.80, category: 'dairy',
+            shelfLife: 10, baseQuality: 100, decayRate: 12, role: 'extra'
+        }
+    },
+
+    PASTRY_TYPES: {
+        bread: {
+            id: 'bread',
+            name: 'Artisan Breads',
+            icon: '🍞',
+            bakeTime: 0.12,
+            shelfLife: 3,
+            decayRate: 25,
+            priceMultiplier: 2.8,
+            minPrice: 3.5
+        },
+        pastry: {
+            id: 'pastry',
+            name: 'Layered Pastries',
+            icon: '🥐',
+            bakeTime: 0.1,
+            shelfLife: 2,
+            decayRate: 35,
+            priceMultiplier: 3.2,
+            minPrice: 3
+        },
+        cookie: {
+            id: 'cookie',
+            name: 'Cookies & Bars',
+            icon: '🍪',
+            bakeTime: 0.06,
+            shelfLife: 5,
+            decayRate: 15,
+            priceMultiplier: 2.4,
+            minPrice: 1.75
+        },
+        cake: {
+            id: 'cake',
+            name: 'Celebration Cakes',
+            icon: '🎂',
+            bakeTime: 0.16,
+            shelfLife: 4,
+            decayRate: 20,
+            priceMultiplier: 3.6,
+            minPrice: 12
+        },
+        dessert: {
+            id: 'dessert',
+            name: 'Desserts & Tarts',
+            icon: '🧁',
+            bakeTime: 0.09,
+            shelfLife: 3,
+            decayRate: 25,
+            priceMultiplier: 3.4,
+            minPrice: 4
         }
     },
 
@@ -705,9 +844,10 @@ const GAME_CONFIG = {
             name: 'Fresh Bread',
             icon: '🍞',
             category: 'bread',
+            pastryType: 'bread',
             bakeTime: 0.1, // ~6 seconds in real time (was 3 minutes)
             retailPrice: 4.50,
-            ingredients: { FLOUR: 2, SUGAR: 0.1, BUTTER: 0.2, YEAST: 0.5, MILK: 0.2 },
+            ingredients: { FLOUR: 2, SUGAR: 0.1, BUTTER: 0.2, YEAST: 0.5, MILK: 0.2, SEA_SALT: 0.05 },
             shelfLife: 2,      // Days the product stays fresh
             decayRate: 30      // % quality lost per day
         },
@@ -716,9 +856,10 @@ const GAME_CONFIG = {
             name: 'Croissant',
             icon: '🥐',
             category: 'pastry',
+            pastryType: 'pastry',
             bakeTime: 0.1, // ~6 seconds
             retailPrice: 3.50,
-            ingredients: { FLOUR: 0.5, BUTTER: 0.5, EGGS: 0.25, SUGAR: 0.1, YEAST: 0.2 },
+            ingredients: { FLOUR: 0.5, BUTTER: 0.5, EGGS: 0.25, SUGAR: 0.1, YEAST: 0.2, SEA_SALT: 0.02 },
             shelfLife: 1,
             decayRate: 40
         },
@@ -727,9 +868,10 @@ const GAME_CONFIG = {
             name: 'Chocolate Cookie',
             icon: '🍪',
             category: 'cookie',
+            pastryType: 'cookie',
             bakeTime: 0.05, // ~3 seconds
             retailPrice: 2.00,
-            ingredients: { FLOUR: 0.25, SUGAR: 0.15, BUTTER: 0.2, EGGS: 0.1, CHOCOLATE: 0.15 },
+            ingredients: { FLOUR: 0.25, SUGAR: 0.15, BUTTER: 0.2, EGGS: 0.1, CHOCOLATE: 0.15, VANILLA: 0.05 },
             shelfLife: 5,
             decayRate: 15
         },
@@ -738,9 +880,10 @@ const GAME_CONFIG = {
             name: 'Muffin',
             icon: '🧁',
             category: 'pastry',
+            pastryType: 'pastry',
             bakeTime: 0.1, // ~6 seconds
             retailPrice: 2.75,
-            ingredients: { FLOUR: 0.3, SUGAR: 0.15, BUTTER: 0.15, EGGS: 0.2, MILK: 0.1 },
+            ingredients: { FLOUR: 0.3, SUGAR: 0.1, BROWN_SUGAR: 0.05, BUTTER: 0.15, EGGS: 0.2, MILK: 0.1, CITRUS_ZEST: 0.05 },
             shelfLife: 3,
             decayRate: 25
         },
@@ -749,9 +892,10 @@ const GAME_CONFIG = {
             name: 'Chocolate Cake',
             icon: '🎂',
             category: 'cake',
+            pastryType: 'cake',
             bakeTime: 0.15, // ~9 seconds (bigger item)
             retailPrice: 25.00,
-            ingredients: { FLOUR: 1.5, SUGAR: 1.0, BUTTER: 0.75, EGGS: 1.0, CHOCOLATE: 0.5, MILK: 0.5 },
+            ingredients: { FLOUR: 1.5, SUGAR: 0.5, BROWN_SUGAR: 0.5, BUTTER: 0.75, EGGS: 1.0, CHOCOLATE: 0.5, MILK: 0.5, VANILLA: 0.1 },
             shelfLife: 4,
             decayRate: 20
         }

@@ -22,6 +22,8 @@ class GameController {
         this.maxAutomationLog = 25;
         this.automationEnabled = false;
         this.lastAutomationState = null;
+        this.customRecipes = [];
+        this.recipeBookState = { page: 0, perSpread: 2 };
 
         this.init();
     }
@@ -330,6 +332,400 @@ class GameController {
         }
     }
 
+    // ==================== RECIPE LAB ====================
+    showRecipeLab() {
+        this.stopBakingLoop();
+        this.stopSellingLoop();
+        this.currentPhase = 'recipes';
+        
+        const container = document.getElementById('game-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="phase-header flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-amber-500 drop-shadow-md">📚 Recipe Lab</h2>
+                    <p class="text-amber-200/80 text-sm mt-1">Craft signature pastries in your personal recipe book.</p>
+                </div>
+                <button class="btn bg-stone-800 hover:bg-stone-700 border border-stone-600 text-amber-100 px-4 py-2 rounded-lg transition-colors" id="btn-recipe-exit">
+                    Return to Hub
+                </button>
+            </div>
+
+            <div class="recipe-book-container">
+                <div class="recipe-book-3d" id="recipe-book-3d">
+                    <div class="book-cover-back"></div>
+                    <div class="book-spine-center"></div>
+                    
+                    <!-- Left Page: Recipe Basics -->
+                    <div class="book-page-wrapper left">
+                        <div class="book-content" id="book-page-left">
+                            <!-- Content injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Right Page: Toppings & Finish -->
+                    <div class="book-page-wrapper right">
+                        <div class="book-content" id="book-page-right">
+                            <!-- Content injected by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="custom-recipe-library mt-8" id="custom-recipe-library"></div>
+        `;
+
+        document.getElementById('btn-recipe-exit').onclick = () => this.showModeHub();
+        
+        this.renderRecipeCreationSpread();
+        this.setupRecipeBookEvents();
+        this.renderCustomRecipeLibrary();
+
+        // Animate book entrance
+        if (window.gsap) {
+            gsap.from('.recipe-book-container', { 
+                duration: 1, 
+                y: 50, 
+                opacity: 0, 
+                ease: 'power3.out',
+                delay: 0.1
+            });
+            
+            // Open the book effect
+            gsap.from('.book-page-wrapper.left', {
+                duration: 1.5,
+                rotateY: -180, // Start closed
+                ease: 'power2.out',
+                delay: 0.3
+            });
+        }
+    }
+
+    renderRecipeCreationSpread() {
+        const leftPage = document.getElementById('book-page-left');
+        const rightPage = document.getElementById('book-page-right');
+        
+        if (!leftPage || !rightPage) return;
+
+        // --- Left Page Content ---
+        const pastryOptions = Object.entries(GAME_CONFIG.PASTRY_TYPES || {}).map(([key, type]) =>
+            `<option value="${key}">${type.icon || '🧁'} ${type.name}</option>`
+        ).join('');
+
+        const baseIngredients = this.getIngredientOptions('base');
+        const baseGrid = baseIngredients.map(ing => this.createIngredientPill(ing)).join('');
+
+        leftPage.innerHTML = `
+            <div class="flex flex-col h-full">
+                <div class="mb-6 border-b-2 border-amber-900/10 pb-4">
+                    <h3 class="text-2xl font-hand text-amber-900 mb-4">New Creation</h3>
+                    
+                    <div class="mb-4">
+                        <label class="block text-xs uppercase tracking-wider text-amber-800/60 font-bold mb-1">Name</label>
+                        <input type="text" id="recipe-name" class="handwritten-input" placeholder="My Tasty Treat" autocomplete="off">
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block text-xs uppercase tracking-wider text-amber-800/60 font-bold mb-1">Pastry Type</label>
+                        <select id="pastry-type" class="w-full bg-transparent border-b border-amber-900/20 py-1 text-amber-900 font-medium focus:outline-none focus:border-amber-800">
+                            ${pastryOptions}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto pr-2">
+                    <h4 class="font-hand text-xl text-amber-800 mb-3">Base Mix</h4>
+                    <p class="text-xs text-amber-900/60 mb-3 italic">Select at least 2 base ingredients.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${baseGrid}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // --- Right Page Content ---
+        const extraIngredients = this.getIngredientOptions('extra');
+        const extraGrid = extraIngredients.map(ing => this.createIngredientPill(ing)).join('');
+
+        rightPage.innerHTML = `
+            <div class="flex flex-col h-full">
+                <div class="flex-1 overflow-y-auto mb-6 pr-2">
+                    <h4 class="font-hand text-xl text-amber-800 mb-3">Toppings & Extras</h4>
+                    <p class="text-xs text-amber-900/60 mb-3 italic">Add flavor to boost satisfaction.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${extraGrid}
+                    </div>
+                </div>
+
+                <div class="mt-auto bg-white/50 p-4 rounded-lg border border-amber-900/10">
+                    <div id="recipe-preview-stats" class="grid grid-cols-2 gap-4 mb-4 text-sm text-amber-900">
+                        <!-- Stats injected here -->
+                    </div>
+                    
+                    <button id="btn-save-recipe" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded shadow-md transform transition hover:-translate-y-0.5 active:translate-y-0">
+                        Save to Recipe Box
+                    </button>
+                </div>
+            </div>
+        `;
+
+        this.updateRecipePreview();
+    }
+
+    createIngredientPill(ing) {
+        return `
+            <div class="ingredient-pill group relative bg-white/60 border border-amber-900/10 rounded-lg p-2 flex items-center gap-2 hover:bg-white transition-colors"
+                 data-key="${ing.key}" 
+                 data-role="${ing.role || 'base'}"
+                 data-default="${ing.defaultAmount}"
+                 onclick="game.toggleIngredient(this)">
+                <div class="text-2xl">${ing.icon}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-amber-900 truncate">${ing.name}</div>
+                    <div class="text-xs text-amber-700/50">$${ing.basePrice?.toFixed(2) || '0.00'}</div>
+                </div>
+                <div class="amount-control hidden absolute right-2 bg-amber-100 rounded px-1 flex items-center shadow-sm z-10">
+                    <input type="number" 
+                           class="w-12 bg-transparent text-right text-sm font-bold text-amber-900 focus:outline-none" 
+                           value="${ing.defaultAmount}" 
+                           step="0.1" min="0"
+                           onclick="event.stopPropagation()"
+                           oninput="game.updateRecipePreview()">
+                </div>
+            </div>
+        `;
+    }
+
+    toggleIngredient(el) {
+        const inputContainer = el.querySelector('.amount-control');
+        const input = inputContainer.querySelector('input');
+        
+        if (el.classList.contains('active')) {
+            // Deactivate
+            el.classList.remove('active', 'bg-amber-100', 'border-amber-400');
+            el.classList.add('bg-white/60');
+            inputContainer.classList.add('hidden');
+            input.value = 0; // Reset for calculation
+        } else {
+            // Activate
+            el.classList.add('active', 'bg-amber-100', 'border-amber-400');
+            el.classList.remove('bg-white/60');
+            inputContainer.classList.remove('hidden');
+            input.value = el.dataset.default;
+        }
+        this.updateRecipePreview();
+    }
+
+    setupRecipeBookEvents() {
+        const nameInput = document.getElementById('recipe-name');
+        const typeInput = document.getElementById('pastry-type');
+        const saveBtn = document.getElementById('btn-save-recipe');
+
+        if (nameInput) nameInput.addEventListener('input', () => this.updateRecipePreview());
+        if (typeInput) typeInput.addEventListener('change', () => this.updateRecipePreview());
+        if (saveBtn) saveBtn.addEventListener('click', (e) => this.handleRecipeCreation(e));
+        
+        // Expose toggleIngredient to global scope for inline onclick
+        // window.game is already set in DOMContentLoaded
+    }
+
+    getIngredientOptions(role) {
+        return Object.entries(GAME_CONFIG.INGREDIENTS || {})
+            .filter(([, ing]) => (ing.role || 'base') === role)
+            .map(([key, ing]) => ({ key, ...ing, defaultAmount: ing.role === 'base' ? (ing.defaultAmount || 0.5) : 0 }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    collectRecipeFormData(options = {}) {
+        const nameInput = document.getElementById('recipe-name');
+        if (!nameInput) return null;
+
+        const name = nameInput.value.trim();
+        const pastryType = document.getElementById('pastry-type').value;
+        
+        const base = {};
+        const extra = {};
+        
+        // Scan all active pills
+        document.querySelectorAll('.ingredient-pill.active').forEach(pill => {
+            const key = pill.dataset.key;
+            const role = pill.dataset.role;
+            const amount = parseFloat(pill.querySelector('input').value) || 0;
+            
+            if (amount > 0) {
+                if (role === 'extra') extra[key] = amount;
+                else base[key] = amount;
+            }
+        });
+
+        if (!options.skipValidation) {
+            if (!name) {
+                this.showPopup({ icon: '✏️', title: 'Name Required', message: 'Give your recipe a name!', type: 'warning', autoClose: 1500 });
+                return null;
+            }
+            if (Object.keys(base).length < 2) {
+                this.showPopup({ icon: '🧁', title: 'Add More Base', message: 'Pick at least two base ingredients.', type: 'warning', autoClose: 1600 });
+                return null;
+            }
+        }
+
+        const ingredients = { ...base, ...extra };
+        return { name, pastryType, baseIngredients: base, extraIngredients: extra, ingredients };
+    }
+
+    calculateCustomRecipeStats(data) {
+        const type = GAME_CONFIG.PASTRY_TYPES?.[data.pastryType] || {};
+        const cost = Object.entries(data.ingredients).reduce((sum, [key, amount]) => {
+            const ing = GAME_CONFIG.INGREDIENTS[key];
+            return sum + ((ing?.basePrice || 0) * amount);
+        }, 0);
+        const extraWeight = Object.values(data.extraIngredients || {}).reduce((sum, amount) => sum + amount, 0);
+        const markup = type.priceMultiplier || 2.6;
+        const flavorBonus = extraWeight > 0 ? 1 + Math.min(0.4, extraWeight * 0.08) : 1;
+        const price = Math.max(type.minPrice || 2.5, Number((cost * markup * flavorBonus).toFixed(2)));
+
+        return { cost, extraWeight, price };
+    }
+
+    updateRecipePreview() {
+        const statsContainer = document.getElementById('recipe-preview-stats');
+        if (!statsContainer) return;
+
+        const data = this.collectRecipeFormData({ skipValidation: true });
+        
+        if (!data || Object.keys(data.ingredients).length === 0) {
+            statsContainer.innerHTML = `
+                <div class="text-center"><span class="block opacity-60 text-xs">Cost</span><span class="font-bold text-lg">-</span></div>
+                <div class="text-center"><span class="block opacity-60 text-xs">Price</span><span class="font-bold text-lg">-</span></div>
+            `;
+            return;
+        }
+
+        const stats = this.calculateCustomRecipeStats(data);
+        
+        statsContainer.innerHTML = `
+            <div class="text-center">
+                <span class="block opacity-60 text-xs uppercase tracking-wider">Batch Cost</span>
+                <span class="font-bold text-xl text-amber-800">$${stats.cost.toFixed(2)}</span>
+            </div>
+            <div class="text-center">
+                <span class="block opacity-60 text-xs uppercase tracking-wider">Sell Price</span>
+                <span class="font-bold text-xl text-green-700">$${stats.price.toFixed(2)}</span>
+            </div>
+        `;
+    }
+
+    handleRecipeCreation(event) {
+        if (event) event.preventDefault();
+        const data = this.collectRecipeFormData();
+        if (!data) return;
+
+        const stats = this.calculateCustomRecipeStats(data);
+        const recipe = this.composeCustomRecipe(data, stats);
+        const registered = this.engine.registerCustomRecipe(recipe);
+
+        if (!registered) {
+            this.showPopup({ icon: '⚠️', title: 'Could not save recipe', message: 'Please try again.', type: 'error' });
+            return;
+        }
+
+        this.customRecipes = this.customRecipes.filter(entry => entry.key !== recipe.configKey);
+        this.customRecipes.unshift({ key: recipe.configKey, name: recipe.name, icon: recipe.icon, pastryType: recipe.pastryType });
+        this.showPopup({ icon: '🥨', title: 'Recipe Saved!', message: `${recipe.name} added to your cookbook.`, type: 'success', autoClose: 1600 });
+        
+        // Reset form
+        this.renderRecipeCreationSpread();
+        this.renderCustomRecipeLibrary();
+
+        if (this.currentPhase === 'baking') {
+            this.renderRecipes();
+        }
+    }
+
+    composeCustomRecipe(data, stats) {
+        const type = GAME_CONFIG.PASTRY_TYPES?.[data.pastryType] || {};
+        const ids = this.generateRecipeId(data.name);
+
+        return {
+            configKey: ids.configKey,
+            slug: ids.slug,
+            name: data.name,
+            icon: type.icon || '🧁',
+            category: data.pastryType,
+            pastryType: data.pastryType,
+            bakeTime: type.bakeTime || 0.1,
+            retailPrice: stats.price,
+            ingredients: data.ingredients,
+            shelfLife: type.shelfLife || 3,
+            decayRate: type.decayRate || 25
+        };
+    }
+
+    generateRecipeId(name) {
+        const slugBase = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'custom_recipe';
+        let attempt = slugBase;
+        let index = 2;
+        while (GAME_CONFIG.RECIPES[attempt.toUpperCase()] || GAME_CONFIG.RECIPES[attempt]) {
+            attempt = `${slugBase}_${index++}`;
+        }
+
+        return { configKey: attempt.toUpperCase(), slug: attempt };
+    }
+
+    prefillRecipeBuilder(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe) return;
+
+        // Reset first
+        this.renderRecipeCreationSpread();
+        
+        const nameInput = document.getElementById('recipe-name');
+        const typeInput = document.getElementById('pastry-type');
+        
+        if (nameInput) nameInput.value = `${recipe.name} Remix`;
+        if (typeInput) typeInput.value = recipe.pastryType || recipe.category || 'pastry';
+
+        // Activate pills
+        Object.entries(recipe.ingredients || {}).forEach(([key, amount]) => {
+            const pill = document.querySelector(`.ingredient-pill[data-key="${key}"]`);
+            if (pill) {
+                // Manually activate
+                pill.classList.add('active', 'bg-amber-100', 'border-amber-400');
+                pill.classList.remove('bg-white/60');
+                const inputContainer = pill.querySelector('.amount-control');
+                const input = inputContainer.querySelector('input');
+                inputContainer.classList.remove('hidden');
+                input.value = amount;
+            }
+        });
+
+        this.updateRecipePreview();
+    }
+
+    renderCustomRecipeLibrary() {
+        const library = document.getElementById('custom-recipe-library');
+        if (!library) return;
+
+        if (this.customRecipes.length === 0) {
+            library.innerHTML = '<div class="custom-recipe-empty">No custom recipes yet. Your creations will appear here.</div>';
+            return;
+        }
+
+        library.innerHTML = this.customRecipes.map(entry => {
+            const typeInfo = GAME_CONFIG.PASTRY_TYPES?.[entry.pastryType];
+            return `
+                <div class="custom-recipe-card">
+                    <div class="custom-recipe-icon">${entry.icon}</div>
+                    <div>
+                        <div class="custom-recipe-name">${entry.name}</div>
+                        <div class="custom-recipe-type">${typeInfo?.icon || ''} ${typeInfo?.name || entry.pastryType}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
     enforceInventoryPlan() {
         if (!this.strategySettings || !this.engine?.ensureIngredientInventory || !this.automationEnabled) return;
 
@@ -479,6 +875,8 @@ class GameController {
         if (this.strategySettings) {
             this.engine.setStrategySettings(this.strategySettings);
         }
+        this.customRecipes = [];
+        this.recipeBookState.page = 0;
         this.updateAutomationAvailability();
         localStorage.removeItem('bakery_save');
         this.goToPhase('setup');
@@ -753,6 +1151,9 @@ class GameController {
             case 'summary':
                 this.showSummaryPhase();
                 break;
+            case 'recipes':
+                this.showRecipeLab();
+                break;
         }
     }
 
@@ -877,15 +1278,20 @@ class GameController {
         list.innerHTML = Object.entries(GAME_CONFIG.RECIPES).map(([key, recipe]) => {
             const { canBake } = this.engine.canBakeRecipe(key);
 
-            const ingredientsList = Object.entries(recipe.ingredients).map(([ingKey, amount]) => {
+            const groups = { base: [], extra: [] };
+            Object.entries(recipe.ingredients).forEach(([ingKey, amount]) => {
                 const ing = GAME_CONFIG.INGREDIENTS[ingKey];
+                if (!ing) return;
                 const have = this.engine.getIngredientStock(ingKey);
                 const enough = have >= amount;
-                return `<div class="recipe-ing ${enough ? 'have' : 'need'}">
-                    ${ing.icon} ${amount} ${ing.unit} ${ing.name}
-                    <span class="have-amount">(have: ${have.toFixed(1)})</span>
-                </div>`;
-            }).join('');
+                const role = ing.role === 'extra' ? 'extra' : 'base';
+                groups[role].push(`
+                    <div class="recipe-ing ${role} ${enough ? 'have' : 'need'}">
+                        ${ing.icon} ${amount} ${ing.unit} ${ing.name}
+                        <span class="have-amount">(have: ${have.toFixed(1)})</span>
+                    </div>
+                `);
+            });
 
             return `
                 <div class="recipe-ref-card ${canBake ? 'can-bake' : ''}">
@@ -894,7 +1300,16 @@ class GameController {
                         <span class="recipe-ref-name">${recipe.name}</span>
                         <span class="recipe-ref-price">$${this.engine.getRecipeBasePrice(key).toFixed(2)}</span>
                     </div>
-                    <div class="recipe-ref-ingredients">${ingredientsList}</div>
+                    <div class="recipe-ref-ingredients">
+                        <div class="recipe-ing-column">
+                            <div class="recipe-ing-heading">Base</div>
+                            ${groups.base.length ? groups.base.join('') : '<div class="recipe-ing note">None</div>'}
+                        </div>
+                        <div class="recipe-ing-column">
+                            <div class="recipe-ing-heading">Extras</div>
+                            ${groups.extra.length ? groups.extra.join('') : '<div class="recipe-ing note">None</div>'}
+                        </div>
+                    </div>
                     <div class="recipe-ref-status">
                         ${canBake ? '✅ Ready to bake!' : '⚠️ Missing ingredients'}
                     </div>
@@ -942,31 +1357,30 @@ class GameController {
 
         const vendor = GAME_CONFIG.VENDORS[vendorKey];
 
-        grid.innerHTML = Object.entries(GAME_CONFIG.INGREDIENTS)
-            .filter(([key, ing]) => vendor.categories.includes(ing.category))
-            .map(([key, ing]) => {
-                // Use dynamic price
-                const price = this.engine.getCurrentIngredientPrice(key, vendorKey);
-                // Get comparison to base price
-                const comparison = this.engine.economy.getPriceComparison(key, price);
+        const grouped = { base: [], extra: [] };
 
+        Object.entries(GAME_CONFIG.INGREDIENTS)
+            .filter(([, ing]) => vendor.categories.includes(ing.category))
+            .forEach(([key, ing]) => {
+                const price = this.engine.getCurrentIngredientPrice(key, vendorKey);
+                const comparison = this.engine.economy.getPriceComparison(key, price);
                 const stock = this.engine.getIngredientStock(key);
                 const quality = this.engine.getIngredientQuality(key);
                 const qualityLabel = stock > 0 ? this.engine.getQualityLabel(quality) : null;
                 const startQuality = Math.min(100, ing.baseQuality * vendor.qualityMultiplier);
+                const role = ing.role === 'extra' ? 'extra' : 'base';
 
                 let priceClass = '';
                 if (comparison.status === 'low') priceClass = 'price-low';
                 if (comparison.status === 'high') priceClass = 'price-high';
 
-                return `
+                const card = `
                     <div class="ingredient-card" data-ingredient="${key}" data-vendor="${vendorKey}">
                         <div class="ing-icon">${ing.icon}</div>
                         <div class="ing-name">${ing.name}</div>
                         <div class="ing-price ${priceClass}">
                             $${price.toFixed(2)}/${ing.unit}
-                            ${comparison.status !== 'normal' ?
-                        `<span class="price-trend" title="${comparison.percentChange}% vs base">${comparison.arrow}</span>` : ''}
+                            ${comparison.status !== 'normal' ? `<span class="price-trend" title="${comparison.percentChange}% vs base">${comparison.arrow}</span>` : ''}
                         </div>
                         <div class="ing-quality-info">
                             <span title="Starting quality from this vendor">Quality: ${startQuality.toFixed(0)}%</span>
@@ -984,7 +1398,20 @@ class GameController {
                         </div>
                     </div>
                 `;
-            }).join('');
+
+                grouped[role].push(card);
+            });
+
+        grid.innerHTML = ['base', 'extra'].map(role => {
+            if (grouped[role].length === 0) return '';
+            const title = role === 'base' ? 'Pantry Staples' : 'Extras & Toppings';
+            return `
+                <div class="ingredient-group ${role}">
+                    <div class="ingredient-group-title">${title}</div>
+                    <div class="ingredient-group-grid">${grouped[role].join('')}</div>
+                </div>
+            `;
+        }).join('');
 
         // Handle +/- buttons
         grid.querySelectorAll('.qty-btn').forEach(btn => {
@@ -1237,11 +1664,13 @@ class GameController {
             const pipeline = this.getPipelineQuantity(key);
             const availableNow = this.engine.getProductStock(key);
             const buffered = availableNow + pipeline;
+            const typeInfo = GAME_CONFIG.PASTRY_TYPES?.[recipe.pastryType || recipe.category];
 
             return `
                 <div class="recipe-card ${canBake ? '' : 'unavailable'}" data-recipe="${key}">
                     <div class="recipe-icon">${recipe.icon}</div>
                     <div class="recipe-name">${recipe.name}</div>
+                    ${typeInfo ? `<div class="recipe-type-tag">${typeInfo.icon || ''} ${typeInfo.name}</div>` : ''}
                     <div class="recipe-stats">
                         <div>Cost: $${cost.toFixed(2)}</div>
                         <div>Sells: $${sellingPrice.toFixed(2)}</div>
@@ -1787,7 +2216,8 @@ class GameController {
             if (!this.crisisActive && this.activeCustomers.length < this.getCustomerCapacity()) {
                 const timeSinceLastCustomer = now - this.lastCustomerTime;
                 const hourMult = GAME_CONFIG.DEMAND.hourlyMultiplier[Math.floor(this.engine.hour)] || 0.5;
-                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult) / 60 / 10;
+                const appealMult = this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1;
+                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult) / 60 / 10;
 
                 if (timeSinceLastCustomer > 2000 && Math.random() < spawnChance) {
                     this.spawnCustomer();
@@ -1844,7 +2274,15 @@ class GameController {
 
         let wantsItem = null;
         if (available.length > 0) {
-            wantsItem = available[Math.floor(Math.random() * available.length)];
+            const toppingFriendly = this.engine.getToppingScore
+                ? available.filter(key => this.engine.getToppingScore(key) > 0)
+                : [];
+            const appeal = this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1;
+            if (toppingFriendly.length > 0 && Math.random() < Math.min(0.8, Math.max(0, appeal - 0.8))) {
+                wantsItem = toppingFriendly[Math.floor(Math.random() * toppingFriendly.length)];
+            } else {
+                wantsItem = available[Math.floor(Math.random() * available.length)];
+            }
         } else {
             // Check if we have stock at all?
             const anyStock = Object.keys(this.engine.products).some(k => this.engine.getProductStock(k) > 0);
@@ -1925,11 +2363,13 @@ class GameController {
         const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
         const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)]
             .replace('{item}', recipe?.name || customer.wantsItem);
+        const moodFace = result.appeal?.moodEmoji || '😊';
+        const moodLine = result.appeal?.moodMessage || msg;
 
         customer.state = 'success';
-        customer.resultMessage = msg;
+        customer.resultMessage = moodLine;
         customer.resultRevenue = result.revenue;
-        customer.resultFace = '😊';
+        customer.resultFace = moodFace;
         this.releaseAssignedStaff(customer);
         this.renderCustomerArea();
 

@@ -38,6 +38,7 @@ class FinancialEngine {
         this.ovenCapacity = 8; // 4x original for faster gameplay
         this.bakingSpeedMultiplier = 1.0;
         this.trafficMultiplier = 1.0;
+        this.menuAppeal = 1.0;
         this.rentAmount = GAME_CONFIG.DAILY_EXPENSES.rent.amount;
 
         // Prepared items (par-baked, frozen dough)
@@ -461,6 +462,33 @@ class FinancialEngine {
         });
     }
 
+    registerCustomRecipe(recipeConfig = {}) {
+        const configKey = recipeConfig.configKey || recipeConfig.id;
+        if (!configKey || !recipeConfig.name || !recipeConfig.ingredients) {
+            return null;
+        }
+
+        const payload = {
+            ...GAME_CONFIG.RECIPES[configKey],
+            ...recipeConfig,
+            id: recipeConfig.slug || recipeConfig.id || configKey.toLowerCase(),
+            configKey,
+            createdByPlayer: true
+        };
+
+        GAME_CONFIG.RECIPES[configKey] = payload;
+
+        if (!this.products[configKey]) {
+            this.products[configKey] = { batches: [], soldToday: 0 };
+        }
+
+        if (recipeConfig.retailPrice) {
+            this.pricingOverrides[configKey] = recipeConfig.retailPrice;
+        }
+
+        return GAME_CONFIG.RECIPES[configKey];
+    }
+
     getRecipeBasePrice(recipeKey) {
         if (this.pricingOverrides?.[recipeKey]) {
             return this.pricingOverrides[recipeKey];
@@ -701,6 +729,53 @@ class FinancialEngine {
         }
 
         return totalWeight > 0 ? weightedQuality / totalWeight : 100;
+    }
+
+    getToppingScore(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe || !recipe.ingredients) return 0;
+
+        return Object.entries(recipe.ingredients).reduce((score, [ingKey, amount]) => {
+            const ing = GAME_CONFIG.INGREDIENTS[ingKey];
+            if (!ing) return score;
+            const role = ing.role || 'base';
+            if (role === 'extra') {
+                return score + amount;
+            }
+            return score;
+        }, 0);
+    }
+
+    applyToppingSatisfaction(recipeKey, quality = 100) {
+        const toppingMass = this.getToppingScore(recipeKey);
+        const qualityFactor = Math.max(0.5, quality / 100);
+        const flavorLift = toppingMass > 0 ? 1 + Math.min(0.6, toppingMass * 0.12 * qualityFactor) : 1;
+
+        this.menuAppeal = (this.menuAppeal * 0.85) + (flavorLift * 0.15);
+        this.menuAppeal = Math.max(0.7, Math.min(1.8, this.menuAppeal));
+
+        let moodEmoji = '😊';
+        let moodMessage = 'Delicious!';
+        if (flavorLift >= 1.4) {
+            moodEmoji = '🤩';
+            moodMessage = 'Those toppings are unreal!';
+        } else if (flavorLift >= 1.15) {
+            moodEmoji = '😋';
+            moodMessage = 'Love the flavor layers!';
+        } else if (flavorLift <= 0.9) {
+            moodEmoji = '😐';
+            moodMessage = 'Tastes a little plain.';
+        }
+
+        return {
+            lift: flavorLift,
+            moodEmoji,
+            moodMessage
+        };
+    }
+
+    getMenuAppealMultiplier() {
+        return Number(this.menuAppeal?.toFixed(2)) || 1;
     }
 
     // Consume ingredients using FIFO (oldest first)
@@ -1199,7 +1274,8 @@ class FinancialEngine {
         this.allTimeStats.totalCustomers++;
 
         const qualityLabel = this.getQualityLabel(avgQuality);
-        this.emit('sale', { recipe, quantity, revenue: totalRevenue, profit, quality: avgQuality });
+        const appeal = this.applyToppingSatisfaction(recipeKey, avgQuality);
+        this.emit('sale', { recipe, quantity, revenue: totalRevenue, profit, quality: avgQuality, appeal });
 
         return {
             success: true,
@@ -1207,7 +1283,8 @@ class FinancialEngine {
             profit,
             quality: avgQuality,
             qualityLabel: qualityLabel.label,
-            priceMultiplier: this.getQualityPriceMultiplier(avgQuality)
+            priceMultiplier: this.getQualityPriceMultiplier(avgQuality),
+            appeal
         };
     }
 
