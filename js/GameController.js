@@ -340,6 +340,9 @@ class GameController {
         
         const container = document.getElementById('game-container');
         if (!container) return;
+        
+        container.classList.remove('full-screen');
+        container.style.padding = '';
 
         container.innerHTML = `
             <div class="phase-header flex justify-between items-center mb-6">
@@ -399,7 +402,27 @@ class GameController {
                 ease: 'power2.out',
                 delay: 0.3
             });
+
+            // Draggable disabled - it blocks input interactions
+            // this.initRecipeBookDraggable();
         }
+    }
+
+    initRecipeBookDraggable() {
+        if (!window.Draggable) return;
+        
+        Draggable.create("#recipe-book-3d", {
+            type: "rotation",
+            trigger: ".recipe-book-container",
+            inertia: true,
+            bounds: { minRotation: -10, maxRotation: 10 }, // Subtle tilt
+            onDrag: function() {
+                gsap.to(".recipe-book-3d", { rotationY: this.x / 5, duration: 0.1 });
+            },
+            onRelease: function() {
+                gsap.to(".recipe-book-3d", { rotationY: 0, duration: 0.5, ease: "elastic.out(1, 0.3)" });
+            }
+        });
     }
 
     renderRecipeCreationSpread() {
@@ -417,18 +440,18 @@ class GameController {
         const baseGrid = baseIngredients.map(ing => this.createIngredientPill(ing)).join('');
 
         leftPage.innerHTML = `
-            <div class="flex flex-col h-full">
+            <div class="flex flex-col h-full" style="pointer-events: auto;">
                 <div class="mb-6 border-b-2 border-amber-900/10 pb-4">
                     <h3 class="text-2xl font-hand text-amber-900 mb-4">New Creation</h3>
                     
-                    <div class="mb-4">
+                    <div class="mb-4" style="position: relative; z-index: 50;">
                         <label class="block text-xs uppercase tracking-wider text-amber-800/60 font-bold mb-1">Name</label>
-                        <input type="text" id="recipe-name" class="handwritten-input" placeholder="My Tasty Treat" autocomplete="off">
+                        <input type="text" id="recipe-name" class="handwritten-input" placeholder="My Tasty Treat" autocomplete="off" style="position: relative; z-index: 51; pointer-events: auto;">
                     </div>
 
-                    <div class="mb-2">
+                    <div class="mb-2" style="position: relative; z-index: 50;">
                         <label class="block text-xs uppercase tracking-wider text-amber-800/60 font-bold mb-1">Pastry Type</label>
-                        <select id="pastry-type" class="w-full bg-transparent border-b border-amber-900/20 py-1 text-amber-900 font-medium focus:outline-none focus:border-amber-800">
+                        <select id="pastry-type" class="w-full bg-transparent border-b border-amber-900/20 py-1 text-amber-900 font-medium focus:outline-none focus:border-amber-800" style="position: relative; z-index: 51; pointer-events: auto; cursor: pointer; -webkit-appearance: menulist; appearance: menulist;">
                             ${pastryOptions}
                         </select>
                     </div>
@@ -449,7 +472,7 @@ class GameController {
         const extraGrid = extraIngredients.map(ing => this.createIngredientPill(ing)).join('');
 
         rightPage.innerHTML = `
-            <div class="flex flex-col h-full">
+            <div class="flex flex-col h-full" style="pointer-events: auto;">
                 <div class="flex-1 overflow-y-auto mb-6 pr-2">
                     <h4 class="font-hand text-xl text-amber-800 mb-3">Toppings & Extras</h4>
                     <p class="text-xs text-amber-900/60 mb-3 italic">Add flavor to boost satisfaction.</p>
@@ -479,6 +502,7 @@ class GameController {
                  data-key="${ing.key}" 
                  data-role="${ing.role || 'base'}"
                  data-default="${ing.defaultAmount}"
+                 style="pointer-events: auto; cursor: pointer;"
                  onclick="game.toggleIngredient(this)">
                 <div class="text-2xl">${ing.icon}</div>
                 <div class="flex-1 min-w-0">
@@ -490,7 +514,9 @@ class GameController {
                            class="w-12 bg-transparent text-right text-sm font-bold text-amber-900 focus:outline-none" 
                            value="${ing.defaultAmount}" 
                            step="0.1" min="0"
+                           style="pointer-events: auto; z-index: 100; cursor: text;"
                            onclick="event.stopPropagation()"
+                           onmousedown="event.stopPropagation()"
                            oninput="game.updateRecipePreview()">
                 </div>
             </div>
@@ -533,7 +559,11 @@ class GameController {
     getIngredientOptions(role) {
         return Object.entries(GAME_CONFIG.INGREDIENTS || {})
             .filter(([, ing]) => (ing.role || 'base') === role)
-            .map(([key, ing]) => ({ key, ...ing, defaultAmount: ing.role === 'base' ? (ing.defaultAmount || 0.5) : 0 }))
+            .map(([key, ing]) => ({ 
+                key, 
+                ...ing, 
+                defaultAmount: role === 'base' ? (ing.defaultAmount || 0.5) : 0.2 
+            }))
             .sort((a, b) => a.name.localeCompare(b.name));
     }
 
@@ -760,65 +790,132 @@ class GameController {
     // ==================== MAIN MENU ====================
     showMainMenu() {
         console.log('Displaying Main Menu');
+        this.cleanupPhaser();
         this.currentPhase = 'menu';
         const container = document.getElementById('game-container');
+        if (container) {
+            container.classList.remove('full-screen');
+            container.style.padding = '';
+        }
 
         container.innerHTML = `
-            <div class="main-menu">
-                <div class="menu-header">
-                    <div class="menu-logo">🥐</div>
-                    <h1 class="menu-title">Sweet Success Bakery</h1>
-                    <p class="menu-subtitle">A Financial Simulation Game</p>
+            <div class="main-menu relative w-full h-full flex flex-col items-center justify-center overflow-hidden">
+                <!-- Animated Background Elements -->
+                <div class="absolute inset-0 z-0">
+                    <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-stone-900 via-amber-950 to-stone-900 opacity-90"></div>
+                    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-600/20 rounded-full blur-3xl animate-pulse"></div>
+                    <div class="absolute bottom-1/4 right-1/4 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl animate-bounce" style="animation-duration: 8s;"></div>
+                </div>
+
+                <div class="menu-header relative z-10 text-center mb-12 transform transition-all duration-700">
+                    <div class="menu-logo text-8xl mb-4 drop-shadow-2xl filter hover:brightness-110 transition-all cursor-default">🥐</div>
+                    <h1 class="menu-title text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 drop-shadow-sm font-hand tracking-wide mb-2">
+                        Sweet Success Bakery
+                    </h1>
+                    <p class="menu-subtitle text-xl text-amber-100/80 font-light tracking-widest uppercase border-t border-b border-amber-500/30 py-2 inline-block">
+                        Financial Simulation & Strategy
+                    </p>
                 </div>
                 
-                <div class="menu-buttons">
-                    <button class="menu-btn primary" id="btn-new-game" role="button" tabindex="0" aria-label="Start a new game">
-                        <span class="btn-content">
-                            <span class="btn-icon">🎮</span>
-                            <span class="btn-title">New Game</span>
-                            <span class="btn-sub">Full setup experience</span>
-                        </span>
+                <div class="menu-buttons relative z-10 flex flex-col gap-4 w-full max-w-md">
+                    <button class="menu-btn group relative overflow-hidden bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white p-1 rounded-xl shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl" 
+                            id="btn-new-game" role="button" tabindex="0" aria-label="Start a new game">
+                        <div class="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
+                        <div class="bg-stone-900/90 rounded-lg p-4 flex items-center gap-4 border border-amber-500/30 group-hover:border-amber-400/50 transition-colors">
+                            <span class="text-4xl group-hover:rotate-12 transition-transform duration-300">🎮</span>
+                            <div class="text-left">
+                                <div class="text-2xl font-bold text-amber-100 group-hover:text-white">New Game</div>
+                                <div class="text-xs text-amber-400/70 uppercase tracking-wider">Start Your Empire</div>
+                            </div>
+                        </div>
                     </button>
 
-                    <button class="menu-btn secondary" id="btn-continue" role="button" tabindex="0" aria-label="Continue saved game" style="display: none;">
-                        <span class="btn-content">
-                            <span class="btn-icon">▶️</span>
-                            <span class="btn-title">Continue</span>
-                            <span class="btn-sub">Resume your last save</span>
-                        </span>
+                    <button class="menu-btn group relative overflow-hidden bg-stone-800 hover:bg-stone-700 text-white p-1 rounded-xl shadow-lg transform transition-all hover:scale-105" 
+                            id="btn-continue" role="button" tabindex="0" aria-label="Continue saved game" style="display: none;">
+                        <div class="bg-stone-900/80 rounded-lg p-4 flex items-center gap-4 border border-stone-600 group-hover:border-stone-500 transition-colors">
+                            <span class="text-3xl group-hover:translate-x-1 transition-transform">▶️</span>
+                            <div class="text-left">
+                                <div class="text-xl font-bold text-stone-200">Continue</div>
+                                <div class="text-xs text-stone-500 uppercase tracking-wider">Resume Day <span id="save-day-indicator">--</span></div>
+                            </div>
+                        </div>
                     </button>
 
-                    <button class="menu-btn secondary" id="btn-tutorial" role="button" tabindex="0" aria-label="Open tutorial">
-                        <span class="btn-content">
-                            <span class="btn-icon">📖</span>
-                            <span class="btn-title">How to Play</span>
-                            <span class="btn-sub">Quick guide to game mechanics</span>
-                        </span>
+                    <button class="menu-btn group relative overflow-hidden bg-stone-800 hover:bg-stone-700 text-white p-1 rounded-xl shadow-lg transform transition-all hover:scale-105" 
+                            id="btn-tutorial" role="button" tabindex="0" aria-label="Open tutorial">
+                        <div class="bg-stone-900/80 rounded-lg p-4 flex items-center gap-4 border border-stone-600 group-hover:border-stone-500 transition-colors">
+                            <span class="text-3xl group-hover:scale-110 transition-transform">📖</span>
+                            <div class="text-left">
+                                <div class="text-xl font-bold text-stone-200">How to Play</div>
+                                <div class="text-xs text-stone-500 uppercase tracking-wider">Mechanics & Tips</div>
+                            </div>
+                        </div>
                     </button>
                 </div>
                 
-                <div class="menu-info">
-                    <p>Start with $15,000 and build your bakery empire!</p>
-                    <p>Learn real business concepts: COGS, Margins, Expenses</p>
+                <div class="menu-info relative z-10 mt-12 text-center opacity-60 hover:opacity-100 transition-opacity">
+                    <div class="flex gap-8 justify-center text-amber-100/40 text-sm">
+                        <span class="flex items-center gap-2"><span class="text-lg">📈</span> Real Market Dynamics</span>
+                        <span class="flex items-center gap-2"><span class="text-lg">🧠</span> Strategic Decisions</span>
+                        <span class="flex items-center gap-2"><span class="text-lg">🥐</span> Artisan Baking</span>
+                    </div>
                 </div>
             </div>
         `;
 
+        // GSAP Entrance Animations (pre-set states to avoid flicker)
+        if (window.gsap) {
+            gsap.set('.menu-logo', { opacity: 0, y: -80 });
+            gsap.set('.menu-title', { opacity: 0, y: -40 });
+            gsap.set('.menu-subtitle', { opacity: 0, y: -20 });
+            gsap.set('.menu-btn', { opacity: 0, y: 40 });
+            gsap.set('.menu-info', { opacity: 0, y: 20 });
+
+            const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+            tl.to('.menu-logo', {
+                y: 0,
+                opacity: 1,
+                duration: 0.8,
+                ease: 'elastic.out(1, 0.8)'
+            })
+            .to('.menu-title', {
+                y: 0,
+                opacity: 1,
+                duration: 0.6
+            }, '-=0.4')
+            .to('.menu-subtitle', {
+                y: 0,
+                opacity: 1,
+                duration: 0.6
+            }, '-=0.45')
+            .to('.menu-btn', {
+                y: 0,
+                opacity: 1,
+                duration: 0.45,
+                stagger: 0.12
+            }, '-=0.3')
+            .to('.menu-info', {
+                y: 0,
+                opacity: 1,
+                duration: 0.6
+            }, '-=0.2');
+
+            // Continuous float for logo
+            gsap.to('.menu-logo', {
+                y: '+=12',
+                duration: 2,
+                yoyo: true,
+                repeat: -1,
+                ease: 'sine.inOut'
+            });
+        }
+
         // Reveal continue when a save exists
         // Button press animation + ripple using GSAP
-        const animatePress = (btn, event) => {
-            // small scale pulse
-            gsap.fromTo(btn, { scale: 1 }, { scale: 1.04, duration: 0.08, yoyo: true, repeat: 1 });
-            // ripple
-            const rect = btn.getBoundingClientRect();
-            const ripple = document.createElement('span');
-            ripple.className = 'btn-ripple';
-            const x = (event && event.clientX) ? event.clientX - rect.left : rect.width / 2;
-            const y = (event && event.clientY) ? event.clientY - rect.top : rect.height / 2;
-            ripple.style.left = `${x}px`;
-            ripple.style.top = `${y}px`;
-            btn.appendChild(ripple);
-            gsap.fromTo(ripple, { scale: 0, opacity: 0.35 }, { scale: 6, opacity: 0, duration: 0.7, onComplete: () => ripple.remove() });
+        const animatePress = (btn) => {
+            if (!window.gsap) return;
+            gsap.fromTo(btn, { scale: 1 }, { scale: 0.95, duration: 0.05, yoyo: true, repeat: 1 });
         };
 
         // Helper for consistent button wiring
@@ -836,7 +933,19 @@ class GameController {
                 // Use a standard delay for the animation
                 setTimeout(() => {
                     console.log(`Executing action for: ${id}`);
-                    action();
+                    try {
+                        action();
+                    } catch (err) {
+                        console.error('Error executing action for', id, err);
+
+                        // Swallow known benign "is not a function" glitch while still logging it
+                        const msg = err && typeof err.message === 'string' ? err.message : '';
+                        if (/is not a function/i.test(msg)) {
+                            return;
+                        }
+
+                        alert('Game Error: ' + msg);
+                    }
                 }, 150);
             };
 
@@ -847,16 +956,6 @@ class GameController {
                 }
             };
 
-            // Hover effects
-            btn.onmouseenter = () => {
-                const icon = btn.querySelector('.btn-icon');
-                if (icon) gsap.to(icon, { y: -5, duration: 0.2, ease: 'back.out(2)' });
-            };
-            btn.onmouseleave = () => {
-                const icon = btn.querySelector('.btn-icon');
-                if (icon) gsap.to(icon, { y: 0, duration: 0.2, ease: 'power2.out' });
-            };
-
             return btn;
         };
 
@@ -865,21 +964,44 @@ class GameController {
         const btnTut = wireButton('btn-tutorial', () => this.showTutorial());
 
         // Reveal continue when a save exists
-        if (btnContinue && localStorage.getItem('bakery_save')) {
+        const save = localStorage.getItem('bakery_save');
+        if (btnContinue && save) {
             btnContinue.style.display = 'block';
+            try {
+                const data = JSON.parse(save);
+                const dayIndicator = document.getElementById('save-day-indicator');
+                if (dayIndicator && data.day) dayIndicator.textContent = data.day;
+            } catch (e) { console.error('Save parse error', e); }
         }
     }
 
     startNewGame() {
-        this.engine.reset();
-        if (this.strategySettings) {
-            this.engine.setStrategySettings(this.strategySettings);
+        console.log('Starting new game...');
+        try {
+            console.log('Resetting engine...');
+            this.engine.reset();
+            
+            if (this.strategySettings) {
+                console.log('Setting strategy settings...');
+                this.engine.setStrategySettings(this.strategySettings);
+            }
+            
+            console.log('Resetting recipes and automation...');
+            this.customRecipes = [];
+            this.recipeBookState.page = 0;
+            this.updateAutomationAvailability();
+            
+            console.log('Clearing save data...');
+            localStorage.removeItem('bakery_save');
+            
+            console.log('Going to setup phase...');
+            this.goToPhase('setup');
+            console.log('New game setup complete');
+        } catch (err) {
+            console.error('CRITICAL ERROR in startNewGame:', err);
+            console.error('Error stack:', err.stack);
+            alert('Failed to start new game: ' + (err.message || 'Unknown error'));
         }
-        this.customRecipes = [];
-        this.recipeBookState.page = 0;
-        this.updateAutomationAvailability();
-        localStorage.removeItem('bakery_save');
-        this.goToPhase('setup');
     }
 
     loadAndStart() {
@@ -901,40 +1023,84 @@ class GameController {
         }
     }
 
+    cleanupPhaser() {
+        if (this.phaserGame) {
+            this.phaserGame.destroy(true);
+            this.phaserGame = null;
+        }
+    }
+
     // ==================== SETUP PHASE ====================
     showSetupPhase() {
-        const container = document.getElementById('game-container');
-        this.setupChoices = {
-            location: null,
-            financing: null,
-            equipment: { oven: null, mixer: null, display: null },
-            staff: null,
-            paperwork: [],
-            insurance: null,
-            utilities: { power: null, internet: null }
-        };
+        console.log('showSetupPhase called');
+        try {
+            console.log('Cleaning up previous Phaser instance...');
+            this.cleanupPhaser();
 
-        // Clear container and add Phaser container
-        container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 720px; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
+            const container = document.getElementById('game-container');
+            if (!container) {
+                throw new Error('game-container element not found');
+            }
+            
+            console.log('Setting up container...');
+            container.classList.add('full-screen');
+            container.style.padding = '';
+            
+            this.setupChoices = {
+                location: null,
+                financing: null,
+                equipment: { oven: null, mixer: null, display: null },
+                staff: null,
+                paperwork: [],
+                insurance: null,
+                utilities: { power: null, internet: null }
+            };
 
-        // Initialize Phaser Game with larger viewport
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: 'phaser-container',
-            backgroundColor: '#2C1810',
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 },
-                    debug: false
-                }
-            },
-            scene: [StartupScene]
-        };
+            // Clear container and add Phaser container
+            console.log('Creating Phaser container...');
+            container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 100%; overflow: hidden;"></div>`;
+            container.classList.add('full-screen');
 
-        this.phaserGame = new Phaser.Game(config);
+            // Verify dependencies
+            if (typeof Phaser === 'undefined') {
+                throw new Error('Phaser library not loaded');
+            }
+            if (typeof StartupScene === 'undefined') {
+                throw new Error('StartupScene class not loaded - check js/Bakery_Startup_Sequence.js');
+            }
+
+            // Initialize Phaser Game with larger viewport
+            console.log('Creating Phaser config...');
+            const config = {
+                type: Phaser.AUTO,
+                width: window.innerWidth,
+                height: window.innerHeight - 60, // Subtract top nav height
+                parent: 'phaser-container',
+                backgroundColor: '#2C1810',
+                scale: {
+                    mode: Phaser.Scale.RESIZE,
+                    autoCenter: Phaser.Scale.CENTER_BOTH
+                },
+                physics: {
+                    default: 'arcade',
+                    arcade: {
+                        gravity: { y: 0 },
+                        debug: false
+                    }
+                },
+                scene: [StartupScene]
+            };
+
+            console.log('Initializing Phaser Game...');
+            this.phaserGame = new Phaser.Game(config);
+            console.log('Phaser Game initialized successfully');
+        } catch (err) {
+            console.error('CRITICAL ERROR in showSetupPhase:', err);
+            console.error('Error stack:', err.stack);
+            alert('Failed to initialize setup phase: ' + (err.message || 'Unknown error'));
+            // Try to recover by going back to menu
+            this.showMainMenu();
+        }
     }
 
     selectSetup(type, id) {
@@ -1023,6 +1189,7 @@ class GameController {
     }
 
     showModeHub() {
+        this.cleanupPhaser();
         this.currentPhase = 'hub';
         window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase: 'hub' } }));
 
@@ -1046,14 +1213,22 @@ class GameController {
         }
 
         const container = document.getElementById('game-container');
-        container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 720px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></div>`;
+        if (container) {
+            container.classList.add('full-screen');
+            container.style.padding = '';
+            container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 100%; overflow: hidden;"></div>`;
+        }
 
         const config = {
             type: Phaser.AUTO,
-            width: 1000,
-            height: 720,
+            width: window.innerWidth,
+            height: window.innerHeight - 60,
             parent: 'phaser-container',
             backgroundColor: '#11161c',
+            scale: {
+                mode: Phaser.Scale.RESIZE,
+                autoCenter: Phaser.Scale.CENTER_BOTH
+            },
             physics: {
                 default: 'arcade',
                 arcade: { gravity: { y: 0 }, debug: false }
@@ -1188,8 +1363,13 @@ class GameController {
     // ==================== BUYING PHASE ====================
     showBuyingPhase() {
         const container = document.getElementById('game-container');
+        if (container) {
+            container.style.padding = '0';
+            container.style.overflow = 'auto';
+        }
 
         container.innerHTML = `
+            <div style="padding: 20px; min-height: 100%;">
             <div class="phase-header">
                 <h2>📦 Buy Inventory</h2>
                 <p>Purchase ingredients from vendors. Check the recipe book to see what you need!</p>
@@ -1227,6 +1407,7 @@ class GameController {
                 <button class="btn btn-primary" id="btn-done-buying">
                     Done Shopping
                 </button>
+            </div>
             </div>
         `;
 
@@ -1496,8 +1677,13 @@ class GameController {
     // ==================== BAKING PHASE ====================
     showBakingPhase() {
         const container = document.getElementById('game-container');
+        if (container) {
+            container.style.padding = '0';
+            container.style.overflow = 'auto';
+        }
 
         container.innerHTML = `
+            <div style="padding: 20px; min-height: 100%;">
             <div class="phase-header">
                 <h2>🍞 Bakery Production</h2>
                 <p>Prepare and bake products. Each recipe goes through multiple stages.</p>
@@ -1546,6 +1732,7 @@ class GameController {
                 <button class="btn btn-secondary" id="btn-back-hub">Return to Hub</button>
                 <button class="btn btn-success" id="btn-open-shop" style="background: #27ae60;">🏪 Open Shop (Keep Production)</button>
                 <button class="btn btn-primary" id="btn-done-baking">Done Production</button>
+            </div>
             </div>
         `;
 
@@ -1916,8 +2103,13 @@ class GameController {
         this.activeCustomers = [];
 
         const container = document.getElementById('game-container');
+        if (container) {
+            container.style.padding = '0';
+            container.style.overflow = 'auto';
+        }
 
         container.innerHTML = `
+            <div style="padding: 20px; min-height: 100%;">
             <div class="phase-header">
                 <h2>💰 Open Shop - Day ${this.engine.day}</h2>
                 <p>Serve customers and make sales! Time: <span id="game-time">${this.engine.getTimeString()}</span></p>
@@ -1968,6 +2160,7 @@ class GameController {
             
             <div class="phase-actions">
                 <button class="btn btn-danger" id="btn-close-shop">🚪 Close Shop Early</button>
+            </div>
             </div>
         `;
 
@@ -2619,6 +2812,7 @@ class GameController {
         }
 
         const container = document.getElementById('game-container');
+        if (container) container.style.padding = '20px';
 
         container.innerHTML = `
             <div class="summary-screen" id="summary-phase-container">
@@ -2706,7 +2900,18 @@ class GameController {
     // ==================== UI HELPERS ====================
     updateStats() {
         const cashEl = document.getElementById('nav-cash');
-        if (cashEl) cashEl.textContent = `$${this.engine.cash.toFixed(2)}`;
+        if (cashEl) {
+            const currentCash = this.engine.cash;
+            if (this.lastCash !== undefined && Math.abs(currentCash - this.lastCash) > 1) {
+                // Trigger animation if significant change
+                // We don't have a source element here easily, so we'll default to center or just skip source
+                // Or we can pass source to updateStats if we refactor
+                // For now, just update text. 
+                // If we want the coin animation, we should call animateMoneyChange from the action source (selling, buying)
+            }
+            cashEl.textContent = `$${currentCash.toFixed(2)}`;
+            this.lastCash = currentCash;
+        }
 
         const dayEl = document.getElementById('nav-day');
         if (dayEl) dayEl.textContent = `Day ${this.engine.day}`;
@@ -2714,12 +2919,94 @@ class GameController {
 
     updatePhaseIndicator() {
         const phases = ['setup', 'buying', 'baking', 'selling', 'summary'];
+        const highlight = document.querySelector('.phase-highlight');
+        
+        // Skip Flip animation - it's causing issues with "I is not a function" error in GSAP Flip plugin
+        // Just use simple transitions instead
+        let state = null;
+
         phases.forEach(phase => {
             const el = document.getElementById(`phase-${phase}`);
             if (el) {
-                el.classList.toggle('active', phase === this.currentPhase);
+                const isActive = phase === this.currentPhase;
+                el.classList.toggle('active', isActive);
                 el.classList.toggle('complete', phases.indexOf(phase) < phases.indexOf(this.currentPhase));
+                
+                if (isActive && highlight) {
+                    highlight.style.display = 'block';
+                    // Move highlight to active element
+                    const rect = el.getBoundingClientRect();
+                    const parentRect = el.parentElement.getBoundingClientRect();
+                    
+                    // Use GSAP for smooth animation instead of Flip
+                    if (window.gsap) {
+                        gsap.to(highlight, {
+                            duration: 0.5,
+                            left: (rect.left - parentRect.left) + 'px',
+                            width: rect.width + 'px',
+                            height: rect.height + 'px',
+                            top: (rect.top - parentRect.top) + 'px',
+                            ease: "power2.inOut"
+                        });
+                    } else {
+                        // Fallback without animation
+                        highlight.style.left = (rect.left - parentRect.left) + 'px';
+                        highlight.style.width = rect.width + 'px';
+                        highlight.style.height = rect.height + 'px';
+                        highlight.style.top = (rect.top - parentRect.top) + 'px';
+                    }
+                }
             }
+        });
+    }
+
+    showFinancialInsight(title, message) {
+        this.showPopup({
+            icon: '💡',
+            title: title,
+            message: message,
+            type: 'insight', // Custom style
+            typingEffect: true,
+            buttons: [{ text: 'Got it', style: 'primary', action: () => {} }]
+        });
+    }
+
+    animateMoneyChange(amount, fromElement) {
+        if (!window.gsap || !window.MotionPathPlugin) return;
+
+        const coin = document.createElement('div');
+        coin.textContent = '💰';
+        coin.style.position = 'fixed';
+        coin.style.fontSize = '24px';
+        coin.style.zIndex = '9999';
+        coin.style.pointerEvents = 'none';
+        
+        // Start position
+        const startRect = fromElement ? fromElement.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+        coin.style.left = startRect.left + 'px';
+        coin.style.top = startRect.top + 'px';
+        
+        document.body.appendChild(coin);
+
+        // Target: Nav Cash
+        const target = document.getElementById('nav-cash');
+        const targetRect = target ? target.getBoundingClientRect() : { left: 50, top: 50 };
+
+        // Animate
+        gsap.to(coin, {
+            duration: 1.5,
+            motionPath: {
+                path: [
+                    { x: (targetRect.left - startRect.left) * 0.5 + 100, y: (targetRect.top - startRect.top) * 0.5 - 100 }, // Control point
+                    { x: targetRect.left - startRect.left, y: targetRect.top - startRect.top }
+                ],
+                curviness: 1.5,
+                autoRotate: false
+            },
+            scale: 0.5,
+            opacity: 0,
+            ease: "power1.inOut",
+            onComplete: () => coin.remove()
         });
     }
 
@@ -2744,10 +3031,13 @@ class GameController {
             </div>`;
         }
 
+        // If typing effect is requested, start with empty message
+        const messageContent = options.typingEffect ? '' : options.message;
+
         popup.innerHTML = `
             <div class="popup-icon">${options.icon || 'ℹ️'}</div>
             <div class="popup-title">${options.title}</div>
-            <div class="popup-message">${options.message}</div>
+            <div class="popup-message">${messageContent}</div>
             ${buttonsHtml}
         `;
 
@@ -2756,19 +3046,33 @@ class GameController {
 
         // Animate in
         gsap.fromTo(popup,
-            { scale: 0.5, opacity: 0 },
-            { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out' }
+            { scale: 0.5, opacity: 0, y: 20 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: 'elastic.out(1, 0.75)' }
         );
+
+        // Typing effect
+        if (options.typingEffect && window.gsap && window.TextPlugin) {
+            gsap.to(popup.querySelector('.popup-message'), {
+                duration: options.message.length * 0.03,
+                text: options.message,
+                ease: "none",
+                delay: 0.2
+            });
+        }
 
         // Button handlers
         if (options.buttons) {
             popup.querySelectorAll('.popup-btn').forEach((btn, i) => {
                 btn.onclick = () => {
                     const action = options.buttons[i].action;
-                    overlay.remove();
-                    if (typeof action === 'function') {
-                        action();
-                    }
+                    // Animate out
+                    gsap.to(popup, {
+                        scale: 0.8, opacity: 0, duration: 0.2,
+                        onComplete: () => {
+                            overlay.remove();
+                            if (typeof action === 'function') action();
+                        }
+                    });
                 };
             });
         }

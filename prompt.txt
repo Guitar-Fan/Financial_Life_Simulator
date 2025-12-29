@@ -139,13 +139,7 @@ Action: Find buttons and UI elements that are basic and have insufficient game p
 (maybe 3d keyframes animation css for buttons and objects if approriate). Scout around all stages,
 and redesign UI to be more dynamic, and game quality. Upgrade walking environments to look 3d realistic, even though it is 2d.
 
-Objective of this prompt: Add sound and music
-Action: Add cool sound effects to button clicks, any action 
-(buying, selling, customer rejects, etc...) using tone.js cdn link(15.3.11) built in synth tools (polysynth)
-Extra: on start page, try to code a music for page on repeat with a simple tune: 
-shave and a haircut, six pence, add a harmony line with a different synth than melody.
-Add tone.js freeverb effect to melody
+Objective of this prompt: Utilize GSAP plugins to signifantly upgrade animation and experience of game elements:
+Use some relevant GSAP plugins in this list: Scroll Plugins
+ScrollTriggerpopular
 
-objective of this prompt: Add crisis and spontaneous decisions
-
-Objective 

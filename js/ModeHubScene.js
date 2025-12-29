@@ -91,6 +91,9 @@ class ModeHubScene extends Phaser.Scene {
     }
 
     createBackgroundLayers() {
+        const width = this.scale.width;
+        const height = this.scale.height;
+        
         const gradient = this.add.graphics({ x: 0, y: 0 });
         const top = Phaser.Display.Color.HexStringToColor('#04060f');
         const bottom = Phaser.Display.Color.HexStringToColor('#1c0f1b');
@@ -98,44 +101,48 @@ class ModeHubScene extends Phaser.Scene {
         for (let i = 0; i <= steps; i++) {
             const color = Phaser.Display.Color.Interpolate.ColorWithColor(top, bottom, steps, i);
             gradient.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
-            gradient.fillRect(0, (i / steps) * 720, 1000, 720 / steps);
+            gradient.fillRect(0, (i / steps) * height, width, height / steps);
         }
         gradient.setDepth(-5);
 
         const skyline = this.add.graphics();
         skyline.setDepth(-4);
         const palette = [0x0a0f1a, 0x0f1322, 0x1a1730];
-        for (let i = 0; i < 18; i++) {
-            const width = Phaser.Math.Between(30, 90);
-            const height = Phaser.Math.Between(80, 180);
-            const x = i * 60 + Phaser.Math.Between(-20, 20);
-            const y = 260 - height;
+        for (let i = 0; i < 24; i++) {
+            const bWidth = Phaser.Math.Between(40, 120);
+            const bHeight = Phaser.Math.Between(100, 250);
+            const x = (i / 24) * width + Phaser.Math.Between(-30, 30);
+            const y = (height * 0.35) - bHeight;
             skyline.fillStyle(palette[i % palette.length], 0.95);
-            skyline.fillRect(x, y, width, height);
+            skyline.fillRect(x, y, bWidth, bHeight);
         }
 
         const grid = this.add.graphics();
         grid.lineStyle(1, 0x1b2a3b, 0.35);
-        const horizonY = 220;
-        const floorY = 620;
-        for (let i = -12; i <= 12; i++) {
+        const horizonY = height * 0.3;
+        const floorY = height * 0.9;
+        const centerX = width / 2;
+        
+        for (let i = -15; i <= 15; i++) {
             grid.beginPath();
-            grid.moveTo(500 + i * 35, horizonY);
-            grid.lineTo(500 + i * 90, floorY);
+            grid.moveTo(centerX + i * (width / 40), horizonY);
+            grid.lineTo(centerX + i * (width / 12), floorY);
             grid.strokePath();
         }
 
-        for (let i = 0; i <= 14; i++) {
-            const t = i / 14;
+        const horizontalLines = 15;
+        for (let i = 0; i <= horizontalLines; i++) {
+            const t = i / horizontalLines;
             const y = horizonY + (floorY - horizonY) * t;
+            const lineWidth = width * (0.7 + t * 0.3);
             grid.beginPath();
-            grid.moveTo(150 - t * 80, y);
-            grid.lineTo(850 + t * 80, y);
+            grid.moveTo(centerX - lineWidth / 2, y);
+            grid.lineTo(centerX + lineWidth / 2, y);
             grid.strokePath();
         }
         grid.setDepth(0.05);
 
-        const sun = this.add.image(240, 120, 'hub_glow').setDepth(-3).setBlendMode(Phaser.BlendModes.ADD).setScale(2.3).setAlpha(0.45);
+        const sun = this.add.image(width * 0.25, height * 0.15, 'hub_glow').setDepth(-3).setBlendMode(Phaser.BlendModes.ADD).setScale(2.3).setAlpha(0.45);
         this.tweens.add({
             targets: sun,
             alpha: { from: 0.35, to: 0.6 },
@@ -148,10 +155,13 @@ class ModeHubScene extends Phaser.Scene {
 
     createAmbientParticles() {
         this.ambientSprites = [];
-        for (let i = 0; i < 30; i++) {
+        const width = this.scale.width;
+        const height = this.scale.height;
+        
+        for (let i = 0; i < 40; i++) {
             const sprite = this.add.image(
-                Phaser.Math.Between(0, 1000),
-                Phaser.Math.Between(0, 720),
+                Phaser.Math.Between(0, width),
+                Phaser.Math.Between(0, height),
                 'hub_glow_cool'
             )
                 .setBlendMode(Phaser.BlendModes.ADD)
@@ -159,15 +169,15 @@ class ModeHubScene extends Phaser.Scene {
                 .setAlpha(Phaser.Math.FloatBetween(0.15, 0.4))
                 .setDepth(-1 + Math.random() * 0.2);
 
-            const driftX = sprite.x + Phaser.Math.Between(-50, 50);
-            const driftY = sprite.y + Phaser.Math.Between(-30, 30);
+            const driftX = sprite.x + Phaser.Math.Between(-60, 60);
+            const driftY = sprite.y + Phaser.Math.Between(-40, 40);
 
             this.tweens.add({
                 targets: sprite,
                 x: driftX,
                 y: driftY,
                 alpha: { from: sprite.alpha, to: sprite.alpha * 0.35 },
-                duration: Phaser.Math.Between(4000, 6500),
+                duration: Phaser.Math.Between(4000, 7000),
                 yoyo: true,
                 repeat: -1,
                 ease: 'sine.inOut',
@@ -211,34 +221,39 @@ class ModeHubScene extends Phaser.Scene {
     }
 
     create() {
+        const width = this.scale.width;
+        const height = this.scale.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
         // World bounds
         this.cameras.main.setBackgroundColor('#05060b');
-        this.physics.world.setBounds(0, 0, 1000, 720);
+        this.physics.world.setBounds(0, 0, width, height);
 
         this.createBackgroundLayers();
 
         // Ground
-        const ground = this.add.tileSprite(500, 360, 1000, 720, 'hub_ground');
+        const ground = this.add.tileSprite(centerX, centerY, width, height, 'hub_ground');
         ground.setTint(0x0f1824);
         ground.setDepth(0.1);
 
         this.createAmbientParticles();
 
-        this.add.rectangle(500, 420, 880, 240, 0xffffff, 0.05)
+        this.add.rectangle(centerX, centerY + 60, width * 0.88, height * 0.33, 0xffffff, 0.05)
             .setDepth(0.2)
             .setBlendMode(Phaser.BlendModes.ADD);
-        this.add.image(500, 430, 'pad_shadow')
-            .setScale(3.6, 1.5)
+        this.add.image(centerX, centerY + 70, 'pad_shadow')
+            .setScale(width / 277, height / 480)
             .setAlpha(0.3)
             .setDepth(0.15);
-        this.add.image(500, 420, 'hub_glow_cool')
-            .setScale(2.8)
+        this.add.image(centerX, centerY + 60, 'hub_glow_cool')
+            .setScale(width / 357)
             .setBlendMode(Phaser.BlendModes.ADD)
             .setAlpha(0.25)
             .setDepth(0.25);
 
         // Player
-        this.player = this.physics.add.sprite(500, 360, 'hub_player');
+        this.player = this.physics.add.sprite(centerX, centerY, 'hub_player');
         this.player.setCollideWorldBounds(true);
         this.player.setDepth(5);
 
@@ -252,19 +267,19 @@ class ModeHubScene extends Phaser.Scene {
             interact: Phaser.Input.Keyboard.KeyCodes.E
         });
 
-        // Pads data
+        // Pads data - relative to center
         const padData = [
-            { key: 'pad_buy', label: 'BUY', mode: 'buying', x: 250, y: 260, desc: 'Stock inventory' },
-            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: 750, y: 260, desc: 'Produce goods' },
-            { key: 'pad_sell', label: 'SELL', mode: 'selling', x: 250, y: 520, desc: 'Open shop' },
-            { key: 'pad_summary', label: 'SUMMARY', mode: 'summary', x: 750, y: 520, desc: 'Review stats' },
-            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: 500, y: 120, desc: 'Design custom bakes' }
+            { key: 'pad_buy', label: 'BUY', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Stock inventory' },
+            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Produce goods' },
+            { key: 'pad_sell', label: 'SELL', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Open shop' },
+            { key: 'pad_summary', label: 'SUMMARY', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'Review stats' },
+            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Design custom bakes' }
         ];
 
         padData.forEach(data => this.createPad(data));
 
         // Interaction hint
-        this.interactionText = this.add.text(500, 680, '', {
+        this.interactionText = this.add.text(centerX, height - 40, '', {
             fontFamily: 'Inter, sans-serif',
             fontSize: '18px',
             color: '#ffffff',

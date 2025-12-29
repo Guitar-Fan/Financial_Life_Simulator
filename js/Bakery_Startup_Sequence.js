@@ -220,6 +220,9 @@ class StartupScene extends Phaser.Scene {
     }
 
     paintSkyDome() {
+        const width = this.physics.world.bounds.width;
+        const height = this.physics.world.bounds.height;
+        
         const gradient = this.add.graphics({ x: 0, y: 0 });
         const top = Phaser.Display.Color.HexStringToColor('#040713');
         const bottom = Phaser.Display.Color.HexStringToColor('#2a1320');
@@ -227,7 +230,7 @@ class StartupScene extends Phaser.Scene {
         for (let i = 0; i <= steps; i++) {
             const color = Phaser.Display.Color.Interpolate.ColorWithColor(top, bottom, steps, i);
             gradient.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
-            gradient.fillRect(0, (i / steps) * 1200, 1600, 1200 / steps);
+            gradient.fillRect(0, (i / steps) * height, width, height / steps);
         }
         gradient.setDepth(-10);
     }
@@ -413,7 +416,7 @@ class StartupScene extends Phaser.Scene {
 
         // === UI LAYER ===
         // Interaction prompt
-        this.interactionText = this.add.text(400, 550, '', {
+        this.interactionText = this.add.text(this.scale.width / 2, this.scale.height - 80, '', {
             fontFamily: 'Fredoka, sans-serif',
             fontSize: '18px',
             backgroundColor: '#000000dd',
@@ -481,7 +484,7 @@ class StartupScene extends Phaser.Scene {
         }).setScrollFactor(0).setDepth(151);
         
         // "Use Default Settings" button
-        this.defaultsBtn = this.add.text(700, 50, '⚙️ Use Default Settings', {
+        this.defaultsBtn = this.add.text(this.scale.width - 180, 50, '⚙️ Use Default Settings', {
             fontFamily: 'Fredoka, sans-serif',
             fontSize: '20px',
             backgroundColor: '#3498db',
@@ -510,7 +513,7 @@ class StartupScene extends Phaser.Scene {
     createMinimap() {
         // Simple minimap in corner
         const mapSize = 160;
-        const mapX = 800 - mapSize - 10;
+        const mapX = this.scale.width - mapSize - 10;
         const mapY = 10;
         
         const mapBg = this.add.rectangle(mapX, mapY, mapSize, mapSize * 0.75, 0x000000, 0.6)
@@ -558,10 +561,10 @@ class StartupScene extends Phaser.Scene {
         // Building label
         this.add.text(x, y - 80, label, {
             fontFamily: 'Fredoka, sans-serif',
-            fontSize: '14px',
-            color: '#ffffff',
+            fontSize: '16px',
+            color: '#ffeb3b',
             stroke: '#000000',
-            strokeThickness: 4,
+            strokeThickness: 5,
             align: 'center'
         }).setOrigin(0.5).setDepth(51);
         
@@ -569,10 +572,10 @@ class StartupScene extends Phaser.Scene {
         if (hint) {
             this.add.text(x, y - 65, hint, {
                 fontFamily: 'Inter, sans-serif',
-                fontSize: '10px',
-                color: '#ecf0f1',
+                fontSize: '11px',
+                color: '#ffd54f',
                 stroke: '#000000',
-                strokeThickness: 2
+                strokeThickness: 3
             }).setOrigin(0.5).setDepth(51);
         }
 
@@ -732,7 +735,7 @@ class StartupScene extends Phaser.Scene {
         const financing = GAME_CONFIG.SETUP_OPTIONS.financing;
         
         this.openModal('First National Bank - Small Business Loans', `
-            <div class="advisor-note" style="background: #e8f8f5; padding: 15px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
+            <div class="advisor-note" style="background: linear-gradient(135deg, #1a3a2e 0%, #2d5f4a 100%); color: #e8f5e9; padding: 15px; margin-bottom: 15px; border-left: 4px solid #4caf50; border-radius: 8px;">
                 <strong>💡 Banker's Advice:</strong> Only borrow what you need. Higher debt means monthly payments that eat into profits. Many successful bakeries start small with personal savings.
             </div>
             
@@ -788,7 +791,7 @@ class StartupScene extends Phaser.Scene {
         const locations = GAME_CONFIG.SETUP_OPTIONS.locations;
         
         this.openModal('Metro Realty - Commercial Properties', `
-            <div class="advisor-note" style="background: #fef9e7; padding: 15px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
+            <div class="advisor-note" style="background: linear-gradient(135deg, #3a2a1a 0%, #5f4a2d 100%); color: #fff3e0; padding: 15px; margin-bottom: 15px; border-left: 4px solid #ff9800; border-radius: 8px;">
                 <strong>🏢 Agent's Tip:</strong> Location is critical! High traffic = more sales but higher rent. Consider your target market and budget carefully.
             </div>
             
@@ -798,16 +801,16 @@ class StartupScene extends Phaser.Scene {
                     return `
                         <div class="location-card ${selected ? 'selected' : ''}" 
                              onclick="window.game.selectSetup('location', '${loc.id}'); document.getElementById('modal-close').click();"
-                             style="border: 2px solid ${selected ? '#27ae60' : '#ddd'}; padding: 15px; margin: 10px 0; border-radius: 8px; cursor: pointer; background: ${selected ? '#e8f8f5' : '#fff'};">
+                             style="border: 2px solid ${selected ? '#4caf50' : '#555'}; padding: 15px; margin: 10px 0; border-radius: 8px; cursor: pointer; background: ${selected ? 'linear-gradient(135deg, #1a3a2e 0%, #2d5f4a 100%)' : 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)'}; color: #e0e0e0;">
                             
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <h3 style="margin: 0; color: #2c3e50;">${loc.icon} ${loc.name}</h3>
-                                    <p style="margin: 5px 0; color: #7f8c8d; font-size: 14px;">${loc.description}</p>
+                                    <h3 style="margin: 0; color: #ffd54f;">${loc.icon} ${loc.name}</h3>
+                                    <p style="margin: 5px 0; color: #b0bec5; font-size: 14px;">${loc.description}</p>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">$${loc.rent}/day</div>
-                                    <div style="font-size: 12px; color: #95a5a6;">${loc.size} sq ft</div>
+                                    <div style="font-size: 24px; font-weight: bold; color: #ff6b6b;">$${loc.rent}/day</div>
+                                    <div style="font-size: 12px; color: #90a4ae;">${loc.size} sq ft</div>
                                 </div>
                             </div>
                             
@@ -821,15 +824,15 @@ class StartupScene extends Phaser.Scene {
                             </div>
                             
                             <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                                <div style="background: #d5f4e6; padding: 8px; border-radius: 4px;">
-                                    <strong style="color: #27ae60;">Pros:</strong>
-                                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 11px;">
+                                <div style="background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%); padding: 8px; border-radius: 4px;">
+                                    <strong style="color: #81c784;">Pros:</strong>
+                                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 11px; color: #c8e6c9;">
                                         ${loc.pros.map(p => `<li>${p}</li>`).join('')}
                                     </ul>
                                 </div>
-                                <div style="background: #fadbd8; padding: 8px; border-radius: 4px;">
-                                    <strong style="color: #e74c3c;">Cons:</strong>
-                                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 11px;">
+                                <div style="background: linear-gradient(135deg, #4a1a1a 0%, #6a2d2d 100%); padding: 8px; border-radius: 4px;">
+                                    <strong style="color: #ef9a9a;">Cons:</strong>
+                                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 11px; color: #ffcdd2;">
                                         ${loc.cons.map(c => `<li>${c}</li>`).join('')}
                                     </ul>
                                 </div>
@@ -865,18 +868,18 @@ class StartupScene extends Phaser.Scene {
         const optional = paperwork.filter(p => !p.required);
         
         this.openModal('City Hall - Business Permits & Licenses', `
-            <div class="advisor-note" style="background: #ebf5fb; padding: 15px; margin-bottom: 15px; border-left: 4px solid #3498db;">
+            <div class="advisor-note" style="background: linear-gradient(135deg, #1a2a3a 0%, #2d4a5f 100%); color: #e3f2fd; padding: 15px; margin-bottom: 15px; border-left: 4px solid #2196f3; border-radius: 8px;">
                 <strong>📋 Clerk's Notice:</strong> Required permits are mandatory. Optional licenses can boost revenue but cost extra. Processing times vary.
             </div>
             
-            <h3 style="color: #e74c3c;">Required Permits</h3>
+            <h3 style="color: #ff6b6b;">Required Permits</h3>
             <div class="setup-grid">
                 ${required.map(p => {
                     const selected = window.game.setupChoices.paperwork?.includes(p.id);
                     return `
                         <div class="setup-card ${selected ? 'selected' : ''}" 
                              onclick="window.game.selectSetup('paperwork', '${p.id}'); this.classList.toggle('selected');"
-                             style="cursor: pointer; ${selected ? 'background: #d5f4e6;' : ''}">
+                             style="cursor: pointer; ${selected ? 'background: linear-gradient(135deg, #1a3a2e 0%, #2d5f4a 100%); color: #e8f5e9;' : 'color: #e0e0e0;'}">
                             <div class="setup-icon">${p.icon}</div>
                             <div class="setup-name">${p.name}</div>
                             <div class="setup-desc">${p.description}</div>
@@ -884,14 +887,14 @@ class StartupScene extends Phaser.Scene {
                                 <div><strong>Cost: $${p.cost}</strong></div>
                                 <div>Annual fee: $${p.annual}</div>
                                 <div>Processing: ${p.processingTime} days</div>
-                                ${p.inspectionRequired ? '<div style="color: #e67e22;">⚠️ Inspection required</div>' : ''}
+                                ${p.inspectionRequired ? '<div style="color: #ffb74d;">⚠️ Inspection required</div>' : ''}
                             </div>
                         </div>
                     `;
                 }).join('')}
             </div>
             
-            <h3 style="color: #27ae60; margin-top: 20px;">Optional Licenses (Revenue Boosters)</h3>
+            <h3 style="color: #81c784; margin-top: 20px;">Optional Licenses (Revenue Boosters)</h3>
             <div class="setup-grid">
                 ${optional.map(p => {
                     const selected = window.game.setupChoices.paperwork?.includes(p.id);
@@ -902,7 +905,7 @@ class StartupScene extends Phaser.Scene {
                     return `
                         <div class="setup-card ${selected ? 'selected' : ''}" 
                              onclick="window.game.selectSetup('paperwork', '${p.id}'); this.classList.toggle('selected');"
-                             style="cursor: pointer; ${selected ? 'background: #d5f4e6;' : ''}">
+                             style="cursor: pointer; ${selected ? 'background: linear-gradient(135deg, #1a3a2e 0%, #2d5f4a 100%); color: #e8f5e9;' : 'color: #e0e0e0;'}">
                             <div class="setup-icon">${p.icon}</div>
                             <div class="setup-name">${p.name}</div>
                             <div class="setup-desc">${p.description}</div>
@@ -910,7 +913,7 @@ class StartupScene extends Phaser.Scene {
                                 <div><strong>Cost: $${p.cost}</strong></div>
                                 <div>Annual: $${p.annual}</div>
                                 <div>Processing: ${p.processingTime} days</div>
-                                ${benefit ? `<div style="color: #27ae60; font-weight: bold;">✨ ${benefit}</div>` : ''}
+                                ${benefit ? `<div style="color: #81c784; font-weight: bold;">✨ ${benefit}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -949,7 +952,7 @@ class StartupScene extends Phaser.Scene {
         const equipment = GAME_CONFIG.SETUP_OPTIONS.equipment;
         
         this.openModal('Kitchen Pro Supply - Commercial Equipment', `
-            <div class="advisor-note" style="background: #fef5e7; padding: 15px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
+            <div class="advisor-note" style="background: linear-gradient(135deg, #3a2a1a 0%, #5f4a2d 100%); color: #fff3e0; padding: 15px; margin-bottom: 15px; border-left: 4px solid #ff9800; border-radius: 8px;">
                 <strong>🔧 Expert's Tip:</strong> Don't skimp on essentials (oven, mixer) but you can start basic on displays. Equipment breaks down—factor in maintenance costs!
             </div>
             
@@ -1046,7 +1049,7 @@ class StartupScene extends Phaser.Scene {
         const insurance = GAME_CONFIG.SETUP_OPTIONS.insurance;
         
         this.openModal('SafeGuard Insurance - Business Protection', `
-            <div class="advisor-note" style="background: #ebf5fb; padding: 15px; margin-bottom: 15px; border-left: 4px solid #3498db;">
+            <div class="advisor-note" style="background: linear-gradient(135deg, #1a2a3a 0%, #2d4a5f 100%); color: #e3f2fd; padding: 15px; margin-bottom: 15px; border-left: 4px solid #2196f3; border-radius: 8px;">
                 <strong>🛡️ Agent's Warning:</strong> One lawsuit or fire can bankrupt you. Insurance is NOT optional. The question is how much coverage you need.
             </div>
             
@@ -1146,7 +1149,7 @@ class StartupScene extends Phaser.Scene {
         const staff = GAME_CONFIG.SETUP_OPTIONS.staff;
         
         this.openModal('ProStaff Agency - Employment Solutions', `
-            <div class="advisor-note" style="background: #f4ecf7; padding: 15px; margin-bottom: 15px; border-left: 4px solid #9b59b6;">
+            <div class="advisor-note" style="background: linear-gradient(135deg, #2a1a3a 0%, #4a2d5f 100%); color: #f3e5f5; padding: 15px; margin-bottom: 15px; border-left: 4px solid #9c27b0; border-radius: 8px;">
                 <strong>👥 Recruiter's Advice:</strong> More staff = higher costs but better coverage. Skilled workers cost more but make fewer mistakes. Benefits add ~25% to salary costs.
             </div>
             
@@ -1179,10 +1182,10 @@ class StartupScene extends Phaser.Scene {
                             </div>
                             
                             <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                                <div style="background: #d5f4e6; padding: 5px; border-radius: 4px; font-size: 11px;">
+                                <div style="background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%); padding: 5px; border-radius: 4px; font-size: 11px; color: #c8e6c9;">
                                     ${s.pros.map(p => `✓ ${p}`).join('<br>')}
                                 </div>
-                                <div style="background: #fadbd8; padding: 5px; border-radius: 4px; font-size: 11px;">
+                                <div style="background: linear-gradient(135deg, #4a1a1a 0%, #6a2d2d 100%); padding: 5px; border-radius: 4px; font-size: 11px; color: #ffcdd2;">
                                     ${s.cons.map(c => `✗ ${c}`).join('<br>')}
                                 </div>
                             </div>
@@ -1238,12 +1241,12 @@ class StartupScene extends Phaser.Scene {
                 </div>
             </div>
             
-            <h3>💼 Personalized Recommendations</h3>
-            ${advice.length > 0 ? advice.map(a => `<div style="background: #f8f9fa; padding: 12px; margin: 8px 0; border-left: 4px solid #667eea; border-radius: 4px;">${a}</div>`).join('') : '<p>You\'re doing great! Keep making smart decisions.</p>'}
+            <h3 style="color: #ffd54f;">💼 Personalized Recommendations</h3>
+            ${advice.length > 0 ? advice.map(a => `<div style="background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4a 100%); color: #e0e0e0; padding: 12px; margin: 8px 0; border-left: 4px solid #667eea; border-radius: 4px;">${a}</div>`).join('') : '<p style="color: #b0bec5;">You\'re doing great! Keep making smart decisions.</p>'}
             
-            <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px;">
-                <strong style="color: #2e7d32;">💡 Pro Tips:</strong>
-                <ul style="margin: 10px 0; padding-left: 20px; font-size: 13px;">
+            <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #1a3a2e 0%, #2d5f4a 100%); border-radius: 8px; border: 1px solid #4caf50;">
+                <strong style="color: #81c784;">💡 Pro Tips:</strong>
+                <ul style="margin: 10px 0; padding-left: 20px; font-size: 13px; color: #c8e6c9;">
                     <li>Keep at least $2,000 emergency fund</li>
                     <li>Invest in reliable equipment over cheap alternatives</li>
                     <li>Optional permits (liquor, catering) can boost revenue significantly</li>
@@ -1314,7 +1317,7 @@ class StartupScene extends Phaser.Scene {
         if (window.game.canFinishSetup()) {
             // Add a "Open Bakery" button to the right side of the map
             if (!this.finishBtn) {
-                this.finishBtn = this.add.text(700, 450, '🏪 OPEN BAKERY', {
+                this.finishBtn = this.add.text(this.scale.width - 150, this.scale.height - 100, '🏪 OPEN BAKERY', {
                     fontFamily: 'Fredoka, sans-serif',
                     fontSize: '32px',
                     backgroundColor: '#39ef7c',
@@ -1411,7 +1414,7 @@ class StartupScene extends Phaser.Scene {
         this.setupState.staffHired = true;
         
         // Show notification
-        const notif = this.add.text(400, 100, '✅ Default settings applied to all buildings!', {
+        const notif = this.add.text(this.scale.width / 2, 100, '✅ Default settings applied to all buildings!', {
             fontFamily: 'Fredoka, sans-serif',
             fontSize: '24px',
             backgroundColor: '#27ae60',

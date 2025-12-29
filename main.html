@@ -16,6 +16,10 @@
     <!-- GSAP for animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/EasePack.min.js"></script>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -328,176 +332,26 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            position: relative;
         }
 
-        /* Main Menu Styles */
+        #game-container.full-screen {
+            padding: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Main Menu Styles - Handled by Tailwind in GameController.js */
         .main-menu {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            text-align: center;
-        }
-
-        .menu-header {
-            margin-bottom: 40px;
-        }
-
-        .menu-logo {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-15px);
-            }
-        }
-
-        .menu-title {
-            font-family: 'Fredoka', sans-serif;
-            font-size: 48px;
-            font-weight: 700;
-            color: var(--light);
-            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
-            margin-bottom: 10px;
-        }
-
-        .menu-subtitle {
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .menu-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            margin-bottom: 30px;
-            align-items: center;
+            position: relative;
+            z-index: 2100;
         }
 
         .menu-btn {
-            padding: 14px 24px;
-            border: none;
-            border-radius: 14px;
-            font-family: 'Fredoka', sans-serif;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.24s ease;
-            min-width: 300px;
             position: relative;
-            overflow: hidden;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            z-index: 2101;
         }
 
-        .menu-btn .btn-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .menu-btn .btn-icon {
-            font-size: 22px;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .menu-btn .btn-title {
-            font-size: 16px;
-        }
-
-        .menu-btn .btn-sub {
-            font-size: 12px;
-            opacity: 0.85;
-            color: rgba(255, 255, 255, 0.9);
-            display: block;
-        }
-
-        .menu-btn.primary {
-            background: linear-gradient(90deg, #FFD76B 0%, #F39C12 100%);
-            color: var(--dark);
-            box-shadow: 0 8px 30px rgba(243, 156, 18, 0.18), 0 2px 6px rgba(0, 0, 0, 0.25);
-        }
-
-        .menu-btn.primary:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 16px 40px rgba(243, 156, 18, 0.22);
-        }
-
-        /* Animated gradient pulse for primary */
-        .menu-btn.primary::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(120deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.06) 100%);
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-
-        .menu-btn.primary:hover::before {
-            opacity: 1;
-        }
-
-        .menu-btn.secondary {
-            background: rgba(255, 255, 255, 0.04);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .menu-btn.secondary:hover {
-            transform: translateY(-3px);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        /* Ripple */
-        .btn-ripple {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            background: rgba(255, 255, 255, 0.22);
-            border-radius: 50%;
-            transform-origin: center;
-            pointer-events: none;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(0);
-        }
-
-        /* Focus and keyboard */
-        .menu-btn:focus {
-            outline: none;
-        }
-
-        .menu-btn:focus-visible {
-            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.12), 0 8px 30px rgba(0, 0, 0, 0.25);
-            transform: translateY(-2px);
-        }
-
-        .menu-info {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 14px;
-            line-height: 1.6;
-            max-width: 640px;
-            margin-top: 6px;
-        }
 
         /* Tutorial Overlay */
         #tutorial-overlay {
@@ -519,7 +373,7 @@
             bottom: 20px;
             right: 40px;
             font-size: 120px;
-            z-index: 2001;
+            z-index: 2200;
             filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             user-select: none;
@@ -537,7 +391,7 @@
             max-width: 350px;
             font-weight: 500;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-            z-index: 2002;
+            z-index: 2201;
         }
 
         .dialogue-bubble::after {
@@ -791,6 +645,41 @@
             background: rgba(255, 255, 255, 0.15);
             border-color: var(--accent);
             color: var(--light);
+        }
+
+        /* Auto-target inputs in baking phase */
+        .auto-target-input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            width: 60px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .auto-target-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .btn-auto-apply {
+            background: rgba(46, 204, 113, 0.8);
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-auto-apply:hover {
+            background: rgba(46, 204, 113, 1);
+            transform: scale(1.05);
         }
 
         /* Buying Layout */
@@ -2450,6 +2339,20 @@
             border-color: var(--danger);
         }
 
+        .game-popup.insight {
+            border-color: #9b59b6;
+            background: linear-gradient(145deg, #2c1810 0%, #4a235a 100%);
+            box-shadow: 0 0 30px rgba(155, 89, 182, 0.4);
+        }
+        .game-popup.insight .popup-title {
+            color: #e8daef;
+            font-family: 'Fredoka', cursive;
+        }
+        .game-popup.insight .popup-message {
+            font-family: 'Courier New', monospace; /* Typewriter feel */
+            line-height: 1.6;
+        }
+
         .popup-icon {
             font-size: 64px;
             margin-bottom: 15px;
@@ -3500,8 +3403,9 @@
             transform: translateX(-50%) translateZ(0);
             background: linear-gradient(90deg, #1a0f0a, #3e2315, #1a0f0a);
             border-radius: 4px;
-            z-index: 10;
+            z-index: 1;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            pointer-events: none;
         }
 
         .book-page-wrapper {
@@ -3513,6 +3417,7 @@
             transform-origin: center left;
             transform-style: preserve-3d;
             z-index: 5;
+            pointer-events: none;
         }
 
         .book-page-wrapper.left {
@@ -3536,6 +3441,9 @@
             overflow-y: auto;
             color: #2c1810;
             font-family: 'Inter', sans-serif;
+            position: relative;
+            z-index: 20;
+            pointer-events: auto;
         }
 
         .book-content::-webkit-scrollbar {
@@ -3556,6 +3464,9 @@
             padding: 4px 0;
             font-size: 1.1rem;
             transition: border-color 0.2s;
+            position: relative;
+            z-index: 30;
+            pointer-events: auto;
         }
         .handwritten-input:focus {
             outline: none;
@@ -3616,12 +3527,13 @@
         </div>
 
         <!-- Phase Indicator -->
-        <div id="phase-indicator">
-            <div class="phase-step" id="phase-setup">🏗️ Setup</div>
-            <div class="phase-step" id="phase-buying">📦 Buy</div>
-            <div class="phase-step" id="phase-baking">🍞 Bake</div>
-            <div class="phase-step" id="phase-selling">💰 Sell</div>
-            <div class="phase-step" id="phase-summary">📊 Summary</div>
+        <div id="phase-indicator" style="position: relative;">
+            <div class="phase-highlight" style="position: absolute; top: 0; bottom: 0; background: rgba(255, 215, 0, 0.2); border-radius: 20px; z-index: 0; pointer-events: none; display: none;"></div>
+            <div class="phase-step" id="phase-setup" style="z-index: 1;">🏗️ Setup</div>
+            <div class="phase-step" id="phase-buying" style="z-index: 1;">📦 Buy</div>
+            <div class="phase-step" id="phase-baking" style="z-index: 1;">🍞 Bake</div>
+            <div class="phase-step" id="phase-selling" style="z-index: 1;">💰 Sell</div>
+            <div class="phase-step" id="phase-summary" style="z-index: 1;">📊 Summary</div>
         </div>
 
         <!-- Main Game Container -->

@@ -118,8 +118,10 @@ class FinancialEngine {
         this.pricingOverrides = {};
         this.applyPricingStrategy();
 
-        // Event callbacks
-        this.callbacks = {};
+        // Event callbacks (preserve if already exists to keep listeners)
+        if (!this.callbacks) {
+            this.callbacks = {};
+        }
     }
 
     on(event, callback) {
