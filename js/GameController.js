@@ -337,10 +337,10 @@ class GameController {
         this.stopBakingLoop();
         this.stopSellingLoop();
         this.currentPhase = 'recipes';
-        
+
         const container = document.getElementById('game-container');
         if (!container) return;
-        
+
         container.classList.remove('full-screen');
         container.style.padding = '';
 
@@ -380,21 +380,21 @@ class GameController {
         `;
 
         document.getElementById('btn-recipe-exit').onclick = () => this.showModeHub();
-        
+
         this.renderRecipeCreationSpread();
         this.setupRecipeBookEvents();
         this.renderCustomRecipeLibrary();
 
         // Animate book entrance
         if (window.gsap) {
-            gsap.from('.recipe-book-container', { 
-                duration: 1, 
-                y: 50, 
-                opacity: 0, 
+            gsap.from('.recipe-book-container', {
+                duration: 1,
+                y: 50,
+                opacity: 0,
                 ease: 'power3.out',
                 delay: 0.1
             });
-            
+
             // Open the book effect
             gsap.from('.book-page-wrapper.left', {
                 duration: 1.5,
@@ -410,16 +410,16 @@ class GameController {
 
     initRecipeBookDraggable() {
         if (!window.Draggable) return;
-        
+
         Draggable.create("#recipe-book-3d", {
             type: "rotation",
             trigger: ".recipe-book-container",
             inertia: true,
             bounds: { minRotation: -10, maxRotation: 10 }, // Subtle tilt
-            onDrag: function() {
+            onDrag: function () {
                 gsap.to(".recipe-book-3d", { rotationY: this.x / 5, duration: 0.1 });
             },
-            onRelease: function() {
+            onRelease: function () {
                 gsap.to(".recipe-book-3d", { rotationY: 0, duration: 0.5, ease: "elastic.out(1, 0.3)" });
             }
         });
@@ -428,7 +428,7 @@ class GameController {
     renderRecipeCreationSpread() {
         const leftPage = document.getElementById('book-page-left');
         const rightPage = document.getElementById('book-page-right');
-        
+
         if (!leftPage || !rightPage) return;
 
         // --- Left Page Content ---
@@ -526,7 +526,7 @@ class GameController {
     toggleIngredient(el) {
         const inputContainer = el.querySelector('.amount-control');
         const input = inputContainer.querySelector('input');
-        
+
         if (el.classList.contains('active')) {
             // Deactivate
             el.classList.remove('active', 'bg-amber-100', 'border-amber-400');
@@ -551,7 +551,7 @@ class GameController {
         if (nameInput) nameInput.addEventListener('input', () => this.updateRecipePreview());
         if (typeInput) typeInput.addEventListener('change', () => this.updateRecipePreview());
         if (saveBtn) saveBtn.addEventListener('click', (e) => this.handleRecipeCreation(e));
-        
+
         // Expose toggleIngredient to global scope for inline onclick
         // window.game is already set in DOMContentLoaded
     }
@@ -559,10 +559,10 @@ class GameController {
     getIngredientOptions(role) {
         return Object.entries(GAME_CONFIG.INGREDIENTS || {})
             .filter(([, ing]) => (ing.role || 'base') === role)
-            .map(([key, ing]) => ({ 
-                key, 
-                ...ing, 
-                defaultAmount: role === 'base' ? (ing.defaultAmount || 0.5) : 0.2 
+            .map(([key, ing]) => ({
+                key,
+                ...ing,
+                defaultAmount: role === 'base' ? (ing.defaultAmount || 0.5) : 0.2
             }))
             .sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -573,16 +573,16 @@ class GameController {
 
         const name = nameInput.value.trim();
         const pastryType = document.getElementById('pastry-type').value;
-        
+
         const base = {};
         const extra = {};
-        
+
         // Scan all active pills
         document.querySelectorAll('.ingredient-pill.active').forEach(pill => {
             const key = pill.dataset.key;
             const role = pill.dataset.role;
             const amount = parseFloat(pill.querySelector('input').value) || 0;
-            
+
             if (amount > 0) {
                 if (role === 'extra') extra[key] = amount;
                 else base[key] = amount;
@@ -623,7 +623,7 @@ class GameController {
         if (!statsContainer) return;
 
         const data = this.collectRecipeFormData({ skipValidation: true });
-        
+
         if (!data || Object.keys(data.ingredients).length === 0) {
             statsContainer.innerHTML = `
                 <div class="text-center"><span class="block opacity-60 text-xs">Cost</span><span class="font-bold text-lg">-</span></div>
@@ -633,7 +633,7 @@ class GameController {
         }
 
         const stats = this.calculateCustomRecipeStats(data);
-        
+
         statsContainer.innerHTML = `
             <div class="text-center">
                 <span class="block opacity-60 text-xs uppercase tracking-wider">Batch Cost</span>
@@ -663,7 +663,7 @@ class GameController {
         this.customRecipes = this.customRecipes.filter(entry => entry.key !== recipe.configKey);
         this.customRecipes.unshift({ key: recipe.configKey, name: recipe.name, icon: recipe.icon, pastryType: recipe.pastryType });
         this.showPopup({ icon: '🥨', title: 'Recipe Saved!', message: `${recipe.name} added to your cookbook.`, type: 'success', autoClose: 1600 });
-        
+
         // Reset form
         this.renderRecipeCreationSpread();
         this.renderCustomRecipeLibrary();
@@ -709,10 +709,10 @@ class GameController {
 
         // Reset first
         this.renderRecipeCreationSpread();
-        
+
         const nameInput = document.getElementById('recipe-name');
         const typeInput = document.getElementById('pastry-type');
-        
+
         if (nameInput) nameInput.value = `${recipe.name} Remix`;
         if (typeInput) typeInput.value = recipe.pastryType || recipe.category || 'pastry';
 
@@ -879,27 +879,27 @@ class GameController {
                 duration: 0.8,
                 ease: 'elastic.out(1, 0.8)'
             })
-            .to('.menu-title', {
-                y: 0,
-                opacity: 1,
-                duration: 0.6
-            }, '-=0.4')
-            .to('.menu-subtitle', {
-                y: 0,
-                opacity: 1,
-                duration: 0.6
-            }, '-=0.45')
-            .to('.menu-btn', {
-                y: 0,
-                opacity: 1,
-                duration: 0.45,
-                stagger: 0.12
-            }, '-=0.3')
-            .to('.menu-info', {
-                y: 0,
-                opacity: 1,
-                duration: 0.6
-            }, '-=0.2');
+                .to('.menu-title', {
+                    y: 0,
+                    opacity: 1,
+                    duration: 0.6
+                }, '-=0.4')
+                .to('.menu-subtitle', {
+                    y: 0,
+                    opacity: 1,
+                    duration: 0.6
+                }, '-=0.45')
+                .to('.menu-btn', {
+                    y: 0,
+                    opacity: 1,
+                    duration: 0.45,
+                    stagger: 0.12
+                }, '-=0.3')
+                .to('.menu-info', {
+                    y: 0,
+                    opacity: 1,
+                    duration: 0.6
+                }, '-=0.2');
 
             // Continuous float for logo
             gsap.to('.menu-logo', {
@@ -980,20 +980,20 @@ class GameController {
         try {
             console.log('Resetting engine...');
             this.engine.reset();
-            
+
             if (this.strategySettings) {
                 console.log('Setting strategy settings...');
                 this.engine.setStrategySettings(this.strategySettings);
             }
-            
+
             console.log('Resetting recipes and automation...');
             this.customRecipes = [];
             this.recipeBookState.page = 0;
             this.updateAutomationAvailability();
-            
+
             console.log('Clearing save data...');
             localStorage.removeItem('bakery_save');
-            
+
             console.log('Going to setup phase...');
             this.goToPhase('setup');
             console.log('New game setup complete');
@@ -1041,11 +1041,11 @@ class GameController {
             if (!container) {
                 throw new Error('game-container element not found');
             }
-            
+
             console.log('Setting up container...');
             container.classList.add('full-screen');
             container.style.padding = '';
-            
+
             this.setupChoices = {
                 location: null,
                 financing: null,
@@ -2920,7 +2920,7 @@ class GameController {
     updatePhaseIndicator() {
         const phases = ['setup', 'buying', 'baking', 'selling', 'summary'];
         const highlight = document.querySelector('.phase-highlight');
-        
+
         // Skip Flip animation - it's causing issues with "I is not a function" error in GSAP Flip plugin
         // Just use simple transitions instead
         let state = null;
@@ -2931,13 +2931,13 @@ class GameController {
                 const isActive = phase === this.currentPhase;
                 el.classList.toggle('active', isActive);
                 el.classList.toggle('complete', phases.indexOf(phase) < phases.indexOf(this.currentPhase));
-                
+
                 if (isActive && highlight) {
                     highlight.style.display = 'block';
                     // Move highlight to active element
                     const rect = el.getBoundingClientRect();
                     const parentRect = el.parentElement.getBoundingClientRect();
-                    
+
                     // Use GSAP for smooth animation instead of Flip
                     if (window.gsap) {
                         gsap.to(highlight, {
@@ -2967,7 +2967,7 @@ class GameController {
             message: message,
             type: 'insight', // Custom style
             typingEffect: true,
-            buttons: [{ text: 'Got it', style: 'primary', action: () => {} }]
+            buttons: [{ text: 'Got it', style: 'primary', action: () => { } }]
         });
     }
 
@@ -2980,12 +2980,12 @@ class GameController {
         coin.style.fontSize = '24px';
         coin.style.zIndex = '9999';
         coin.style.pointerEvents = 'none';
-        
+
         // Start position
         const startRect = fromElement ? fromElement.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
         coin.style.left = startRect.left + 'px';
         coin.style.top = startRect.top + 'px';
-        
+
         document.body.appendChild(coin);
 
         // Target: Nav Cash
@@ -3596,6 +3596,340 @@ class GameController {
                 message: result.message,
                 type: 'error'
             });
+        }
+    }
+
+    // ==================== FINANCIAL EDUCATION SYSTEM ====================
+
+    /**
+     * Show educational popup for a financial term
+     * @param {string} termKey - Key from FINANCIAL_EDUCATION.terms
+     */
+    showEducationPopup(termKey) {
+        if (!window.FINANCIAL_EDUCATION || !FINANCIAL_EDUCATION.terms[termKey]) {
+            console.warn('Education term not found:', termKey);
+            return;
+        }
+
+        const term = FINANCIAL_EDUCATION.terms[termKey];
+
+        // Remove existing popup
+        document.querySelectorAll('.edu-popup-overlay').forEach(el => el.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'edu-popup-overlay';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+        overlay.innerHTML = `
+            <div class="edu-popup">
+                <div class="edu-popup-header">
+                    <span class="edu-popup-title">${term.term}</span>
+                    <span class="edu-popup-badge">📚 Financial Term</span>
+                    <button class="edu-popup-close" onclick="this.closest('.edu-popup-overlay').remove()">×</button>
+                </div>
+                <div class="edu-popup-body">
+                    <div class="edu-simple">${term.simple}</div>
+                    <div class="edu-detailed">${term.detailed}</div>
+                    
+                    ${term.realExample ? `
+                        <div class="edu-example">
+                            <div class="edu-example-label">💡 Real Example</div>
+                            <div class="edu-example-text">${term.realExample}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${term.worksWhen || term.failsWhen ? `
+                        <div class="edu-strategy">
+                            <div class="edu-works">
+                                <div class="edu-works-header">✅ Works When</div>
+                                <p>${term.worksWhen}</p>
+                            </div>
+                            <div class="edu-fails">
+                                <div class="edu-fails-header">⚠️ Fails When</div>
+                                <p>${term.failsWhen}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Animate in
+        if (window.gsap) {
+            gsap.from(overlay.querySelector('.edu-popup'), {
+                scale: 0.8, opacity: 0, y: 20, duration: 0.3, ease: 'back.out(1.5)'
+            });
+        }
+    }
+
+    /**
+     * Show strategy explanation popup
+     * @param {string} strategyKey - Key from FINANCIAL_EDUCATION.strategies
+     */
+    showStrategyExplanation(strategyKey) {
+        if (!window.FINANCIAL_EDUCATION || !FINANCIAL_EDUCATION.strategies[strategyKey]) {
+            return;
+        }
+
+        const strategy = FINANCIAL_EDUCATION.strategies[strategyKey];
+
+        document.querySelectorAll('.edu-popup-overlay').forEach(el => el.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'edu-popup-overlay';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+        overlay.innerHTML = `
+            <div class="edu-popup">
+                <div class="edu-popup-header">
+                    <span class="edu-popup-title">${strategy.name}</span>
+                    <span class="edu-popup-badge">🎯 Strategy</span>
+                    <button class="edu-popup-close" onclick="this.closest('.edu-popup-overlay').remove()">×</button>
+                </div>
+                <div class="edu-popup-body">
+                    <div class="edu-simple">${strategy.description}</div>
+                    
+                    <div class="edu-strategy">
+                        <div class="edu-works">
+                            <div class="edu-works-header">✅ Works When</div>
+                            <ul>${strategy.worksWhen.map(w => `<li>${w}</li>`).join('')}</ul>
+                        </div>
+                        <div class="edu-fails">
+                            <div class="edu-fails-header">⚠️ Fails When</div>
+                            <ul>${strategy.failsWhen.map(f => `<li>${f}</li>`).join('')}</ul>
+                        </div>
+                    </div>
+                    
+                    ${strategy.keyMetric ? `
+                        <div class="edu-example">
+                            <div class="edu-example-label">📊 Key Metric</div>
+                            <div class="edu-example-text">${strategy.keyMetric}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${strategy.realExample ? `
+                        <div class="edu-example">
+                            <div class="edu-example-label">💡 Real Example</div>
+                            <div class="edu-example-text">${strategy.realExample}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+    }
+
+    /**
+     * Show a "Did You Know?" tip card
+     */
+    showRandomTip() {
+        if (!window.FINANCIAL_EDUCATION || !FINANCIAL_EDUCATION.tips) return;
+
+        // Remove existing tip
+        document.querySelectorAll('.tip-card').forEach(el => el.remove());
+
+        const tips = FINANCIAL_EDUCATION.tips;
+        const tip = tips[Math.floor(Math.random() * tips.length)];
+
+        const card = document.createElement('div');
+        card.className = 'tip-card';
+        card.innerHTML = `
+            <div class="tip-card-header">
+                <span class="tip-card-icon">💡</span>
+                <span class="tip-card-label">Did You Know?</span>
+                <button class="tip-card-close" onclick="this.closest('.tip-card').remove()">×</button>
+            </div>
+            <div class="tip-card-text">${tip}</div>
+        `;
+
+        document.body.appendChild(card);
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (card.parentNode) {
+                if (window.gsap) {
+                    gsap.to(card, { x: 100, opacity: 0, duration: 0.3, onComplete: () => card.remove() });
+                } else {
+                    card.remove();
+                }
+            }
+        }, 10000);
+    }
+
+    /**
+     * Create an info button that opens education popup
+     * @param {string} termKey - Key from FINANCIAL_EDUCATION.terms
+     * @returns {string} - HTML string for the info button
+     */
+    createInfoButton(termKey) {
+        return `<button class="edu-info-btn" onclick="window.game.showEducationPopup('${termKey}')" title="Learn more">ℹ</button>`;
+    }
+
+    /**
+     * Show a dynamic scenario alert
+     * @param {Object} scenario - Scenario from DYNAMIC_SCENARIOS
+     */
+    showScenarioAlert(scenario) {
+        if (!scenario) return;
+
+        const formatted = window.DYNAMIC_SCENARIOS?.formatScenarioAlert(scenario);
+        if (!formatted) return;
+
+        // Remove existing alerts
+        document.querySelectorAll('.scenario-alert').forEach(el => el.remove());
+
+        const alert = document.createElement('div');
+        alert.className = 'scenario-alert';
+        alert.innerHTML = `
+            <div class="scenario-alert-header">
+                <span class="scenario-alert-icon">${formatted.icon}</span>
+                <span class="scenario-alert-title">⚠️ ${formatted.title}</span>
+            </div>
+            <div class="scenario-alert-body">
+                <div class="scenario-alert-message">${formatted.message}</div>
+                <div class="scenario-options">
+                    ${formatted.options.map((opt, i) => `
+                        <button class="scenario-option" data-option="${opt.id}" data-index="${i}">
+                            ${opt.text}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="scenario-lesson" id="scenario-lesson"></div>
+            </div>
+        `;
+
+        document.body.appendChild(alert);
+
+        // Handle option selection
+        alert.querySelectorAll('.scenario-option').forEach(btn => {
+            btn.onclick = () => {
+                const optionId = btn.dataset.option;
+                const index = parseInt(btn.dataset.index);
+                const option = formatted.options[index];
+
+                // Show the lesson
+                const lessonEl = document.getElementById('scenario-lesson');
+                if (lessonEl && option.lesson) {
+                    lessonEl.style.display = 'block';
+                    lessonEl.innerHTML = `<strong>📚 Lesson:</strong> ${option.lesson}`;
+                }
+
+                // Highlight selected
+                alert.querySelectorAll('.scenario-option').forEach(b => b.style.opacity = '0.5');
+                btn.style.opacity = '1';
+                btn.style.border = '2px solid #fbbf24';
+
+                // Apply scenario effect (to be implemented based on game logic)
+                this.applyScenarioChoice(scenario.id, optionId, option.effect);
+
+                // Auto-close after showing lesson
+                setTimeout(() => {
+                    if (window.gsap) {
+                        gsap.to(alert, { y: -50, opacity: 0, duration: 0.3, onComplete: () => alert.remove() });
+                    } else {
+                        alert.remove();
+                    }
+                }, 5000);
+            };
+        });
+    }
+
+    /**
+     * Apply the effects of a scenario choice
+     */
+    applyScenarioChoice(scenarioId, choiceId, effect) {
+        // Log the decision for learning analytics
+        console.log(`Scenario: ${scenarioId}, Choice: ${choiceId}, Effect: ${effect}`);
+
+        // Show a follow-up insight
+        setTimeout(() => {
+            this.showRandomTip();
+        }, 6000);
+    }
+
+    /**
+     * Check for scenario triggers (call this at day start or phase transitions)
+     */
+    checkForScenarios() {
+        if (!window.DYNAMIC_SCENARIOS) return;
+
+        const gameState = {
+            day: this.engine?.day || 1,
+            staff: this.engine?.staff || [],
+            month: new Date().getMonth() + 1,
+            season: this.getSeason()
+        };
+
+        const triggered = DYNAMIC_SCENARIOS.checkScenarioTriggers(gameState);
+        if (triggered) {
+            // Delay slightly so player sees the scenario after phase loads
+            setTimeout(() => this.showScenarioAlert(triggered), 1500);
+        }
+    }
+
+    getSeason() {
+        const month = new Date().getMonth() + 1;
+        if (month >= 3 && month <= 5) return 'spring';
+        if (month >= 6 && month <= 8) return 'summer';
+        if (month >= 9 && month <= 11) return 'fall';
+        return 'winter';
+    }
+
+    /**
+     * Start the walkthrough mode
+     */
+    startWalkthrough() {
+        if (!window.WalkthroughMode) {
+            this.showPopup({
+                icon: '❌',
+                title: 'Walkthrough Unavailable',
+                message: 'Walkthrough mode is still loading.',
+                type: 'error',
+                autoClose: 2000
+            });
+            return;
+        }
+
+        this.walkthrough = new WalkthroughMode(this);
+        this.walkthrough.start();
+    }
+
+    /**
+     * Show notification (simple toast)
+     */
+    showNotification(message, type = 'info') {
+        const colors = {
+            info: '#3b82f6',
+            success: '#22c55e',
+            warning: '#f59e0b',
+            error: '#ef4444'
+        };
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        if (window.gsap) {
+            gsap.from(toast, { y: 20, opacity: 0, duration: 0.3 });
+            gsap.to(toast, { y: -20, opacity: 0, duration: 0.3, delay: 3, onComplete: () => toast.remove() });
+        } else {
+            setTimeout(() => toast.remove(), 3500);
         }
     }
 }

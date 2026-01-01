@@ -83,3 +83,13 @@ reason i can't change pastry type or name is a gsap animation I'm able to tilt t
 also all ingredients amount in recipe book are unchangeable but clickable
 
 in pre-op phase, all helpful tips text or informational text, check metro reality, and buisness advice, and change all inside buildings background area to dynamic dark colors 
+
+My game currently has very little financial education value, when teens play my game,
+I want them to learn about the financial world behind running a business, including
+the technical terms of setting up a business, so when they start their own business someday,
+they practically know what to expect, what type of numbers to expect, know what and how of the legal side of buisness,
+and know how to manage their money and assets effectively, what decisions a buisness owner has to make. Plan out
+how to integrate really useful info from top finance books, blogs, reputable websites about
+money management, business management, and business strategy, legal details of buisness, etc...
+Make sure to not use too many AI token credits as I have limited. Focus the tokens on implementing actual changes to the plan.
+Try not to get stuck debugging, don't open a browser to test the game, I'll do the debugging.
