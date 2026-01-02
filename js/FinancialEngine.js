@@ -53,6 +53,9 @@ class FinancialEngine {
         }
         this.lastEconomyDay = 0;  // Track when we last simulated economy
         this.economyReport = null;  // Latest economy report
+        
+        // Customer database
+        this.customerDB = null; // Initialized by GameController
 
         // Business Philosophy & Strategy
         if (window.BusinessPhilosophy) {

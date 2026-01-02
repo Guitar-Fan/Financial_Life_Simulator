@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rise & Dough - Bakery Business Simulator</title>
+    <title>Sweet Success Bakery - Bakery Business Simulator</title>
 
     <!-- Eruda for Mobile Debugging -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
@@ -3943,7 +3943,8 @@
             </div>
 
             <div class="nav-actions">
-                <button class="nav-btn" id="btn-staff" style="display: none;">👥 Staff</button>
+                <button class="nav-btn" id="btn-customers" style="display: none;">👥 Customers</button>
+                <button class="nav-btn" id="btn-staff" style="display: none;">🧑‍🍳 Staff</button>
                 <button class="nav-btn" id="btn-strategy" style="display: none;">🎯 Strategy</button>
                 <button class="nav-btn" id="btn-equipment" style="display: none;">⚙️ Equipment</button>
                 <button class="nav-btn" id="btn-dashboard" style="display: none;">📊 Market</button>
@@ -3979,6 +3980,7 @@
     <script src="js/TutorialSystem.js"></script>
     <script src="js/FinancialEducation.js"></script>
     <script src="js/DynamicScenarios.js"></script>
+    <script src="js/CustomerDatabase.js"></script>
     <script src="js/WalkthroughMode.js"></script>
     <script src="js/ModeHubScene.js"></script>
     <script src="js/Bakery_Startup_Sequence.js"></script>
@@ -3998,6 +4000,13 @@
         document.getElementById('btn-dashboard').addEventListener('click', () => {
             if (window.game && window.game.dashboard) {
                 window.game.dashboard.show();
+            }
+        });
+        
+        // Customer database button handler
+        document.getElementById('btn-customers').addEventListener('click', () => {
+            if (window.game && window.game.showCustomerDatabase) {
+                window.game.showCustomerDatabase();
             }
         });
     </script>

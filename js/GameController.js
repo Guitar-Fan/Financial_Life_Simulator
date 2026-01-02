@@ -25,6 +25,9 @@ class GameController {
         this.customRecipes = [];
         this.recipeBookState = { page: 0, perSpread: 2 };
 
+        this.activeScenarioEffects = [];
+        this.lastScenarioRollDay = null;
+
         this.init();
     }
 
@@ -34,6 +37,12 @@ class GameController {
 
         // Connect the economy to the engine
         this.engine.economy = this.economy;
+        
+        // Initialize customer database
+        if (window.CustomerDatabase) {
+            this.customerDB = new CustomerDatabase(this.engine);
+            this.engine.customerDB = this.customerDB;
+        }
 
         this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
         this.tutorial = new TutorialSystem(this);
@@ -105,6 +114,66 @@ class GameController {
         this.engine.on('staff_trained', (staff) => {
             this.logAutomationEvent('staff', `${staff.name} completed training`, { staff: staff.name });
             this.renderAutomationFeed();
+        });
+        
+        // Customer incident events
+        this.engine.on('customer_incident', (data) => {
+            this.handleCustomerIncident(data);
+        });
+    }
+    
+    handleCustomerIncident(data) {
+        const { customer, incident, effects } = data;
+        
+        let icon = '⚠️';
+        let type = 'warning';
+        
+        if (effects.satisfaction > 0) {
+            icon = '🌟';
+            type = 'success';
+        } else if (effects.satisfaction < -20) {
+            icon = '🚨';
+            type = 'danger';
+        }
+        
+        let message = `${customer.name}: ${incident.name}`;
+        
+        // Add effect descriptions
+        const effectList = [];
+        if (effects.satisfaction) {
+            effectList.push(`Satisfaction ${effects.satisfaction > 0 ? '+' : ''}${effects.satisfaction}`);
+        }
+        if (effects.newCustomers) {
+            effectList.push(`+${effects.newCustomers} new customers!`);
+        }
+        if (effects.opportunityRevenue) {
+            effectList.push(`Custom order worth $${effects.opportunityRevenue.toFixed(2)}`);
+        }
+        
+        if (effectList.length > 0) {
+            message += '\n' + effectList.join(', ');
+        }
+        
+        this.showPopup({
+            icon: icon,
+            title: incident.name,
+            message: message,
+            type: type,
+            autoClose: effects.opportunityRevenue ? false : 3000,
+            buttons: effects.opportunityRevenue ? [
+                { 
+                    text: 'Accept Order', 
+                    action: () => {
+                        this.engine.cash += effects.opportunityRevenue;
+                        customer.customOrders.push({
+                            date: this.engine.day,
+                            amount: effects.opportunityRevenue
+                        });
+                        this.showNotification(`Accepted custom order for $${effects.opportunityRevenue.toFixed(2)}`, 'success');
+                    }
+                },
+                { text: 'Decline', action: () => {}, style: 'secondary' }
+            ] : undefined
         });
     }
 
@@ -1193,11 +1262,14 @@ class GameController {
         this.currentPhase = 'hub';
         window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase: 'hub' } }));
 
+        this.purgeExpiredScenarioEffects();
+
         // Show dashboard, staff, and equipment buttons
         const dashboardBtn = document.getElementById('btn-dashboard');
         const staffBtn = document.getElementById('btn-staff');
         const equipmentBtn = document.getElementById('btn-equipment');
         const strategyBtn = document.getElementById('btn-strategy');
+        const customersBtn = document.getElementById('btn-customers');
         if (dashboardBtn) dashboardBtn.style.display = 'inline-block';
         if (staffBtn) {
             staffBtn.style.display = 'inline-block';
@@ -1210,6 +1282,10 @@ class GameController {
         if (strategyBtn) {
             strategyBtn.style.display = 'inline-block';
             strategyBtn.onclick = () => this.showStrategyPanel();
+        }
+        if (customersBtn && this.customerDB) {
+            customersBtn.style.display = 'inline-block';
+            customersBtn.onclick = () => this.showCustomerDatabase();
         }
 
         const container = document.getElementById('game-container');
@@ -1271,6 +1347,7 @@ class GameController {
             ${eventsHtml}
         `;
         container.appendChild(dashboard);
+        this.checkForScenarios();
     }
 
     enterPhaseFromHub(phase) {
@@ -1289,6 +1366,11 @@ class GameController {
         this.engine.isPaused = true;
         this.engine.hour = GAME_CONFIG.TIME.OPENING_HOUR;
         this.engine.minute = 0;
+        
+        // Start customer database day
+        if (this.customerDB) {
+            this.customerDB.startDay();
+        }
 
         this.showPopup({
             icon: '🌅',
@@ -2380,6 +2462,9 @@ class GameController {
         let lastTime = performance.now();
         this.lastCustomerTime = lastTime;
 
+        this.purgeExpiredScenarioEffects();
+        this.checkForScenarios();
+
         const loop = () => {
             const now = performance.now();
             const delta = now - lastTime;
@@ -2410,7 +2495,10 @@ class GameController {
                 const timeSinceLastCustomer = now - this.lastCustomerTime;
                 const hourMult = GAME_CONFIG.DEMAND.hourlyMultiplier[Math.floor(this.engine.hour)] || 0.5;
                 const appealMult = this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1;
-                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult) / 60 / 10;
+                const scenarioDemand = this.getScenarioModifier('demand');
+                const scenarioTraffic = this.getScenarioModifier('traffic');
+                const loyaltyBoost = 1 + this.getScenarioModifier('loyalty', { defaultValue: 0, operation: 'add' });
+                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * loyaltyBoost) / 60 / 10;
 
                 if (timeSinceLastCustomer > 2000 && Math.random() < spawnChance) {
                     this.spawnCustomer();
@@ -2442,8 +2530,26 @@ class GameController {
     }
 
     spawnCustomer() {
-        const customer = GAME_CONFIG.CUSTOMERS[Math.floor(Math.random() * GAME_CONFIG.CUSTOMERS.length)];
-        const segment = this.engine.selectCustomerSegment();
+        // Use customer database if available
+        let customerData = null;
+        if (this.customerDB) {
+            const dailyCustomers = this.customerDB.generateDailyCustomers(1);
+            if (dailyCustomers && dailyCustomers.length > 0) {
+                customerData = dailyCustomers[0];
+            }
+        }
+        
+        // Fallback to old system
+        if (!customerData) {
+            const customer = GAME_CONFIG.CUSTOMERS[Math.floor(Math.random() * GAME_CONFIG.CUSTOMERS.length)];
+            const segment = this.engine.selectCustomerSegment();
+            customerData = { ...customer, segment };
+        }
+        
+        const segment = customerData.segment ? 
+            (typeof customerData.segment === 'string' ? GAME_CONFIG.CUSTOMER_SEGMENTS[customerData.segment] : customerData.segment) :
+            this.engine.selectCustomerSegment();
+            
         const greetings = GAME_CONFIG.CUSTOMER_DIALOGUES.greeting;
         const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
@@ -2462,11 +2568,18 @@ class GameController {
             })
             .map(([key]) => key);
 
-        // If nothing matches price requirements, they might still pick something but refuse later
-        // or just leave. For now let's just use available logic or random if none valid (so they can complain)
-
+        // Check customer's favorite items if from database
         let wantsItem = null;
-        if (available.length > 0) {
+        if (customerData.favoriteItems && customerData.favoriteItems.length > 0) {
+            const favoritesAvailable = customerData.favoriteItems
+                .filter(fav => available.includes(fav.item))
+                .sort((a, b) => b.count - a.count);
+            if (favoritesAvailable.length > 0 && Math.random() < 0.7) {
+                wantsItem = favoritesAvailable[0].item;
+            }
+        }
+        
+        if (!wantsItem && available.length > 0) {
             const toppingFriendly = this.engine.getToppingScore
                 ? available.filter(key => this.engine.getToppingScore(key) > 0)
                 : [];
@@ -2476,12 +2589,10 @@ class GameController {
             } else {
                 wantsItem = available[Math.floor(Math.random() * available.length)];
             }
-        } else {
-            // Check if we have stock at all?
+        } else if (!wantsItem) {
+            // Check if we have stock at all
             const anyStock = Object.keys(this.engine.products).some(k => this.engine.getProductStock(k) > 0);
             if (anyStock) {
-                // Have stock but too expensive for this customer
-                // Pick random item to complain about price
                 const allStock = Object.entries(this.engine.products)
                     .filter(([k, p]) => p.quantity > 0)
                     .map(([k]) => k);
@@ -2497,8 +2608,8 @@ class GameController {
             if (customerArea) {
                 customerArea.innerHTML = `
                     <div class="customer-popup">
-                        <div class="customer-face" style="font-size: 64px;">${customer.face}</div>
-                        <div class="customer-name">${customer.name}</div>
+                        <div class="customer-face" style="font-size: 64px;">${customerData.face || '🙂'}</div>
+                        <div class="customer-name">${customerData.name || 'Customer'}</div>
                         <div class="customer-dialogue">"${message}"</div>
                         <div class="customer-mood">😢 Disappointed</div>
                     </div>
@@ -2522,7 +2633,9 @@ class GameController {
 
         const newCustomer = {
             id: `cust-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            ...customer,
+            face: customerData.face || '🙂',
+            name: customerData.name || 'Customer',
+            dbId: customerData.id, // Link to database
             segment,
             greeting,
             wantsItem,
@@ -2551,6 +2664,16 @@ class GameController {
         if (!result.success) {
             this.handleOutOfStock(customer);
             return;
+        }
+
+        // Record purchase in customer database
+        if (this.customerDB && customer.dbId) {
+            const dbCustomer = this.customerDB.customers.get(customer.dbId);
+            if (dbCustomer) {
+                const quality = result.quality || 100;
+                const price = result.revenue || 0;
+                this.customerDB.processPurchase(dbCustomer, customer.wantsItem, price, quality);
+            }
         }
 
         const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
@@ -2770,8 +2893,15 @@ class GameController {
 
         // Simulate economic changes for the new day
         this.economy.simulateDay(this.engine.day);
+        
+        // End customer database day
+        if (this.customerDB) {
+            this.customerDB.endDay();
+        }
 
         const summary = this.engine.endDay();
+
+        this.purgeExpiredScenarioEffects();
 
         // Record business metrics in economic simulation
         this.economy.recordBusinessMetrics({
@@ -3837,6 +3967,152 @@ class GameController {
         });
     }
 
+    applyScenarioEffect(effect, scenarioId) {
+        if (!effect) return;
+        if (typeof effect === 'string') {
+            this.applyScenarioEffectByName(effect, scenarioId);
+        } else if (typeof effect === 'object') {
+            this.applyScenarioEffectObject(effect);
+        }
+    }
+
+    applyScenarioEffectByName(effectName) {
+        const revenue = this.engine?.dailyStats?.revenue || 500;
+        const cogs = this.engine?.dailyStats?.cogs || 300;
+        const handlers = {
+            profitPenalty: () => this.adjustCash(-Math.max(200, revenue * 0.12), 'Profit penalty', 'warning'),
+            customerLoss: () => this.addScenarioEffect({ key: 'demand', multiplier: 0.7, duration: 3, label: 'Customer loss' }),
+            qualityRisk: () => this.damageIngredients(6),
+            cashFlowPressure: () => this.adjustCash(-Math.min(450, (this.engine?.cash || 1000) * 0.08), 'Cash flow squeeze', 'warning'),
+            brandStrength: () => this.addScenarioEffect({ key: 'loyalty', value: 0.2, duration: 4, label: 'Brand strength', operation: 'add' }),
+            marginCrunch: () => {
+                this.addScenarioEffect({ key: 'demand', multiplier: 0.85, duration: 3, label: 'Margin squeeze' });
+                this.engine.menuAppeal = Math.max(0.7, (this.engine.menuAppeal || 1) - 0.05);
+            },
+            loyaltyBoost: () => this.addScenarioEffect({ key: 'loyalty', value: 0.15, duration: 4, label: 'Loyalty boost', operation: 'add' }),
+            neutral: () => this.showNotification('Nothing additional happened this time.', 'info'),
+            partialRecovery: () => {
+                this.engine.menuAppeal = Math.min(1.8, (this.engine.menuAppeal || 1) + 0.1);
+                this.addScenarioEffect({ key: 'demand', multiplier: 1.05, duration: 2, label: 'Recovery focus' });
+            },
+            costSavings: () => this.adjustCash(Math.max(120, cogs * 0.05), 'Cost savings', 'success'),
+            newCustomers: () => this.addScenarioEffect({ key: 'demand', multiplier: 1.25, duration: 3, label: 'New customers' }),
+            readiness: () => {
+                this.engine.menuAppeal = Math.min(1.8, (this.engine.menuAppeal || 1) + 0.05);
+                this.addScenarioEffect({ key: 'loyalty', value: 0.05, duration: 3, label: 'Readiness', operation: 'add' });
+            },
+            laborCostIncrease: () => this.adjustCash(-Math.max(150, (this.engine?.monthlyStaffCost || 300) / 30 * 1.5), 'Labor cost increase', 'warning'),
+            shortTermChaos: () => {
+                this.addScenarioEffect({ key: 'demand', multiplier: 0.8, duration: 2, label: 'Short-term chaos' });
+                this.damageIngredients(4);
+            },
+            ownerBurnout: () => {
+                this.addScenarioEffect({ key: 'loyalty', value: -0.12, duration: 3, label: 'Owner burnout', operation: 'add' });
+                this.engine.menuAppeal = Math.max(0.7, (this.engine.menuAppeal || 1) - 0.06);
+            },
+            capitalDrain: () => this.adjustCash(-Math.max(280, cogs * 0.08), 'Capital drain', 'warning'),
+            brandProtection: () => this.addScenarioEffect({ key: 'loyalty', value: 0.12, duration: 4, label: 'Brand protection', operation: 'add' }),
+            profitBoost: () => this.adjustCash(Math.max(180, revenue * 0.08), 'Profit boost', 'success'),
+            listBuilding: () => this.addScenarioEffect({ key: 'loyalty', value: 0.08, duration: 3, label: 'List building', operation: 'add' }),
+            cheapFix: () => this.damageIngredients(7),
+            capitalExpense: () => this.adjustCash(-Math.max(250, (this.engine?.monthlyUtilities || 320) / 2), 'Capital expense', 'warning'),
+            quickFix: () => {
+                this.engine.menuAppeal = Math.min(1.8, (this.engine.menuAppeal || 1) + 0.08);
+                this.showNotification('Quick fix gave temporary lift.', 'success');
+            },
+            survival: () => this.addScenarioEffect({ key: 'demand', multiplier: 1.1, duration: 3, label: 'Survival focus' }),
+            compliance: () => this.addScenarioEffect({ key: 'demand', multiplier: 1.05, duration: 2, label: 'Compliance win' }),
+            riskDelay: () => this.addScenarioEffect({ key: 'demand', multiplier: 0.9, duration: 3, label: 'Risk delay' }),
+            adaptation: () => this.addScenarioEffect({ key: 'demand', multiplier: 1.1, duration: 3, label: 'Adaptation' }),
+            volumeFocus: () => this.addScenarioEffect({ key: 'demand', multiplier: 1.15, duration: 3, label: 'Volume focus' }),
+            revenueStreams: () => {
+                this.adjustCash(Math.max(200, revenue * 0.06), 'Revenue streams', 'success');
+                this.addScenarioEffect({ key: 'loyalty', value: 0.05, duration: 3, label: 'Revenue streams', operation: 'add' });
+            }
+        };
+
+        if (handlers[effectName]) {
+            handlers[effectName]();
+            return;
+        }
+
+        this.showNotification('Scenario effect noted.', 'info');
+    }
+
+    applyScenarioEffectObject(effect) {
+        const duration = this.normalizeScenarioDuration(effect.duration, 3);
+        if (effect.customerLoss) {
+            this.addScenarioEffect({ key: 'demand', multiplier: Math.max(0.4, 1 - effect.customerLoss), duration, label: 'Customer slump' });
+        }
+        if (effect.loyaltyDrop) {
+            this.addScenarioEffect({ key: 'loyalty', value: -effect.loyaltyDrop, duration, label: 'Loyalty drop', operation: 'add' });
+        }
+        if (effect.demandMultiplier) {
+            this.addScenarioEffect({ key: 'demand', multiplier: effect.demandMultiplier, duration, label: 'Demand surge' });
+        }
+        if (effect.morningCustomerLoss) {
+            const morningDuration = Math.max(1, Math.floor(duration / 2));
+            this.addScenarioEffect({ key: 'demand', multiplier: Math.max(0.5, 1 - effect.morningCustomerLoss), duration: morningDuration, label: 'Morning rush lost' });
+        }
+    }
+
+    addScenarioEffect({ key, multiplier = 1, value = 0, duration = 2, label = 'Scenario effect', operation, description }) {
+        if (!this.engine) return;
+        const normalized = this.normalizeScenarioDuration(duration, 2);
+        const expiresOnDay = this.engine.day + normalized - 1;
+        const operationUsed = operation || (key === 'loyalty' ? 'add' : 'multiply');
+        this.activeScenarioEffects.push({ key, multiplier, value, duration: normalized, label, operation: operationUsed, description, expiresOnDay });
+        const plural = normalized === 1 ? 'day' : 'days';
+        const isPositive = (operationUsed === 'add' && value > 0) || (operationUsed !== 'add' && multiplier > 1);
+        this.showNotification(`${label} active for ${normalized} ${plural}.`, isPositive ? 'success' : 'warning');
+    }
+
+    getScenarioModifier(key, options = {}) {
+        const { defaultValue, operation } = options;
+        const filtered = this.activeScenarioEffects.filter(effect => effect.key === key);
+        if (operation === 'add') {
+            const base = defaultValue ?? 0;
+            return filtered.reduce((sum, effect) => sum + (effect.value || 0), base);
+        }
+        const base = defaultValue ?? 1;
+        return filtered.reduce((acc, effect) => acc * (effect.multiplier ?? 1), base);
+    }
+
+    purgeExpiredScenarioEffects() {
+        if (!this.engine) return;
+        const day = this.engine.day;
+        this.activeScenarioEffects = this.activeScenarioEffects.filter(effect => day <= effect.expiresOnDay);
+    }
+
+    normalizeScenarioDuration(duration, fallback = 2) {
+        if (duration === 'permanent') return 365;
+        const asNumber = Number(duration);
+        if (Number.isFinite(asNumber) && asNumber > 0) {
+            return Math.max(1, Math.floor(asNumber));
+        }
+        return fallback;
+    }
+
+    adjustCash(amount, label, type = 'warning') {
+        if (!this.engine) return;
+        this.engine.cash = Math.max(0, this.engine.cash + amount);
+        if (label) {
+            const formatted = `${label}: ${amount >= 0 ? '+' : '-'}$${Math.abs(Math.round(amount))}`;
+            this.showNotification(formatted, type);
+        }
+    }
+
+    damageIngredients(amount = 5) {
+        if (!this.engine || !this.engine.ingredients) return;
+        Object.values(this.engine.ingredients).forEach(ingredient => {
+            ingredient.batches.forEach(batch => {
+                batch.quality = Math.max(0, batch.quality - amount);
+            });
+        });
+        this.engine.menuAppeal = Math.max(0.7, (this.engine.menuAppeal || 1) - amount * 0.003);
+        this.showNotification(`Ingredient quality dropped ${amount}%`, 'warning');
+    }
+
     /**
      * Apply the effects of a scenario choice
      */
@@ -3854,10 +4130,17 @@ class GameController {
      * Check for scenario triggers (call this at day start or phase transitions)
      */
     checkForScenarios() {
-        if (!window.DYNAMIC_SCENARIOS) return;
+        if (!window.DYNAMIC_SCENARIOS || !this.engine) return;
+        if (typeof document === 'undefined') return;
+        const today = this.engine.day;
+        if (!today || this.lastScenarioRollDay === today) return;
+        if (document.querySelector('.scenario-alert')) return;
+
+        this.lastScenarioRollDay = today;
+        this.purgeExpiredScenarioEffects();
 
         const gameState = {
-            day: this.engine?.day || 1,
+            day: today,
             staff: this.engine?.staff || [],
             month: new Date().getMonth() + 1,
             season: this.getSeason()
@@ -3930,6 +4213,299 @@ class GameController {
             gsap.to(toast, { y: -20, opacity: 0, duration: 0.3, delay: 3, onComplete: () => toast.remove() });
         } else {
             setTimeout(() => toast.remove(), 3500);
+        }
+    }
+    
+    // ==================== CUSTOMER DATABASE UI ====================
+    
+    showCustomerDatabase() {
+        if (!this.customerDB) {
+            this.showPopup({
+                icon: '❌',
+                title: 'Customer Database Unavailable',
+                message: 'Customer database system is not initialized.',
+                type: 'error',
+                autoClose: 2000
+            });
+            return;
+        }
+        
+        const analytics = this.customerDB.getAnalytics();
+        const topCustomers = this.customerDB.getTopCustomers(10);
+        const atRisk = this.customerDB.getAtRiskCustomers();
+        
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>👥 Customer Database & Analytics</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <!-- Customer Analytics Dashboard -->
+                    <div class="customer-analytics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white;">
+                            <div style="font-size: 12px; opacity: 0.9;">Total Customers</div>
+                            <div style="font-size: 32px; font-weight: bold;">${analytics.totalCustomers}</div>
+                            <div style="font-size: 11px; opacity: 0.8;">+${analytics.newToday} today</div>
+                        </div>
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white;">
+                            <div style="font-size: 12px; opacity: 0.9;">Returning Rate</div>
+                            <div style="font-size: 32px; font-weight: bold;">${analytics.returningRate}</div>
+                            <div style="font-size: 11px; opacity: 0.8;">Active: ${analytics.activeCustomers}</div>
+                        </div>
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white;">
+                            <div style="font-size: 12px; opacity: 0.9;">Avg Satisfaction</div>
+                            <div style="font-size: 32px; font-weight: bold;">${analytics.avgSatisfaction}%</div>
+                            <div style="font-size: 11px; opacity: 0.8;">NPS: ${analytics.npsScore}</div>
+                        </div>
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 12px; color: white;">
+                            <div style="font-size: 12px; opacity: 0.9;">Avg Spend</div>
+                            <div style="font-size: 32px; font-weight: bold;">$${analytics.avgSpend}</div>
+                            <div style="font-size: 11px; opacity: 0.8;">LTV: $${analytics.lifetimeValue}</div>
+                        </div>
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 20px; border-radius: 12px; color: white;">
+                            <div style="font-size: 12px; opacity: 0.9;">Churn Risk</div>
+                            <div style="font-size: 32px; font-weight: bold;">${analytics.churnRate}</div>
+                            <div style="font-size: 11px; opacity: 0.8;">At risk: ${atRisk.length}</div>
+                        </div>
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); padding: 20px; border-radius: 12px; color: #333;">
+                            <div style="font-size: 12px; opacity: 0.9;">Loyalty Members</div>
+                            <div style="font-size: 24px; font-weight: bold;">
+                                🥇${analytics.loyaltyDistribution.gold || 0} 
+                                🥈${analytics.loyaltyDistribution.silver || 0} 
+                                🥉${analytics.loyaltyDistribution.bronze || 0}
+                            </div>
+                            <div style="font-size: 11px; opacity: 0.8;">Platinum: ${analytics.loyaltyDistribution.platinum || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Marketing & Loyalty Tools -->
+                    <div class="marketing-section" style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">📢 Marketing & Loyalty</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                            ${!this.customerDB.loyaltyProgram.enabled ? `
+                                <button class="btn btn-primary" onclick="window.game.enableLoyalty()">
+                                    🎁 Enable Loyalty Program
+                                </button>
+                            ` : `
+                                <div style="padding: 15px; background: white; border-radius: 8px;">
+                                    ✅ Loyalty Program Active
+                                </div>
+                            `}
+                            ${Object.entries(this.customerDB.marketingChannels).map(([key, channel]) => `
+                                <div style="padding: 15px; background: white; border-radius: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <div style="font-weight: 600;">${key.replace(/_/g, ' ')}</div>
+                                            <div style="font-size: 12px; color: #666;">$${channel.cost}/month</div>
+                                        </div>
+                                        ${!channel.enabled ? `
+                                            <button class="btn btn-sm" onclick="window.game.enableMarketingChannel('${key}')">
+                                                Enable
+                                            </button>
+                                        ` : `
+                                            <span style="color: #2ecc71;">✓ Active</span>
+                                        `}
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <button class="btn btn-secondary" onclick="window.game.sendEmailCampaign()">
+                                📧 Send Email Campaign
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Customers -->
+                    <div class="top-customers-section" style="margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">⭐ Top Customers</h3>
+                        <div style="background: white; border-radius: 12px; overflow: hidden;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #f8f9fa;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left;">Name</th>
+                                        <th style="padding: 12px; text-align: left;">Age</th>
+                                        <th style="padding: 12px; text-align: center;">Visits</th>
+                                        <th style="padding: 12px; text-align: center;">Total Spent</th>
+                                        <th style="padding: 12px; text-align: center;">Satisfaction</th>
+                                        <th style="padding: 12px; text-align: center;">Loyalty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topCustomers.map((cust, idx) => `
+                                        <tr style="border-top: 1px solid #e9ecef; cursor: pointer;" onclick="window.game.showCustomerDetail(${cust.id})">
+                                            <td style="padding: 12px;">
+                                                ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ''}
+                                                ${cust.name}
+                                            </td>
+                                            <td style="padding: 12px;">${cust.ageGroup}</td>
+                                            <td style="padding: 12px; text-align: center;">${cust.visits}</td>
+                                            <td style="padding: 12px; text-align: center; font-weight: 600;">$${cust.totalSpent.toFixed(2)}</td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <div style="display: inline-block; padding: 4px 8px; border-radius: 12px; background: ${cust.satisfaction >= 80 ? '#d4edda' : cust.satisfaction >= 60 ? '#fff3cd' : '#f8d7da'}; color: ${cust.satisfaction >= 80 ? '#155724' : cust.satisfaction >= 60 ? '#856404' : '#721c24'};">
+                                                    ${cust.satisfaction.toFixed(0)}%
+                                                </div>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                ${cust.loyaltyTier === 'platinum' ? '💎' : cust.loyaltyTier === 'gold' ? '🥇' : cust.loyaltyTier === 'silver' ? '🥈' : cust.loyaltyTier === 'bronze' ? '🥉' : '—'}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- At-Risk Customers -->
+                    ${atRisk.length > 0 ? `
+                        <div class="at-risk-section">
+                            <h3 style="margin-bottom: 15px; color: #e74c3c;">⚠️ Customers At Risk (${atRisk.length})</h3>
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                                ${atRisk.slice(0, 5).map(cust => `
+                                    <div style="padding: 8px 0; border-bottom: 1px solid #ffe69c;">
+                                        <strong>${cust.name}</strong> - 
+                                        Last visit: Day ${cust.lastVisit} | 
+                                        Satisfaction: ${cust.satisfaction.toFixed(0)}% | 
+                                        Churn risk: ${(cust.churnRisk * 100).toFixed(0)}%
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(panel);
+        
+        if (window.gsap) {
+            gsap.from(panel.querySelector('.modal-content'), {
+                scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
+            });
+        }
+    }
+    
+    showCustomerDetail(customerId) {
+        if (!this.customerDB) return;
+        
+        const customer = this.customerDB.customers.get(customerId);
+        if (!customer) return;
+        
+        const detailPanel = document.createElement('div');
+        detailPanel.className = 'modal-overlay';
+        detailPanel.innerHTML = `
+            <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>👤 ${customer.name}</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <h4>📧 Contact</h4>
+                            <p><strong>Email:</strong> ${customer.email}</p>
+                            <p><strong>Phone:</strong> ${customer.phone}</p>
+                        </div>
+                        <div>
+                            <h4>📊 Demographics</h4>
+                            <p><strong>Age:</strong> ${customer.ageGroup}</p>
+                            <p><strong>Gender:</strong> ${customer.gender}</p>
+                            <p><strong>Segment:</strong> ${customer.segment}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>💳 Purchase Summary</h4>
+                        <p><strong>Total Visits:</strong> ${customer.visits}</p>
+                        <p><strong>Total Spent:</strong> $${customer.totalSpent.toFixed(2)}</p>
+                        <p><strong>Avg per Visit:</strong> $${(customer.totalSpent / (customer.visits || 1)).toFixed(2)}</p>
+                        <p><strong>Loyalty Tier:</strong> ${customer.loyaltyTier.toUpperCase()}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>😊 Satisfaction Metrics</h4>
+                        <p><strong>Current Satisfaction:</strong> ${customer.satisfaction.toFixed(0)}%</p>
+                        <p><strong>Return Probability:</strong> ${(customer.returnProbability * 100).toFixed(0)}%</p>
+                        <p><strong>Churn Risk:</strong> ${(customer.churnRisk * 100).toFixed(0)}%</p>
+                    </div>
+                    
+                    ${customer.favoriteItems.length > 0 ? `
+                        <div style="margin-bottom: 20px;">
+                            <h4>❤️ Favorite Items</h4>
+                            ${customer.favoriteItems.map(fav => {
+                                const recipe = GAME_CONFIG.RECIPES[fav.item];
+                                return `<p>${recipe?.icon || '🍰'} ${recipe?.name || fav.item} (${fav.count} orders)</p>`;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${customer.allergies.length > 0 ? `
+                        <div style="margin-bottom: 20px;">
+                            <h4>⚠️ Allergies</h4>
+                            <p style="color: #e74c3c;">${customer.allergies.join(', ')}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${customer.purchaseHistory.length > 0 ? `
+                        <div>
+                            <h4>📜 Recent Purchase History</h4>
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                ${customer.purchaseHistory.slice(-10).reverse().map(purchase => `
+                                    <div style="padding: 8px; border-bottom: 1px solid #e9ecef;">
+                                        Day ${purchase.date}: ${purchase.itemName} - $${purchase.price.toFixed(2)} 
+                                        (Quality: ${purchase.quality.toFixed(0)}%, Satisfaction: ${purchase.satisfaction.toFixed(0)}%)
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(detailPanel);
+    }
+    
+    enableLoyalty() {
+        if (!this.customerDB) return;
+        this.customerDB.enableLoyaltyProgram();
+        this.showNotification('Loyalty program enabled! Customers will earn rewards.', 'success');
+        document.querySelector('.modal-overlay')?.remove();
+        this.showCustomerDatabase();
+    }
+    
+    enableMarketingChannel(channelKey) {
+        if (!this.customerDB) return;
+        const result = this.customerDB.enableMarketingChannel(channelKey);
+        if (result.success) {
+            this.engine.cash -= result.cost;
+            this.showNotification(`${channelKey.replace(/_/g, ' ')} enabled! Monthly cost: $${result.cost}`, 'success');
+            document.querySelector('.modal-overlay')?.remove();
+            this.showCustomerDatabase();
+        }
+    }
+    
+    sendEmailCampaign() {
+        if (!this.customerDB) return;
+        
+        const result = this.customerDB.sendEmailCampaign('Special Offer from Sweet Success Bakery!');
+        if (result.success) {
+            this.showPopup({
+                icon: '📧',
+                title: 'Email Campaign Sent',
+                message: `Sent to ${result.sent} customers. ${result.opened} opened (${result.openRate}). Cost: $${result.cost.toFixed(2)}`,
+                type: 'success',
+                autoClose: 3000
+            });
+        } else {
+            this.showPopup({
+                icon: '❌',
+                title: 'Campaign Failed',
+                message: result.message,
+                type: 'error',
+                autoClose: 2000
+            });
         }
     }
 }

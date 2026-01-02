@@ -93,3 +93,16 @@ how to integrate really useful info from top finance books, blogs, reputable web
 money management, business management, and business strategy, legal details of buisness, etc...
 Make sure to not use too many AI token credits as I have limited. Focus the tokens on implementing actual changes to the plan.
 Try not to get stuck debugging, don't open a browser to test the game, I'll do the debugging.
+
+look for the financial scenario code, that code doesn't show up on the game as functionality, find a way to connect
+the financial scenario code into actual gameplay
+
+Significant upgrade of gameplay: implement customer logic, numbers, behavior and overall complexity into gameplay.
+Player can now buy items and upgrades to improve their customer rates. There will also be a customer "database" feature
+that business usually have to keep track of stats of their customers. Allow for random customer incidents.
+-Need to add to and redesign pre-op and operation phase. Pre-op needs make every decision affect customers, except for permits. add buying options as well.
+-Need to have operational phase follow pre-op logic in unison for customer rate affecting factors
+-Add robust database for customer tracking (a real typical database contact info, purchase history 
+(what, when, how much), order details (custom cakes, pre-orders), loyalty program status, preferences 
+(allergies, favorite items), demographics (age, gender), and interaction data (emails opened, online orders))
+simplify the example database and each field should affect the gameplay and customer rate somehow. be proactive about making this idea be complete
