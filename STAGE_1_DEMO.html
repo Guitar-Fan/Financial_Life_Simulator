@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stage 1 Customer Personality Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .customer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .customer-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s;
+        }
+
+        .customer-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .customer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .customer-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .customer-segment {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .segment-BUDGET {
+            background: #e74c3c;
+        }
+
+        .segment-REGULAR {
+            background: #3498db;
+        }
+
+        .segment-PREMIUM {
+            background: #f39c12;
+        }
+
+        .segment-HEALTH {
+            background: #2ecc71;
+        }
+
+        .segment-TRENDY {
+            background: #9b59b6;
+        }
+
+        .personality-section {
+            margin: 15px 0;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .trait {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .trait-label {
+            min-width: 110px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .trait-bar {
+            flex: 1;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .trait-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+        }
+
+        .trait-value {
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .mood-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .mood-emoji {
+            font-size: 24px;
+        }
+
+        .budget-info {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .satisfaction-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .score-box {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .bakery-score {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+
+        .personal-score {
+            background: #f3e5f5;
+            border: 2px solid #9c27b0;
+        }
+
+        .score-label {
+            font-size: 11px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .score-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .return-prob {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .return-prob-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎭 Stage 1: Customer Personality System Demo</h1>
+
+        <div class="button-container">
+            <button class="btn" onclick="generateCustomers()">Generate New Customers</button>
+        </div>
+
+        <div id="customerGrid" class="customer-grid"></div>
+    </div>
+
+    <script>
+        // Simplified mock engine for testing
+        const mockEngine = {
+            day: 10,
+            staff: [{ name: 'Owner' }, { name: 'Baker' }],
+            equipment: [{ quality: 80 }, { quality: 75 }],
+            economy: {
+                weather: 'sunny',
+                getDemandMultiplier: () => 1.0
+            },
+            selectCustomerSegment: function () {
+                const segments = [
+                    { key: 'BUDGET' },
+                    { key: 'REGULAR' },
+                    { key: 'PREMIUM' },
+                    { key: 'HEALTH' },
+                    { key: 'TRENDY' }
+                ];
+                return segments[Math.floor(Math.random() * segments.length)];
+            }
+        };
+
+        const demographics = {
+            ageGroups: [
+                { range: '18-25', weight: 0.20, priceElasticity: 1.3, qualityWeight: 0.6, trendSeeking: 0.9 },
+                { range: '26-35', weight: 0.30, priceElasticity: 1.1, qualityWeight: 0.8, trendSeeking: 0.7 },
+                { range: '36-50', weight: 0.25, priceElasticity: 0.9, qualityWeight: 1.0, trendSeeking: 0.5 },
+                { range: '51-65', weight: 0.15, priceElasticity: 0.7, qualityWeight: 1.1, trendSeeking: 0.3 },
+                { range: '65+', weight: 0.10, priceElasticity: 0.8, qualityWeight: 0.9, trendSeeking: 0.2 }
+            ]
+        };
+
+        function selectDemographic(groups) {
+            const rand = Math.random();
+            let cumulative = 0;
+            for (const group of groups) {
+                cumulative += group.weight;
+                if (rand <= cumulative) return group;
+            }
+            return groups[0];
+        }
+
+        function generatePersonality(ageGroup, segment) {
+            let patience = 50, chattiness = 50, impulsiveness = 50, flexibility = 50, moodiness = 50;
+
+            switch (ageGroup.range) {
+                case '18-25':
+                    impulsiveness += 20; chattiness += 15; patience -= 10; moodiness += 10;
+                    break;
+                case '26-35':
+                    flexibility += 15; impulsiveness += 5;
+                    break;
+                case '36-50':
+                    patience += 15; chattiness -= 5; flexibility += 10;
+                    break;
+                case '51-65':
+                    patience += 20; chattiness += 10; impulsiveness -= 15; moodiness -= 10;
+                    break;
+                case '65+':
+                    patience += 25; chattiness += 20; impulsiveness -= 20; flexibility -= 10;
+                    break;
+            }
+
+            switch (segment.key) {
+                case 'BUDGET':
+                    patience -= 10; chattiness -= 15; impulsiveness += 10;
+                    break;
+                case 'PREMIUM':
+                    patience += 15; chattiness += 10; flexibility -= 5;
+                    break;
+                case 'HEALTH':
+                    patience += 10; chattiness += 5; flexibility -= 10;
+                    break;
+                case 'TRENDY':
+                    impulsiveness += 15; chattiness += 10; moodiness += 10;
+                    break;
+            }
+
+            const randomize = (val) => Math.max(0, Math.min(100, val + (Math.random() * 40 - 20)));
+
+            return {
+                patience: Math.round(randomize(patience)),
+                chattiness: Math.round(randomize(chattiness)),
+                impulsiveness: Math.round(randomize(impulsiveness)),
+                flexibility: Math.round(randomize(flexibility)),
+                moodiness: Math.round(randomize(moodiness))
+            };
+        }
+
+        function generateWillingnessToPay(ageGroup, segment) {
+            let baseRange = [3, 8];
+            let qualityMultiplier = 1.0;
+
+            switch (segment.key) {
+                case 'BUDGET': baseRange = [2, 5]; qualityMultiplier = 0.8; break;
+                case 'PREMIUM': baseRange = [8, 20]; qualityMultiplier = 1.5; break;
+                case 'HEALTH': baseRange = [6, 15]; qualityMultiplier = 1.3; break;
+                case 'TRENDY': baseRange = [5, 12]; qualityMultiplier = 1.2; break;
+                default: baseRange = [4, 10];
+            }
+
+            const base = (baseRange[0] + baseRange[1]) / 2;
+            return { base: base.toFixed(2), priceRange: baseRange, qualityMultiplier };
+        }
+
+        function getMoodEmoji(mood) {
+            if (mood >= 80) return '😄';
+            if (mood >= 60) return '😊';
+            if (mood >= 40) return '😐';
+            if (mood >= 20) return '😕';
+            return '😞';
+        }
+
+        function createCustomerCard(customer) {
+            const { personality, willingnessToPay, currentMood, segment, ageGroup, name } = customer;
+
+            return `
+                <div class="customer-card">
+                    <div class="customer-header">
+                        <div class="customer-name">${name}</div>
+                        <div class="customer-segment segment-${segment}">${segment}</div>
+                    </div>
+                    
+                    <div style="font-size: 13px; color: #888; margin-bottom: 15px;">
+                        Age: ${ageGroup} | Visit #${customer.visits}
+                    </div>
+                    
+                    <div class="mood-indicator">
+                        <div class="mood-emoji">${getMoodEmoji(currentMood)}</div>
+                        <div>
+                            <div style="font-size: 12px; color: #666;">Current Mood</div>
+                            <div style="font-weight: bold; color: #333;">${currentMood}/100</div>
+                        </div>
+                    </div>
+                    
+                    <div class="personality-section">
+                        <div class="section-title">🎭 Personality</div>
+                        ${Object.entries(personality).map(([trait, value]) => `
+                            <div class="trait">
+                                <div class="trait-label">${trait.charAt(0).toUpperCase() + trait.slice(1)}:</div>
+                                <div class="trait-bar">
+                                    <div class="trait-fill" style="width: ${value}%">
+                                        <span class="trait-value">${value}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="budget-info">
+                        💰 Budget: $${willingnessToPay.priceRange[0]}-$${willingnessToPay.priceRange[1]} 
+                        (avg: $${willingnessToPay.base})
+                    </div>
+                    
+                    <div class="satisfaction-display">
+                        <div class="score-box bakery-score">
+                            <div class="score-label">BAKERY FACTORS</div>
+                            <div class="score-value" style="color: #2196f3;">${customer.bakeryScore}/50</div>
+                        </div>
+                        <div class="score-box personal-score">
+                            <div class="score-label">PERSONAL FACTORS</div>
+                            <div class="score-value" style="color: #9c27b0;">${customer.personalScore}/50</div>
+                        </div>
+                    </div>
+                    
+                    <div class="return-prob">
+                        <div style="font-size: 12px; margin-bottom: 5px;">Return Probability</div>
+                        <div class="return-prob-value">${(customer.returnProbability * 100).toFixed(0)}%</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateCustomers() {
+            const names = ['Emma Wilson', 'Liam Chen', 'Olivia Martinez', 'Noah Davis', 'Ava Thompson', 'James Lee'];
+            const grid = document.getElementById('customerGrid');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < 6; i++) {
+                const ageGroup = selectDemographic(demographics.ageGroups);
+                const segment = mockEngine.selectCustomerSegment();
+                const personality = generatePersonality(ageGroup, segment);
+                const willingnessToPay = generateWillingnessToPay(ageGroup, segment);
+
+                const customer = {
+                    name: names[i],
+                    segment: segment.key,
+                    ageGroup: ageGroup.range,
+                    personality: personality,
+                    willingnessToPay: willingnessToPay,
+                    currentMood: Math.round(50 + (Math.random() * 40 - 20)),
+                    visits: Math.floor(Math.random() * 20) + 1,
+                    bakeryScore: Math.round(30 + Math.random() * 20),
+                    personalScore: Math.round(20 + Math.random() * 30),
+                    returnProbability: 0.5 + (Math.random() * 0.4 - 0.2)
+                };
+
+                grid.innerHTML += createCustomerCard(customer);
+            }
+        }
+
+        // Generate initial customers
+        generateCustomers();
+    </script>
+</body>
+
+</html>

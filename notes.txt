@@ -106,3 +106,27 @@ that business usually have to keep track of stats of their customers. Allow for 
 (what, when, how much), order details (custom cakes, pre-orders), loyalty program status, preferences 
 (allergies, favorite items), demographics (age, gender), and interaction data (emails opened, online orders))
 simplify the example database and each field should affect the gameplay and customer rate somehow. be proactive about making this idea be complete
+
+
+Make the gameplay more realistic in several ways:
+-You have to fundamentally change how customers behave in the game, each customer should
+have a unique personality, loyalty, preferences, willingness to pay, and all customers should
+experience different levels of satisfaction. 50% of the satisfaction will come from my bakery's experience (looks of bakery,
+quality of food, service, etc...) and 50% from their own affairs (personality, loyalty, preferences, 
+willingness to pay, and external circumstance (right now, only weather)), this should affect the rate of which the customer comes
+-This change will require refactoring of gameplay to incoporate all elements of what I want from above bullet point 
+-Make each customer transaction longer and more complex, (change time system from live to hybrid live and calculated blocks 
+(e.g. a customer interaction, will take a calculated amount of time, and when not in customer interaction mode, 
+the time system will be live))
+-Each customer interaction will have a customer and front worker (any of the staff at the time, including the owner), but only owner has the immersive customer interaction mode.
+*Stop notifying with big popup when a bakery item is made, it interupts the gameplay
+-Customer interaction mode has small talk gameplay (balance talking too long or short), and selling interaction, asking customer to wait a few minutes for unavailable interested item to be made.
+*Make the assigning staff tasks functionality to be more robust and deliberate, so I can pick the task and which staff I assign to. That staff will become unavailable for any other task.
+Game should also calculate the satisfaction level of customers the staff handles, but account for how
+staff performed in the interaction, and how customer behaved in the interaction, so it should have a small range of randomness
+-User should see satisfaction levels, unique customer traits, and more in upgraded customer database
+
+now implement stage 1 of realistic gameplay plan, then step 2 and 3 adverse
+At last implement stage 4, 5, and 6
+
+Highly doubt there is AI here, 
