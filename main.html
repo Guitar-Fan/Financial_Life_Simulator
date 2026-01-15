@@ -451,6 +451,318 @@
             transition: all 0.4s ease;
         }
 
+        /* Customer Interaction Overlay */
+        .interaction-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .interaction-container {
+            background: linear-gradient(135deg, #2C1810 0%, #421f12 100%);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .interaction-header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .customer-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .customer-avatar {
+            font-size: 48px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 215, 0, 0.1);
+            border-radius: 50%;
+        }
+
+        .customer-name-large {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .customer-meta {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .mood-display {
+            text-align: right;
+        }
+
+        .mood-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mood-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .interaction-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .interaction-footer {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 215, 0, 0.2);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .dialogue-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .customer-bubble {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid var(--accent);
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .dialogue-prompt {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 10px 0;
+        }
+
+        .dialogue-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .dialogue-option {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dialogue-option:hover {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: var(--accent);
+            transform: translateX(5px);
+        }
+
+        .duration-badge {
+            background: rgba(255, 215, 0, 0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        .ordering-section h3 {
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .favorites-section {
+            margin-bottom: 25px;
+        }
+
+        .favorites-section h4 {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .item-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 215, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .item-card:hover {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: var(--accent);
+            transform: translateY(-3px);
+        }
+
+        .btn-done-ordering {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent);
+            color: var(--dark);
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-done-ordering:hover {
+            background: var(--primary-light);
+            transform: scale(1.02);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .order-summary-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .order-summary-section h3 {
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .order-items {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            line-height: 1.8;
+        }
+
+        .order-total {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+            text-align: right;
+            margin-bottom: 20px;
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .order-actions button {
+            flex: 1;
+        }
+
+        .item-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        .item-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .item-price {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .unavailable-badge {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .favorite-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 20px;
+        }
+
+        .item-card {
+            position: relative;
+        }
+
+        .item-card.unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .item-card.unavailable:hover {
+            transform: none;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
         .tutorial-actions {
             display: flex;
             gap: 10px;
@@ -2886,6 +3198,14 @@
             color: white;
         }
 
+        .benchmark-hint {
+            font-size: 11px;
+            color: #95a5a6;
+            font-style: italic;
+            margin: -4px 0 12px 0;
+            padding-left: 4px;
+        }
+
         .skill-bar,
         .happiness-bar,
         .fatigue-bar,
@@ -3981,6 +4301,10 @@
     <script src="js/FinancialEducation.js"></script>
     <script src="js/DynamicScenarios.js"></script>
     <script src="js/CustomerDatabase.js"></script>
+    <script src="js/TimeManager.js"></script>
+    <script src="js/NotificationSystem.js"></script>
+    <script src="js/StaffManager.js"></script>
+    <script src="js/CustomerInteractionScene.js"></script>
     <script src="js/WalkthroughMode.js"></script>
     <script src="js/ModeHubScene.js"></script>
     <script src="js/Bakery_Startup_Sequence.js"></script>

@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Tax Evasion - Tax Policy Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glow {
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+        }
+        
+        .pulse-slow {
+            animation: pulse 3s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="text-white p-4 md:p-8">
+    <!-- Header -->
+    <header class="text-center mb-8">
+        <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-yellow-400 via-red-500 to-purple-500 bg-clip-text text-transparent mb-2">
+            Ultimate Tax Evasion
+        </h1>
+        <p class="text-gray-400 text-lg">An Educational Tax Policy Simulator</p>
+        <p class="text-gray-500 text-sm mt-2">Explore how legal tax strategies create different outcomes</p>
+    </header>
+
+    <!-- Score & Progress Bar -->
+    <div class="max-w-7xl mx-auto mb-6">
+        <div class="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="text-center">
+                    <div class="text-xs text-gray-400">Knowledge Score</div>
+                    <div id="score" class="text-2xl font-bold text-yellow-400">0</div>
+                </div>
+                <div class="h-10 w-px bg-gray-600"></div>
+                <div class="text-center">
+                    <div class="text-xs text-gray-400">Strategies Discovered</div>
+                    <div id="strategies-count" class="text-2xl font-bold text-purple-400">0/6</div>
+                </div>
+                <div class="h-10 w-px bg-gray-600"></div>
+                <div class="text-center">
+                    <div class="text-xs text-gray-400">Quiz Progress</div>
+                    <div id="quiz-progress" class="text-2xl font-bold text-green-400">0/5</div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="showAchievements()" class="px-3 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm hover:bg-yellow-500/30 transition-all">
+                    🏆 Achievements
+                </button>
+                <button onclick="resetGame()" class="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition-all">
+                    🔄 Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievement Modal -->
+    <div id="achievement-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
+        <div class="glass-card rounded-2xl p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">🏆 Achievements</h3>
+                <button onclick="hideAchievements()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="achievements-list" class="space-y-3">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-4 right-4 glass-card rounded-xl p-4 transform translate-x-full transition-transform duration-300 z-50">
+        <div class="flex items-center gap-3">
+            <span id="toast-icon" class="text-2xl">🎉</span>
+            <div>
+                <div id="toast-title" class="font-semibold">Achievement Unlocked!</div>
+                <div id="toast-message" class="text-sm text-gray-400">You discovered a new strategy</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div class="max-w-7xl mx-auto">
+        <!-- Profile Selection -->
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <!-- W-2 Employee Profile -->
+            <div id="employee-card" class="glass-card rounded-2xl p-6 cursor-pointer transition-all hover:scale-105">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-2xl">👷</div>
+                    <div>
+                        <h2 class="text-xl font-bold">Standard Employee</h2>
+                        <p class="text-gray-400">W-2 Wage Earner</p>
+                    </div>
+                </div>
+                <div class="space-y-2 text-sm text-gray-300">
+                    <p>• Income taxed at source</p>
+                    <p>• Limited deductions</p>
+                    <p>• FICA taxes apply</p>
+                </div>
+            </div>
+
+            <!-- Strategic Investor Profile -->
+            <div id="investor-card" class="glass-card rounded-2xl p-6 cursor-pointer transition-all hover:scale-105">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center text-2xl">💼</div>
+                    <div>
+                        <h2 class="text-xl font-bold">Strategic Investor</h2>
+                        <p class="text-gray-400">Asset-Based Wealth</p>
+                    </div>
+                </div>
+                <div class="space-y-2 text-sm text-gray-300">
+                    <p>• Capital gains treatment</p>
+                    <p>• Depreciation benefits</p>
+                    <p>• Step-up in basis</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Income Slider -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">Set Annual Income / Asset Value</h3>
+            <input type="range" id="income-slider" min="50000" max="10000000" value="100000" step="10000" 
+                   class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            <div class="flex justify-between mt-2 text-gray-400">
+                <span>$50K</span>
+                <span id="income-display" class="text-2xl font-bold text-white">$100,000</span>
+                <span>$10M</span>
+            </div>
+        </div>
+
+        <!-- Results Dashboard -->
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <!-- Employee Results -->
+            <div class="glass-card rounded-2xl p-6">
+                <h3 class="text-lg font-semibold mb-4 text-blue-400">Employee Tax Breakdown</h3>
+                <div id="employee-results" class="space-y-3">
+                    <div class="flex justify-between">
+                        <span>Gross Income:</span>
+                        <span id="emp-gross" class="font-mono">$100,000</span>
+                    </div>
+                    <div class="flex justify-between text-red-400">
+                        <span>Federal Tax:</span>
+                        <span id="emp-federal" class="font-mono">-$17,400</span>
+                    </div>
+                    <div class="flex justify-between text-red-400">
+                        <span>FICA (SS + Medicare):</span>
+                        <span id="emp-fica" class="font-mono">-$7,650</span>
+                    </div>
+                    <div class="flex justify-between text-red-400">
+                        <span>State Tax (avg):</span>
+                        <span id="emp-state" class="font-mono">-$5,000</span>
+                    </div>
+                    <hr class="border-gray-600">
+                    <div class="flex justify-between text-green-400 font-bold">
+                        <span>Net Income:</span>
+                        <span id="emp-net" class="font-mono">$69,950</span>
+                    </div>
+                    <div class="flex justify-between text-yellow-400">
+                        <span>Effective Tax Rate:</span>
+                        <span id="emp-rate" class="font-mono">30.05%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Investor Results -->
+            <div class="glass-card rounded-2xl p-6">
+                <h3 class="text-lg font-semibold mb-4 text-purple-400">Investor Tax Breakdown</h3>
+                <div id="investor-results" class="space-y-3">
+                    <div class="flex justify-between">
+                        <span>Asset Appreciation:</span>
+                        <span id="inv-gross" class="font-mono">$100,000</span>
+                    </div>
+                    <div class="flex justify-between text-green-400">
+                        <span>Unrealized (Tax Deferred):</span>
+                        <span id="inv-unrealized" class="font-mono">$80,000</span>
+                    </div>
+                    <div class="flex justify-between text-red-400">
+                        <span>LTCG Tax (on realized):</span>
+                        <span id="inv-ltcg" class="font-mono">-$3,000</span>
+                    </div>
+                    <div class="flex justify-between text-green-400">
+                        <span>Depreciation Shield:</span>
+                        <span id="inv-depreciation" class="font-mono">+$2,000</span>
+                    </div>
+                    <hr class="border-gray-600">
+                    <div class="flex justify-between text-green-400 font-bold">
+                        <span>Net Wealth Gain:</span>
+                        <span id="inv-net" class="font-mono">$99,000</span>
+                    </div>
+                    <div class="flex justify-between text-yellow-400">
+                        <span>Effective Tax Rate:</span>
+                        <span id="inv-rate" class="font-mono">1.00%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">Effective Tax Rate Comparison</h3>
+            <canvas id="comparison-chart" height="100"></canvas>
+        </div>
+
+        <!-- Tax Strategies Section -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">🎮 Unlock Tax Strategies</h3>
+            <p class="text-gray-400 text-sm mb-4">Click strategies to see their impact on wealth accumulation</p>
+            
+            <div class="grid md:grid-cols-3 gap-4">
+                <!-- Strategy 1: Buy, Borrow, Die -->
+                <div id="strategy-bbd" class="strategy-card bg-gradient-to-br from-purple-900/50 to-indigo-900/50 rounded-xl p-4 cursor-pointer border-2 border-transparent hover:border-purple-500 transition-all" onclick="toggleStrategy('bbd')">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">🏦</span>
+                        <h4 class="font-semibold">Buy, Borrow, Die</h4>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">Borrow against assets instead of selling them. Never trigger capital gains.</p>
+                    <div class="text-xs text-purple-400">Tax Saved: <span id="bbd-savings">$0</span></div>
+                    <div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="bbd-bar" class="h-full bg-purple-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Strategy 2: Depreciation -->
+                <div id="strategy-dep" class="strategy-card bg-gradient-to-br from-green-900/50 to-teal-900/50 rounded-xl p-4 cursor-pointer border-2 border-transparent hover:border-green-500 transition-all" onclick="toggleStrategy('dep')">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">🏢</span>
+                        <h4 class="font-semibold">Depreciation</h4>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">Deduct "losses" on appreciating real estate assets every year.</p>
+                    <div class="text-xs text-green-400">Tax Saved: <span id="dep-savings">$0</span></div>
+                    <div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="dep-bar" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Strategy 3: Step-Up Basis -->
+                <div id="strategy-sub" class="strategy-card bg-gradient-to-br from-yellow-900/50 to-orange-900/50 rounded-xl p-4 cursor-pointer border-2 border-transparent hover:border-yellow-500 transition-all" onclick="toggleStrategy('sub')">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">📈</span>
+                        <h4 class="font-semibold">Step-Up in Basis</h4>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">Heirs inherit assets at current value, erasing all unrealized gains.</p>
+                    <div class="text-xs text-yellow-400">Tax Saved: <span id="sub-savings">$0</span></div>
+                    <div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="sub-bar" class="h-full bg-yellow-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 30-Year Wealth Simulation -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">📊 30-Year Wealth Accumulation Simulation</h3>
+            <div class="flex gap-4 mb-4 flex-wrap">
+                <button onclick="runSimulation()" class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg font-semibold hover:opacity-90 transition-all">
+                    ▶️ Run Simulation
+                </button>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">Annual Return:</label>
+                    <select id="return-rate" class="bg-gray-800 rounded px-2 py-1 text-sm">
+                        <option value="0.05">5%</option>
+                        <option value="0.07" selected>7%</option>
+                        <option value="0.10">10%</option>
+                    </select>
+                </div>
+            </div>
+            <canvas id="wealth-chart" height="120"></canvas>
+        </div>
+
+        <!-- Detailed Tax Mechanics -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">📖 How It Works</h3>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-blue-400 font-semibold mb-2">W-2 Employee Taxation</h4>
+                    <ul class="text-sm text-gray-400 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400">●</span>
+                            <span><strong>Immediate Taxation:</strong> Every paycheck is taxed before you receive it</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400">●</span>
+                            <span><strong>Progressive Rates:</strong> Up to 37% federal + state taxes on income</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400">●</span>
+                            <span><strong>FICA Taxes:</strong> 7.65% Social Security + Medicare (employer matches)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400">●</span>
+                            <span><strong>Limited Deductions:</strong> Standard deduction or itemized (mortgage, charity)</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-purple-400 font-semibold mb-2">Strategic Investor Taxation</h4>
+                    <ul class="text-sm text-gray-400 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400">●</span>
+                            <span><strong>Deferred Taxation:</strong> Unrealized gains aren't taxed until sold</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400">●</span>
+                            <span><strong>Lower Rates:</strong> Long-term capital gains max at 20% (vs 37%)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400">●</span>
+                            <span><strong>No FICA:</strong> Investment income exempt from payroll taxes</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400">●</span>
+                            <span><strong>Depreciation:</strong> Deduct paper losses while assets appreciate</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Educational Footer -->
+        <div class="glass-card rounded-2xl p-6 text-center mb-8">
+            <h3 class="text-lg font-semibold mb-2">📚 Key Takeaways</h3>
+            <p class="text-gray-400 text-sm max-w-3xl mx-auto mb-4">
+                This simulator demonstrates <strong class="text-white">legal</strong> tax strategies. The U.S. tax code treats 
+                earned income (wages) differently from investment income (capital gains). Understanding these differences 
+                is essential for financial literacy and informed civic participation.
+            </p>
+            <div class="flex justify-center gap-4 flex-wrap">
+                <span class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs">Educational Purpose Only</span>
+                <span class="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs">Not Tax Advice</span>
+                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">Consult a Professional</span>
+            </div>
+        </div>
+
+        <!-- Additional Strategies -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">🔓 Advanced Tax Strategies</h3>
+            <div class="grid md:grid-cols-3 gap-4">
+                <!-- Strategy 4: Charitable Remainder Trust -->
+                <div id="strategy-crt" class="strategy-card bg-gradient-to-br from-pink-900/50 to-rose-900/50 rounded-xl p-4 cursor-pointer border-2 border-transparent hover:border-pink-500 transition-all" onclick="toggleStrategy('crt')">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">💝</span>
+                        <h4 class="font-semibold">Charitable Trust</h4>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">Donate appreciated assets, get income stream, avoid capital gains entirely.</p>
+                    <div class="text-xs text-pink-400">Tax Saved: <span id="crt-savings">$0</span></div>
+                    <div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="crt-bar" class="h-full bg-pink-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Strategy 5: 1031 Exchange -->
+                <div id="strategy-exchange" class="strategy-card bg-gradient-to-br from-cyan-900/50 to-blue-900/50 rounded-xl p-4 cursor-pointer border-2 border-transparent hover:border-cyan-500 transition-all" onclick="toggleStrategy('exchange')">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">🔄</span>
+                        <h4 class="font-semibold">1031 Exchange</h4>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">Swap real estate indefinitely, deferring all capital gains taxes forever.</p>
+                    <div class="text-xs text-cyan-400">Tax Saved: <span id="exchange-savings">$0</span></div>
+                    <div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="exchange-bar" class="h-full bg-cyan-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Strategy 6: Qualified Opportunity Zones -->
+                <div id="strategy-qoz" class="strategy-card bg-gradient-to-br from-amber-900/50 to-yellow-900/50 rounded-xl p-4 cursor-pointer border-2 border-transparent hover:border-amber-500 transition-all" onclick="toggleStrategy('qoz')">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">🏘️</span>
+                        <h4 class="font-semibold">Opportunity Zones</h4>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">Invest in designated areas for tax deferral and potential 0% on new gains.</p>
+                    <div class="text-xs text-amber-400">Tax Saved: <span id="qoz-savings">$0</span></div>
+                    <div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="qoz-bar" class="h-full bg-amber-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Quiz Section -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">🧠 Test Your Knowledge</h3>
+            <div id="quiz-container">
+                <div id="quiz-question" class="text-lg mb-4">Loading question...</div>
+                <div id="quiz-options" class="grid md:grid-cols-2 gap-3 mb-4">
+                    <!-- Options populated by JS -->
+                </div>
+                <div id="quiz-feedback" class="hidden p-4 rounded-xl mb-4"></div>
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-400">Question <span id="current-q">1</span> of <span id="total-q">5</span></div>
+                    <button id="next-btn" onclick="nextQuestion()" class="px-4 py-2 bg-indigo-500 rounded-lg font-semibold hover:bg-indigo-600 transition-all hidden">
+                        Next Question →
+                    </button>
+                </div>
+            </div>
+            <div id="quiz-complete" class="hidden text-center py-8">
+                <div class="text-4xl mb-4">🎓</div>
+                <h4 class="text-xl font-bold mb-2">Quiz Complete!</h4>
+                <p class="text-gray-400 mb-4">You scored <span id="quiz-score" class="text-green-400 font-bold">0</span> out of 5</p>
+                <button onclick="restartQuiz()" class="px-4 py-2 bg-indigo-500 rounded-lg font-semibold hover:bg-indigo-600 transition-all">
+                    Try Again
+                </button>
+            </div>
+        </div>
+
+        <!-- Wealth Gap Visualizer -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">📏 The Wealth Gap Over Time</h3>
+            <p class="text-gray-400 text-sm mb-4">See how tax treatment differences compound over generations</p>
+            <div class="relative">
+                <div class="flex items-end justify-around h-64 bg-gray-800/50 rounded-xl p-4">
+                    <div class="text-center">
+                        <div id="emp-bar-visual" class="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all duration-1000" style="height: 40%"></div>
+                        <div class="mt-2 text-sm">Employee</div>
+                        <div id="emp-final-wealth" class="text-xs text-gray-400">$0</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="inv-bar-visual" class="w-16 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all duration-1000" style="height: 80%"></div>
+                        <div class="mt-2 text-sm">Investor</div>
+                        <div id="inv-final-wealth" class="text-xs text-gray-400">$0</div>
+                    </div>
+                </div>
+                <div class="mt-4 text-center">
+                    <div class="text-sm text-gray-400">Wealth Difference After 30 Years:</div>
+                    <div id="wealth-diff" class="text-2xl font-bold text-yellow-400">$0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-World Examples -->
+        <div class="glass-card rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-semibold mb-4">🌍 Real-World Context</h3>
+            <div class="grid md:grid-cols-3 gap-4 text-center">
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <div class="text-3xl mb-2">📰</div>
+                    <h4 class="font-semibold mb-1">ProPublica Analysis</h4>
+                    <p class="text-xs text-gray-400">Revealed billionaires often pay effective tax rates below 5% through legal strategies</p>
+                </div>
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <div class="text-3xl mb-2">🏛️</div>
+                    <h4 class="font-semibold mb-1">Policy Debates</h4>
+                    <p class="text-xs text-gray-400">Proposals like "Billionaire Minimum Tax" aim to address unrealized gains taxation</p>
+                </div>
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <div class="text-3xl mb-2">⚖️</div>
+                    <h4 class="font-semibold mb-1">Legal Framework</h4>
+                    <p class="text-xs text-gray-400">All strategies shown are currently legal under U.S. tax code</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-500 text-sm py-4">
+            <p>Built for educational purposes • Not financial or legal advice • Consult qualified professionals</p>
+            <p class="mt-1">© 2024 Ultimate Tax Evasion Simulator</p>
+        </footer>
+    </div>
+
+    <script>
+        // Tax calculation engine
+        const TaxEngine = {
+            // 2024 Federal Tax Brackets (Single)
+            federalBrackets: [
+                { min: 0, max: 11600, rate: 0.10 },
+                { min: 11600, max: 47150, rate: 0.12 },
+                { min: 47150, max: 100525, rate: 0.22 },
+                { min: 100525, max: 191950, rate: 0.24 },
+                { min: 191950, max: 243725, rate: 0.32 },
+                { min: 243725, max: 609350, rate: 0.35 },
+                { min: 609350, max: Infinity, rate: 0.37 }
+            ],
+            
+            // Long-term Capital Gains Brackets (Single)
+            ltcgBrackets: [
+                { min: 0, max: 47025, rate: 0.00 },
+                { min: 47025, max: 518900, rate: 0.15 },
+                { min: 518900, max: Infinity, rate: 0.20 }
+            ],
+            
+            calculateFederalTax(income) {
+                let tax = 0;
+                for (const bracket of this.federalBrackets) {
+                    if (income > bracket.min) {
+                        const taxableInBracket = Math.min(income, bracket.max) - bracket.min;
+                        tax += taxableInBracket * bracket.rate;
+                    }
+                }
+                return tax;
+            },
+            
+            calculateFICA(income) {
+                const ssWageCap = 168600;
+                const ssRate = 0.062;
+                const medicareRate = 0.0145;
+                const additionalMedicareThreshold = 200000;
+                const additionalMedicareRate = 0.009;
+                
+                let fica = Math.min(income, ssWageCap) * ssRate;
+                fica += income * medicareRate;
+                if (income > additionalMedicareThreshold) {
+                    fica += (income - additionalMedicareThreshold) * additionalMedicareRate;
+                }
+                return fica;
+            },
+            
+            calculateStateTax(income) {
+                // Average state tax approximation
+                return income * 0.05;
+            },
+            
+            calculateLTCG(gains) {
+                let tax = 0;
+                for (const bracket of this.ltcgBrackets) {
+                    if (gains > bracket.min) {
+                        const taxableInBracket = Math.min(gains, bracket.max) - bracket.min;
+                        tax += taxableInBracket * bracket.rate;
+                    }
+                }
+                return tax;
+            },
+            
+            calculateEmployeeTax(income) {
+                const federal = this.calculateFederalTax(income);
+                const fica = this.calculateFICA(income);
+                const state = this.calculateStateTax(income);
+                const totalTax = federal + fica + state;
+                const net = income - totalTax;
+                const effectiveRate = (totalTax / income) * 100;
+                
+                return { income, federal, fica, state, totalTax, net, effectiveRate };
+            },
+            
+            calculateInvestorTax(assetValue) {
+                // Assume 80% stays unrealized, 20% realized as LTCG
+                const unrealized = assetValue * 0.80;
+                const realized = assetValue * 0.20;
+                const ltcgTax = this.calculateLTCG(realized);
+                
+                // Depreciation benefit (real estate investors get ~3.6% annually on improvements)
+                const depreciationBenefit = assetValue * 0.02;
+                
+                const totalTax = ltcgTax - depreciationBenefit;
+                const net = assetValue - Math.max(0, totalTax);
+                const effectiveRate = (Math.max(0, totalTax) / assetValue) * 100;
+                
+                return { 
+                    assetValue, 
+                    unrealized, 
+                    realized, 
+                    ltcgTax, 
+                    depreciationBenefit, 
+                    totalTax: Math.max(0, totalTax), 
+                    net, 
+                    effectiveRate 
+                };
+            }
+        };
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        // Chart setup
+        let comparisonChart;
+        
+        function initChart() {
+            const ctx = document.getElementById('comparison-chart').getContext('2d');
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Employee', 'Investor'],
+                    datasets: [{
+                        label: 'Effective Tax Rate (%)',
+                        data: [30, 1],
+                        backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(147, 51, 234, 0.7)'],
+                        borderColor: ['rgb(59, 130, 246)', 'rgb(147, 51, 234)'],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 50,
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update display
+        function updateResults(income) {
+            const emp = TaxEngine.calculateEmployeeTax(income);
+            const inv = TaxEngine.calculateInvestorTax(income);
+            
+            // Update employee results
+            document.getElementById('emp-gross').textContent = formatCurrency(emp.income);
+            document.getElementById('emp-federal').textContent = '-' + formatCurrency(emp.federal);
+            document.getElementById('emp-fica').textContent = '-' + formatCurrency(emp.fica);
+            document.getElementById('emp-state').textContent = '-' + formatCurrency(emp.state);
+            document.getElementById('emp-net').textContent = formatCurrency(emp.net);
+            document.getElementById('emp-rate').textContent = emp.effectiveRate.toFixed(2) + '%';
+            
+            // Update investor results
+            document.getElementById('inv-gross').textContent = formatCurrency(inv.assetValue);
+            document.getElementById('inv-unrealized').textContent = formatCurrency(inv.unrealized);
+            document.getElementById('inv-ltcg').textContent = '-' + formatCurrency(inv.ltcgTax);
+            document.getElementById('inv-depreciation').textContent = '+' + formatCurrency(inv.depreciationBenefit);
+            document.getElementById('inv-net').textContent = formatCurrency(inv.net);
+            document.getElementById('inv-rate').textContent = inv.effectiveRate.toFixed(2) + '%';
+            
+            // Update chart
+            comparisonChart.data.datasets[0].data = [emp.effectiveRate, inv.effectiveRate];
+            comparisonChart.update();
+        }
+
+        // Event listeners
+        document.getElementById('income-slider').addEventListener('input', function(e) {
+            const income = parseInt(e.target.value);
+            document.getElementById('income-display').textContent = formatCurrency(income);
+            updateResults(income);
+            
+            // Check high income achievement
+            if (income >= 1000000) {
+                checkAchievements();
+            }
+        });
+
+        // Game State
+        let gameState = {
+            score: 0,
+            strategiesDiscovered: new Set(),
+            quizAnswered: 0,
+            quizCorrect: 0,
+            achievements: [],
+            simulationRun: false
+        };
+
+        // Active strategies tracking
+        const activeStrategies = {
+            bbd: false,  // Buy, Borrow, Die
+            dep: false,  // Depreciation
+            sub: false,  // Step-Up Basis
+            crt: false,  // Charitable Remainder Trust
+            exchange: false, // 1031 Exchange
+            qoz: false   // Qualified Opportunity Zones
+        };
+
+        // Achievement definitions
+        const achievements = [
+            { id: 'first_strategy', name: 'Tax Apprentice', icon: '📚', desc: 'Discover your first tax strategy', condition: () => gameState.strategiesDiscovered.size >= 1 },
+            { id: 'three_strategies', name: 'Tax Strategist', icon: '🎯', desc: 'Discover 3 tax strategies', condition: () => gameState.strategiesDiscovered.size >= 3 },
+            { id: 'all_strategies', name: 'Tax Master', icon: '👑', desc: 'Discover all 6 tax strategies', condition: () => gameState.strategiesDiscovered.size >= 6 },
+            { id: 'first_sim', name: 'Time Traveler', icon: '⏰', desc: 'Run your first 30-year simulation', condition: () => gameState.simulationRun },
+            { id: 'quiz_perfect', name: 'Tax Scholar', icon: '🎓', desc: 'Get a perfect quiz score', condition: () => gameState.quizCorrect >= 5 },
+            { id: 'millionaire', name: 'Millionaire Maker', icon: '💰', desc: 'See investor wealth exceed $10M', condition: () => false },
+            { id: 'high_income', name: 'Big Earner', icon: '💵', desc: 'Simulate income over $1M', condition: () => parseInt(document.getElementById('income-slider').value) >= 1000000 }
+        ];
+
+        // Quiz questions
+        const quizQuestions = [
+            {
+                question: "What is the maximum federal income tax rate for W-2 wages?",
+                options: ["25%", "32%", "37%", "42%"],
+                correct: 2,
+                explanation: "The top federal marginal tax rate for ordinary income (wages) is 37% for income over $609,350 (2024)."
+            },
+            {
+                question: "What is the maximum long-term capital gains tax rate?",
+                options: ["15%", "20%", "28%", "37%"],
+                correct: 1,
+                explanation: "Long-term capital gains (assets held >1 year) are taxed at max 20%, plus potentially 3.8% NIIT for high earners."
+            },
+            {
+                question: "What happens to unrealized gains when you die under 'step-up in basis'?",
+                options: ["Heirs pay the tax", "Gains are taxed at death", "Gains are eliminated", "Tax is deferred 5 years"],
+                correct: 2,
+                explanation: "Step-up in basis resets the cost basis to fair market value at death, effectively eliminating all unrealized gains."
+            },
+            {
+                question: "What does 'Buy, Borrow, Die' strategy avoid?",
+                options: ["Estate taxes", "Capital gains taxes", "Property taxes", "Income taxes"],
+                correct: 1,
+                explanation: "By borrowing against assets instead of selling them, investors never realize gains, avoiding capital gains taxes entirely."
+            },
+            {
+                question: "Why don't investors pay FICA taxes on investment income?",
+                options: ["They're exempt", "Investment income isn't wages", "They already paid", "It's a loophole"],
+                correct: 1,
+                explanation: "FICA (Social Security + Medicare) taxes only apply to earned income (wages), not investment income like dividends or capital gains."
+            }
+        ];
+
+        let currentQuestion = 0;
+
+        // Initialize quiz
+        function initQuiz() {
+            currentQuestion = 0;
+            gameState.quizAnswered = 0;
+            gameState.quizCorrect = 0;
+            document.getElementById('quiz-container').classList.remove('hidden');
+            document.getElementById('quiz-complete').classList.add('hidden');
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const q = quizQuestions[currentQuestion];
+            document.getElementById('quiz-question').textContent = q.question;
+            document.getElementById('current-q').textContent = currentQuestion + 1;
+            document.getElementById('total-q').textContent = quizQuestions.length;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            
+            q.options.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option p-3 bg-gray-700/50 rounded-lg text-left hover:bg-gray-600/50 transition-all border-2 border-transparent';
+                btn.textContent = opt;
+                btn.onclick = () => selectAnswer(i);
+                optionsContainer.appendChild(btn);
+            });
+            
+            document.getElementById('quiz-feedback').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+        }
+
+        function selectAnswer(index) {
+            const q = quizQuestions[currentQuestion];
+            const options = document.querySelectorAll('.quiz-option');
+            const feedback = document.getElementById('quiz-feedback');
+            
+            options.forEach((opt, i) => {
+                opt.disabled = true;
+                opt.classList.remove('hover:bg-gray-600/50');
+                if (i === q.correct) {
+                    opt.classList.add('border-green-500', 'bg-green-500/20');
+                } else if (i === index && index !== q.correct) {
+                    opt.classList.add('border-red-500', 'bg-red-500/20');
+                }
+            });
+            
+            const isCorrect = index === q.correct;
+            if (isCorrect) {
+                gameState.quizCorrect++;
+                addScore(100);
+            }
+            gameState.quizAnswered++;
+            
+            feedback.classList.remove('hidden');
+            feedback.className = `p-4 rounded-xl mb-4 ${isCorrect ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`;
+            feedback.innerHTML = `<strong>${isCorrect ? '✓ Correct!' : '✗ Incorrect'}</strong><br><span class="text-gray-300 text-sm">${q.explanation}</span>`;
+            
+            document.getElementById('next-btn').classList.remove('hidden');
+            updateQuizProgress();
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion < quizQuestions.length) {
+                showQuestion();
+            } else {
+                completeQuiz();
+            }
+        }
+
+        function completeQuiz() {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('quiz-complete').classList.remove('hidden');
+            document.getElementById('quiz-score').textContent = gameState.quizCorrect;
+            
+            if (gameState.quizCorrect === 5) {
+                checkAchievements();
+            }
+        }
+
+        function restartQuiz() {
+            initQuiz();
+        }
+
+        function updateQuizProgress() {
+            document.getElementById('quiz-progress').textContent = `${gameState.quizAnswered}/5`;
+        }
+
+        // Score system
+        function addScore(points) {
+            gameState.score += points;
+            const scoreEl = document.getElementById('score');
+            
+            anime({
+                targets: scoreEl,
+                innerHTML: [gameState.score - points, gameState.score],
+                round: 1,
+                easing: 'easeOutQuad',
+                duration: 500
+            });
+            
+            anime({
+                targets: scoreEl,
+                scale: [1, 1.3, 1],
+                duration: 300,
+                easing: 'easeOutQuad'
+            });
+        }
+
+        // Toast notifications
+        function showToast(icon, title, message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-icon').textContent = icon;
+            document.getElementById('toast-title').textContent = title;
+            document.getElementById('toast-message').textContent = message;
+            
+            toast.classList.remove('translate-x-full');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        // Achievement system
+        function checkAchievements() {
+            achievements.forEach(ach => {
+                if (!gameState.achievements.includes(ach.id) && ach.condition()) {
+                    gameState.achievements.push(ach.id);
+                    showToast(ach.icon, 'Achievement Unlocked!', ach.name);
+                    addScore(200);
+                }
+            });
+        }
+
+        function showAchievements() {
+            const modal = document.getElementById('achievement-modal');
+            const list = document.getElementById('achievements-list');
+            
+            list.innerHTML = achievements.map(ach => {
+                const unlocked = gameState.achievements.includes(ach.id);
+                return `
+                    <div class="flex items-center gap-3 p-3 rounded-lg ${unlocked ? 'bg-yellow-500/20' : 'bg-gray-800/50 opacity-50'}">
+                        <span class="text-2xl">${unlocked ? ach.icon : '🔒'}</span>
+                        <div>
+                            <div class="font-semibold">${ach.name}</div>
+                            <div class="text-xs text-gray-400">${ach.desc}</div>
+                        </div>
+                        ${unlocked ? '<span class="ml-auto text-yellow-400">✓</span>' : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            modal.classList.remove('hidden');
+        }
+
+        function hideAchievements() {
+            document.getElementById('achievement-modal').classList.add('hidden');
+        }
+
+        function resetGame() {
+            if (confirm('Reset all progress?')) {
+                gameState = {
+                    score: 0,
+                    strategiesDiscovered: new Set(),
+                    quizAnswered: 0,
+                    quizCorrect: 0,
+                    achievements: [],
+                    simulationRun: false
+                };
+                Object.keys(activeStrategies).forEach(k => activeStrategies[k] = false);
+                document.querySelectorAll('.strategy-card').forEach(c => {
+                    c.style.borderColor = 'transparent';
+                    c.classList.remove('glow');
+                });
+                document.getElementById('score').textContent = '0';
+                document.getElementById('strategies-count').textContent = '0/6';
+                document.getElementById('quiz-progress').textContent = '0/5';
+                initQuiz();
+                updateResults(100000);
+            }
+        }
+
+        // Toggle strategy
+        function toggleStrategy(strategy) {
+            activeStrategies[strategy] = !activeStrategies[strategy];
+            const card = document.getElementById(`strategy-${strategy}`);
+            
+            const colors = {
+                bbd: '#a855f7',
+                dep: '#22c55e', 
+                sub: '#eab308',
+                crt: '#ec4899',
+                exchange: '#06b6d4',
+                qoz: '#f59e0b'
+            };
+            
+            if (activeStrategies[strategy]) {
+                card.classList.add('border-opacity-100', 'glow');
+                card.style.borderColor = colors[strategy];
+                
+                // Track discovery for achievements
+                if (!gameState.strategiesDiscovered.has(strategy)) {
+                    gameState.strategiesDiscovered.add(strategy);
+                    addScore(50);
+                    document.getElementById('strategies-count').textContent = `${gameState.strategiesDiscovered.size}/6`;
+                    checkAchievements();
+                }
+            } else {
+                card.classList.remove('glow');
+                card.style.borderColor = 'transparent';
+            }
+            
+            updateStrategySavings();
+            updateResults(parseInt(document.getElementById('income-slider').value));
+        }
+
+        // Calculate strategy savings
+        function updateStrategySavings() {
+            const income = parseInt(document.getElementById('income-slider').value);
+            
+            // Buy, Borrow, Die: Avoid all capital gains by borrowing
+            const bbdSavings = activeStrategies.bbd ? income * 0.15 : 0;
+            document.getElementById('bbd-savings').textContent = formatCurrency(bbdSavings);
+            document.getElementById('bbd-bar').style.width = activeStrategies.bbd ? '100%' : '0%';
+            
+            // Depreciation: ~3.6% of property value annually
+            const depSavings = activeStrategies.dep ? income * 0.036 * 0.37 : 0;
+            document.getElementById('dep-savings').textContent = formatCurrency(depSavings);
+            document.getElementById('dep-bar').style.width = activeStrategies.dep ? '100%' : '0%';
+            
+            // Step-Up Basis: Erase all gains at death
+            const subSavings = activeStrategies.sub ? income * 0.5 * 0.20 : 0;
+            document.getElementById('sub-savings').textContent = formatCurrency(subSavings);
+            document.getElementById('sub-bar').style.width = activeStrategies.sub ? '100%' : '0%';
+            
+            // Charitable Remainder Trust: Avoid capital gains + get deduction
+            const crtSavings = activeStrategies.crt ? income * 0.20 * 0.20 + income * 0.30 * 0.37 : 0;
+            document.getElementById('crt-savings').textContent = formatCurrency(crtSavings);
+            document.getElementById('crt-bar').style.width = activeStrategies.crt ? '100%' : '0%';
+            
+            // 1031 Exchange: Defer all capital gains indefinitely
+            const exchangeSavings = activeStrategies.exchange ? income * 0.20 : 0;
+            document.getElementById('exchange-savings').textContent = formatCurrency(exchangeSavings);
+            document.getElementById('exchange-bar').style.width = activeStrategies.exchange ? '100%' : '0%';
+            
+            // Qualified Opportunity Zones: Defer gains + 0% on new appreciation
+            const qozSavings = activeStrategies.qoz ? income * 0.15 + income * 0.10 : 0;
+            document.getElementById('qoz-savings').textContent = formatCurrency(qozSavings);
+            document.getElementById('qoz-bar').style.width = activeStrategies.qoz ? '100%' : '0%';
+        }
+
+        // Wealth simulation chart
+        let wealthChart;
+        
+        function initWealthChart() {
+            const ctx = document.getElementById('wealth-chart').getContext('2d');
+            wealthChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 31}, (_, i) => `Year ${i}`),
+                    datasets: [
+                        {
+                            label: 'Employee Wealth',
+                            data: Array(31).fill(0),
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Investor Wealth',
+                            data: Array(31).fill(0),
+                            borderColor: 'rgb(147, 51, 234)',
+                            backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#9ca3af' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + formatCurrency(context.raw);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                color: '#9ca3af',
+                                callback: function(value) {
+                                    if (value >= 1000000) return '$' + (value/1000000).toFixed(1) + 'M';
+                                    if (value >= 1000) return '$' + (value/1000).toFixed(0) + 'K';
+                                    return '$' + value;
+                                }
+                            },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { display: false }
+                        }
+                    },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // Run 30-year simulation
+        function runSimulation() {
+            const annualIncome = parseInt(document.getElementById('income-slider').value);
+            const returnRate = parseFloat(document.getElementById('return-rate').value);
+            
+            const employeeWealth = [0];
+            const investorWealth = [0];
+            
+            let empTotal = 0;
+            let invTotal = 0;
+            
+            // Calculate strategy bonus
+            let strategyBonus = 1;
+            if (activeStrategies.bbd) strategyBonus += 0.02;
+            if (activeStrategies.dep) strategyBonus += 0.01;
+            if (activeStrategies.sub) strategyBonus += 0.015;
+            if (activeStrategies.crt) strategyBonus += 0.01;
+            if (activeStrategies.exchange) strategyBonus += 0.02;
+            if (activeStrategies.qoz) strategyBonus += 0.015;
+            
+            for (let year = 1; year <= 30; year++) {
+                // Employee: Taxed on income, then invests remainder
+                const empTax = TaxEngine.calculateEmployeeTax(annualIncome);
+                const empSavings = empTax.net * 0.20; // Saves 20% of net income
+                empTotal = empTotal * (1 + returnRate * 0.85) + empSavings; // Returns taxed at ~15%
+                employeeWealth.push(empTotal);
+                
+                // Investor: Full income compounds, tax deferred with strategy bonuses
+                const invGrowth = annualIncome * (1 + returnRate);
+                invTotal = invTotal * (1 + returnRate * strategyBonus) + invGrowth;
+                investorWealth.push(invTotal);
+            }
+            
+            // Update chart with animation
+            wealthChart.data.datasets[0].data = employeeWealth;
+            wealthChart.data.datasets[1].data = investorWealth;
+            wealthChart.update();
+            
+            // Update wealth gap visualizer
+            const maxWealth = Math.max(investorWealth[30], employeeWealth[30]);
+            const empHeight = (employeeWealth[30] / maxWealth) * 100;
+            const invHeight = (investorWealth[30] / maxWealth) * 100;
+            
+            document.getElementById('emp-bar-visual').style.height = `${empHeight}%`;
+            document.getElementById('inv-bar-visual').style.height = `${invHeight}%`;
+            document.getElementById('emp-final-wealth').textContent = formatCurrency(employeeWealth[30]);
+            document.getElementById('inv-final-wealth').textContent = formatCurrency(investorWealth[30]);
+            
+            // Animate the difference counter
+            const finalDiff = investorWealth[30] - employeeWealth[30];
+            animateValue('wealth-diff', 0, finalDiff, 2000);
+            
+            // Track simulation for achievements
+            if (!gameState.simulationRun) {
+                gameState.simulationRun = true;
+                addScore(100);
+                checkAchievements();
+            }
+            
+            // Check millionaire achievement
+            if (investorWealth[30] >= 10000000) {
+                const millionaireAch = achievements.find(a => a.id === 'millionaire');
+                millionaireAch.condition = () => true;
+                checkAchievements();
+            }
+        }
+
+        // Animate number counting
+        function animateValue(id, start, end, duration) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = start + (end - start) * eased;
+                element.textContent = formatCurrency(current);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        // Enhanced update with strategies
+        const originalUpdateResults = updateResults;
+        updateResults = function(income) {
+            const emp = TaxEngine.calculateEmployeeTax(income);
+            let inv = TaxEngine.calculateInvestorTax(income);
+            
+            // Apply strategy modifiers
+            if (activeStrategies.bbd) {
+                inv.effectiveRate *= 0.1; // 90% reduction from borrowing strategy
+                inv.totalTax *= 0.1;
+                inv.net = income - inv.totalTax;
+            }
+            if (activeStrategies.dep) {
+                inv.depreciationBenefit = income * 0.036;
+                inv.totalTax = Math.max(0, inv.totalTax - inv.depreciationBenefit * 0.37);
+                inv.effectiveRate = (inv.totalTax / income) * 100;
+                inv.net = income - inv.totalTax;
+            }
+            if (activeStrategies.sub) {
+                // Step-up erases gains - show potential savings
+                inv.stepUpSavings = income * 0.5 * 0.20;
+            }
+            
+            // Update employee results
+            document.getElementById('emp-gross').textContent = formatCurrency(emp.income);
+            document.getElementById('emp-federal').textContent = '-' + formatCurrency(emp.federal);
+            document.getElementById('emp-fica').textContent = '-' + formatCurrency(emp.fica);
+            document.getElementById('emp-state').textContent = '-' + formatCurrency(emp.state);
+            document.getElementById('emp-net').textContent = formatCurrency(emp.net);
+            document.getElementById('emp-rate').textContent = emp.effectiveRate.toFixed(2) + '%';
+            
+            // Update investor results
+            document.getElementById('inv-gross').textContent = formatCurrency(inv.assetValue);
+            document.getElementById('inv-unrealized').textContent = formatCurrency(inv.unrealized);
+            document.getElementById('inv-ltcg').textContent = '-' + formatCurrency(inv.ltcgTax);
+            document.getElementById('inv-depreciation').textContent = '+' + formatCurrency(inv.depreciationBenefit);
+            document.getElementById('inv-net').textContent = formatCurrency(inv.net);
+            document.getElementById('inv-rate').textContent = inv.effectiveRate.toFixed(2) + '%';
+            
+            // Update chart
+            comparisonChart.data.datasets[0].data = [emp.effectiveRate, inv.effectiveRate];
+            comparisonChart.update();
+            
+            // Update strategy savings
+            updateStrategySavings();
+        };
+
+        // Initialize everything
+        initChart();
+        initWealthChart();
+        initQuiz();
+        updateResults(100000);
+        
+        // Add entrance animations
+        anime({
+            targets: '.glass-card',
+            opacity: [0, 1],
+            translateY: [30, 0],
+            delay: anime.stagger(100),
+            easing: 'easeOutQuad',
+            duration: 800
+        });
+        
+        // Close modal on outside click
+        document.getElementById('achievement-modal').addEventListener('click', function(e) {
+            if (e.target === this) hideAchievements();
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideAchievements();
+            }
+        });
+        
+        console.log('🎮 Ultimate Tax Evasion Simulator loaded!');
+        console.log('📚 This is an educational tool demonstrating legal tax policy differences.');
+    </script>
+</body>
+</html>

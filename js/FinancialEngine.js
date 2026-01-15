@@ -41,6 +41,9 @@ class FinancialEngine {
         this.menuAppeal = 1.0;
         this.rentAmount = GAME_CONFIG.DAILY_EXPENSES.rent.amount;
 
+        // Pricing system - markup percentage
+        this.markupPercentage = 100; // Default 100% markup (2x cost)
+
         // Prepared items (par-baked, frozen dough)
         this.preparedItems = [];
 
@@ -498,7 +501,30 @@ class FinancialEngine {
         if (this.pricingOverrides?.[recipeKey]) {
             return this.pricingOverrides[recipeKey];
         }
-        return GAME_CONFIG.RECIPES[recipeKey]?.retailPrice || 0;
+        // Get cost and apply markup percentage
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe) return 0;
+        
+        const cost = this.calculateRecipeCost(recipeKey);
+        const markup = (this.markupPercentage || 100) / 100;
+        return cost * (1 + markup);
+    }
+
+    calculateRecipeCost(recipeKey) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe) return 0;
+        
+        let totalCost = 0;
+        Object.entries(recipe.ingredients).forEach(([ingredientKey, amount]) => {
+            const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
+            if (!ingredient) return;
+            
+            // Use base market price as cost estimate
+            const basePrice = ingredient.basePrice || 0;
+            totalCost += basePrice * amount;
+        });
+        
+        return totalCost;
     }
 
     calculateIngredientDemand(targets = {}) {
@@ -598,7 +624,7 @@ class FinancialEngine {
     }
 
     // Check if customer will buy at current price given their segment
-    willCustomerBuy(recipeKey, segment, currentPrice) {
+    willCustomerBuy(recipeKey, segment, currentPrice, customerMood = 50, customerPreferences = null) {
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
         if (!recipe) return false;
 
@@ -608,8 +634,32 @@ class FinancialEngine {
         // Quality bonus - higher quality increases willingness to pay
         const qualityBonus = (quality / 100) * (segment.qualityTolerance || 0.8);
 
+        // Mood affects price sensitivity: lower mood = more price sensitive
+        // Mood ranges 0-100, normalize to 0.7-1.3 multiplier
+        const moodMultiplier = 0.7 + (customerMood / 100) * 0.6;
+
+        // Check ingredient preferences based on mood
+        let ingredientAppeal = 1.0;
+        if (customerPreferences && recipe.ingredients) {
+            // Customers in good mood prefer sweet ingredients
+            // Customers in bad mood prefer comfort/savory ingredients
+            const wantsSweetness = customerMood > 60;
+            const hasPreferredIngredient = Object.keys(recipe.ingredients).some(ing => {
+                if (wantsSweetness) {
+                    return ing.includes('chocolate') || ing.includes('sugar') || ing.includes('berry');
+                } else {
+                    return ing.includes('butter') || ing.includes('cheese') || ing.includes('bread');
+                }
+            });
+            
+            ingredientAppeal = hasPreferredIngredient ? 1.3 : 0.8;
+        }
+
         // Maximum price this customer segment will pay
-        const maxWillingPrice = referencePrice * (segment.priceMultiplier || 1.0) * (0.8 + qualityBonus * 0.4);
+        const maxWillingPrice = referencePrice * (segment.priceMultiplier || 1.0) * 
+                                (0.8 + qualityBonus * 0.4) * 
+                                moodMultiplier * 
+                                ingredientAppeal;
 
         // Apply event-based willingness modifier
         const willingnessMultiplier = this.economy.getCustomerWillingnessMultiplier();
@@ -1447,6 +1497,92 @@ class FinancialEngine {
 
         this.emit('day_end', summary);
         return summary;
+    }
+
+    // ==================== PHASE 1 FINANCIAL METRICS ====================
+    
+    /**
+     * Calculate gross margin percentage (Industry benchmark: 60-75% for bakeries)
+     */
+    getGrossMarginPercent() {
+        const revenue = this.dailyStats.revenue || 0;
+        if (revenue === 0) return 0;
+        return (this.dailyStats.grossProfit / revenue) * 100;
+    }
+
+    /**
+     * Calculate labor cost as percentage of revenue (Industry benchmark: 25-35%)
+     */
+    getLaborCostPercent() {
+        const revenue = this.dailyStats.revenue || 0;
+        if (revenue === 0) return 0;
+        
+        // Calculate total labor costs for today
+        const totalLaborCost = this.staff.reduce((sum, s) => {
+            const hoursWorked = s.hoursWorkedToday || 0;
+            return sum + (s.wage * hoursWorked);
+        }, 0);
+        
+        return (totalLaborCost / revenue) * 100;
+    }
+
+    /**
+     * Calculate cash runway in days (how many days until broke at current burn rate)
+     */
+    getCashRunwayDays() {
+        if (this.cash <= 0) return 0;
+        
+        // Calculate average daily expenses (fixed costs)
+        const dailyRent = this.rentAmount / 28; // Rent spread over 28 days
+        const dailyLaborCost = this.staff.reduce((sum, s) => sum + (s.wage * 8), 0); // Assume 8hr days
+        const avgDailyExpenses = dailyRent + dailyLaborCost;
+        
+        if (avgDailyExpenses <= 0) return Infinity;
+        return Math.floor(this.cash / avgDailyExpenses);
+    }
+
+    /**
+     * Calculate break-even units needed per day
+     */
+    getBreakEvenUnitsPerDay() {
+        // Calculate average contribution margin per item
+        const recipes = Object.keys(GAME_CONFIG.RECIPES);
+        if (recipes.length === 0) return 0;
+        
+        let avgContributionMargin = 0;
+        recipes.forEach(key => {
+            const cost = this.calculateRecipeCost(key);
+            const price = this.getRecipeBasePrice(key);
+            avgContributionMargin += (price - cost);
+        });
+        avgContributionMargin /= recipes.length;
+        
+        if (avgContributionMargin <= 0) return Infinity;
+        
+        // Fixed costs per day
+        const dailyRent = this.rentAmount / 28;
+        const dailyLaborCost = this.staff.reduce((sum, s) => sum + (s.wage * 8), 0);
+        const dailyFixedCosts = dailyRent + dailyLaborCost;
+        
+        return Math.ceil(dailyFixedCosts / avgContributionMargin);
+    }
+
+    /**
+     * Get metric status with color coding
+     */
+    getMetricStatus(metricName, value) {
+        const benchmarks = {
+            grossMargin: { green: [60, Infinity], yellow: [50, 60], red: [0, 50] },
+            laborCost: { green: [0, 35], yellow: [35, 45], red: [45, Infinity] },
+            cashRunway: { green: [14, Infinity], yellow: [7, 14], red: [0, 7] }
+        };
+        
+        const bench = benchmarks[metricName];
+        if (!bench) return 'gray';
+        
+        if (value >= bench.green[0] && value < bench.green[1]) return 'green';
+        if (value >= bench.yellow[0] && value < bench.yellow[1]) return 'yellow';
+        return 'red';
     }
 
     // ==================== TIME ====================

@@ -85,9 +85,9 @@ class CustomerInteractionScene {
         };
 
         // Randomly select an item
-        if (this.game.engine && this.game.engine.inventory) {
-            const availableItems = Object.keys(this.game.engine.inventory).filter(
-                item => this.game.engine.inventory[item] > 0
+        if (this.game.engine && this.game.engine.products) {
+            const availableItems = Object.keys(this.game.engine.products).filter(
+                item => this.game.engine.products[item].quantity > 0
             );
 
             if (availableItems.length > 0) {
@@ -258,8 +258,16 @@ class CustomerInteractionScene {
      * Ordering phase
      */
     showOrderingPhase() {
+        // If customer already wants a specific item, pre-add it
+        if (this.customer.wantsItem && this.orderedItems.length === 0) {
+            if (this.isItemAvailable(this.customer.wantsItem)) {
+                this.orderedItems.push(this.customer.wantsItem);
+                console.log(`📝 Pre-added customer's requested item: ${this.customer.wantsItem}`);
+            }
+        }
+
         const availableItems = this.getAvailableItems();
-        const favoriteItems = this.customer.favoriteItems.slice(0, 3);
+        const favoriteItems = (this.customer.favoriteItems || []).slice(0, 3);
 
         this.showOrderingUI(availableItems, favoriteItems);
     }
@@ -415,10 +423,11 @@ class CustomerInteractionScene {
      * Check if item is available
      */
     isItemAvailable(itemKey) {
-        if (!this.game.engine || !this.game.engine.inventory) {
+        if (!this.game.engine || !this.game.engine.products) {
             return false;
         }
-        return this.game.engine.inventory[itemKey] > 0;
+        const product = this.game.engine.products[itemKey];
+        return product && product.quantity > 0;
     }
 
     /**
@@ -686,6 +695,7 @@ class CustomerInteractionScene {
             success: true,
             customer: this.customer,
             orderedItems: this.orderedItems,
+            items: this.orderedItems, // Alias for compatibility
             smallTalkScore: this.smallTalkScore,
             smallTalkDuration: this.smallTalkDuration,
             moodChange: this.customerMood - this.initialMood,
@@ -696,6 +706,8 @@ class CustomerInteractionScene {
         };
 
         console.log('✅ Interaction complete:', result);
+        console.log(`   📦 Items ordered: ${this.orderedItems.join(', ')}`);
+        console.log(`   💰 Total revenue: $${result.revenue.toFixed(2)}`);
 
         // Remove UI
         const overlay = document.getElementById('customer-interaction-overlay');
@@ -792,12 +804,65 @@ class CustomerInteractionScene {
     }
 
     showItemAddedConfirmation(itemKey) {
+        const recipe = GAME_CONFIG.RECIPES[itemKey];
         console.log(`Added ${itemKey} to order`);
+        
+        // Show brief confirmation
+        const content = document.getElementById('interaction-content');
+        if (content) {
+            const confirmMsg = document.createElement('div');
+            confirmMsg.className = 'item-added-toast';
+            confirmMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: rgba(46, 204, 113, 0.9); color: white; padding: 15px 25px; border-radius: 10px; font-weight: 600; z-index: 9999; animation: slideInRight 0.3s ease;';
+            confirmMsg.innerHTML = `${recipe?.icon || '✓'} Added ${recipe?.name || itemKey}!`;
+            document.body.appendChild(confirmMsg);
+            
+            setTimeout(() => confirmMsg.remove(), 2000);
+        }
     }
 
     showContinueOrderingPrompt() {
         // Update UI to show current order and ask if want more
         console.log('Current order:', this.orderedItems);
+        
+        const content = document.getElementById('interaction-content');
+        if (!content) return;
+        
+        const orderSummary = this.orderedItems.map(itemKey => {
+            const recipe = GAME_CONFIG.RECIPES[itemKey];
+            return `${recipe?.icon || '🥐'} ${recipe?.name || itemKey} - $${recipe?.retailPrice || 0}`;
+        }).join('<br>');
+        
+        const totalCost = this.orderedItems.reduce((sum, itemKey) => {
+            const recipe = GAME_CONFIG.RECIPES[itemKey];
+            return sum + (recipe?.retailPrice || 0);
+        }, 0);
+        
+        content.innerHTML = `
+            <div class="order-summary-section">
+                <h3>Current Order</h3>
+                <div class="order-items">
+                    ${orderSummary}
+                </div>
+                <div class="order-total">Total: $${totalCost.toFixed(2)}</div>
+                
+                <div class="order-actions">
+                    <button class="dialogue-option" id="btn-add-more">
+                        🛒 Add More Items
+                    </button>
+                    <button class="dialogue-option" id="btn-finish-order" style="background: rgba(46, 204, 113, 0.2); border-color: #2ecc71;">
+                        ✓ That's All
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        content.querySelector('#btn-add-more')?.addEventListener('click', () => {
+            this.startPhase('ordering');
+        });
+        
+        content.querySelector('#btn-finish-order')?.addEventListener('click', () => {
+            this.startPhase('closing');
+        });
     }
 
     showAlternatives(alternatives) {
