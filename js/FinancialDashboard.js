@@ -119,6 +119,17 @@ class FinancialDashboard {
         const summary = econ.getSummary();
         const engine = this.game.engine;
         
+        // Calculate Phase 1 metrics
+        const grossMarginPercent = engine.getGrossMarginPercent();
+        const laborCostPercent = engine.getLaborCostPercent();
+        const cashRunwayDays = engine.getCashRunwayDays();
+        const breakEvenUnits = engine.getBreakEvenUnitsPerDay();
+        
+        // Get color coding
+        const grossMarginColor = this.getMetricColor(engine.getMetricStatus('grossMargin', grossMarginPercent));
+        const laborCostColor = this.getMetricColor(engine.getMetricStatus('laborCost', laborCostPercent));
+        const cashRunwayColor = this.getMetricColor(engine.getMetricStatus('cashRunway', cashRunwayDays));
+        
         panel.innerHTML = `
             <div class="overview-grid">
                 <div class="overview-card">
@@ -127,6 +138,41 @@ class FinancialDashboard {
                     <div class="stat-row"><span>Season:</span><span>${summary.season}</span></div>
                     <div class="stat-row"><span>Day of Week:</span><span>${summary.dayOfWeek}</span></div>
                     <div class="stat-row"><span>Cash:</span><span style="color: ${engine.cash >= 0 ? '#27ae60' : '#e74c3c'}"><strong>$${engine.cash.toFixed(2)}</strong></span></div>
+                    <div class="stat-row"><span>Cash Runway:</span><span style="color: ${cashRunwayColor}"><strong>${cashRunwayDays === Infinity ? '∞' : cashRunwayDays} days</strong></span></div>
+                </div>
+                
+                <div class="overview-card">
+                    <h3>💰 Financial Health</h3>
+                    <div class="stat-row">
+                        <span>Gross Margin:</span>
+                        <span style="color: ${grossMarginColor}">
+                            <strong>${grossMarginPercent.toFixed(1)}%</strong>
+                        </span>
+                    </div>
+                    <div class="benchmark-hint">Target: 60-75%</div>
+                    
+                    <div class="stat-row">
+                        <span>Labor Cost %:</span>
+                        <span style="color: ${laborCostColor}">
+                            <strong>${laborCostPercent.toFixed(1)}%</strong>
+                        </span>
+                    </div>
+                    <div class="benchmark-hint">Target: <35%</div>
+                    
+                    <div class="stat-row">
+                        <span>Break-Even Units:</span>
+                        <span><strong>${breakEvenUnits === Infinity ? 'N/A' : breakEvenUnits}/day</strong></span>
+                    </div>
+                    <div class="benchmark-hint">Items sold today: ${engine.dailyStats.itemsSold}</div>
+                </div>
+                
+                <div class="overview-card">
+                    <h3>📊 Today's Performance</h3>
+                    <div class="stat-row"><span>Revenue:</span><span style="color: #27ae60"><strong>$${engine.dailyStats.revenue.toFixed(2)}</strong></span></div>
+                    <div class="stat-row"><span>COGS:</span><span style="color: #e74c3c">$${engine.dailyStats.cogs.toFixed(2)}</span></div>
+                    <div class="stat-row"><span>Gross Profit:</span><span style="color: ${engine.dailyStats.grossProfit >= 0 ? '#27ae60' : '#e74c3c'}">$${engine.dailyStats.grossProfit.toFixed(2)}</span></div>
+                    <div class="stat-row"><span>Customers Served:</span><span>${engine.dailyStats.customersServed}</span></div>
+                    <div class="stat-row"><span>Items Sold:</span><span>${engine.dailyStats.itemsSold}</span></div>
                 </div>
                 
                 <div class="overview-card">
@@ -135,7 +181,9 @@ class FinancialDashboard {
                     <div class="stat-row"><span>Trend:</span><span>${summary.inflation.trend}</span></div>
                     <div class="stat-row"><span>Interest Rates:</span><span>Base + ${(econ.inflation.current * 2 * 100).toFixed(1)}%</span></div>
                 </div>
-                
+            </div>
+            
+            <div class="overview-grid" style="margin-top: 20px;">
                 <div class="overview-card">
                     <h3>🌾 Market Conditions</h3>
                     ${Object.entries(summary.marketConditions).map(([cat, cond]) => `
@@ -165,6 +213,16 @@ class FinancialDashboard {
         `;
         
         this.renderInflationChart();
+    }
+    
+    getMetricColor(status) {
+        const colors = {
+            green: '#27ae60',
+            yellow: '#f39c12',
+            red: '#e74c3c',
+            gray: '#95a5a6'
+        };
+        return colors[status] || colors.gray;
     }
     
     renderMarket() {

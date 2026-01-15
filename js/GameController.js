@@ -28,6 +28,11 @@ class GameController {
         this.activeScenarioEffects = [];
         this.lastScenarioRollDay = null;
 
+        // Initialize new systems
+        this.timeManager = null;
+        this.notificationSystem = null;
+        this.staffManager = null;
+
         this.init();
     }
 
@@ -42,6 +47,24 @@ class GameController {
         if (window.CustomerDatabase) {
             this.customerDB = new CustomerDatabase(this.engine);
             this.engine.customerDB = this.customerDB;
+        }
+
+        // Initialize time manager
+        if (window.TimeManager) {
+            this.timeManager = new TimeManager(this);
+        }
+
+        // Initialize notification system
+        if (window.NotificationSystem) {
+            this.notificationSystem = new NotificationSystem(this);
+        }
+
+        // Initialize staff manager
+        if (window.StaffManager) {
+            this.staffManager = new StaffManager(this);
+            
+            // Sync staff manager with engine staff
+            this.syncStaffManager();
         }
 
         this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
@@ -61,13 +84,10 @@ class GameController {
         });
 
         this.engine.on('baking_complete', (item) => {
-            this.showPopup({
-                icon: item.recipeIcon,
-                title: 'Baking Complete!',
-                message: `${item.quantity}x ${item.recipeName} is ready!`,
-                type: 'success',
-                autoClose: 2000
-            });
+            // Use NotificationSystem for subtle notifications
+            if (this.notificationSystem) {
+                this.notificationSystem.bakingComplete(item.recipeName, item.quantity);
+            }
             this.renderReadyProducts();
             this.renderProductionQueue();
             this.renderDisplayProducts();
@@ -76,13 +96,14 @@ class GameController {
         });
 
         this.engine.on('hour_change', (data) => {
-            this.showPopup({
-                icon: '🕐',
-                title: `Time: ${this.engine.getTimeString()}`,
-                message: data.hour >= 17 ? 'Shop closing soon!' : 'Another hour passes...',
-                type: 'info',
-                autoClose: 1500
-            });
+            // Only notify on important hours using NotificationSystem
+            if (this.notificationSystem && data.hour >= 17) {
+                this.notificationSystem.warning('Shop closing soon!', {
+                    icon: '🌅',
+                    title: `Time: ${this.engine.getTimeString()}`,
+                    duration: 3000
+                });
+            }
         });
 
         this.engine.on('sale', (data) => {
@@ -101,6 +122,7 @@ class GameController {
 
         this.engine.on('staff_hired', (staff) => {
             this.logAutomationEvent('staff', `${staff.name} joined the team`, { staff: staff.name });
+            this.refreshStaffManager();
             this.updateAutomationAvailability();
         });
 
@@ -108,6 +130,7 @@ class GameController {
             if (info?.staff?.name) {
                 this.logAutomationEvent('staff', `${info.staff.name} left the bakery`, { staff: info.staff.name, severity: 'warning' });
             }
+            this.refreshStaffManager();
             this.updateAutomationAvailability();
         });
 
@@ -179,6 +202,64 @@ class GameController {
 
     hasOperationalStaff() {
         return Array.isArray(this.engine?.staff) && this.engine.staff.length > 0;
+    }
+
+    /**
+     * Sync the StaffManager with engine staff
+     */
+    syncStaffManager() {
+        if (!this.staffManager) return;
+
+        // Add owner as first staff member (can serve customers and bake)
+        this.staffManager.addStaff({
+            id: 'owner',
+            name: 'You (Owner)',
+            role: 'owner',
+            isPlayer: true,
+            skill: 80,
+            speed: 70,
+            chattiness: 50
+        });
+
+        // Add any existing engine staff
+        if (this.engine && Array.isArray(this.engine.staff)) {
+            this.engine.staff.forEach(staff => {
+                this.staffManager.addStaff({
+                    ...staff,
+                    id: staff.id || `staff_${Date.now()}`,
+                    role: staff.role || 'server', // Default to server role
+                    skill: staff.skill || 50,
+                    speed: staff.speed || 50,
+                    chattiness: staff.chattiness || 50
+                });
+            });
+        }
+    }
+
+    /**
+     * Refresh staff in manager when new staff is hired
+     */
+    refreshStaffManager() {
+        if (!this.staffManager) return;
+
+        // Clear non-owner staff and re-add from engine
+        this.staffManager.staff = this.staffManager.staff.filter(s => s.id === 'owner');
+
+        if (this.engine && Array.isArray(this.engine.staff)) {
+            this.engine.staff.forEach(staff => {
+                // Check if already in manager
+                if (!this.staffManager.getStaff(staff.id)) {
+                    this.staffManager.addStaff({
+                        ...staff,
+                        id: staff.id || `staff_${Date.now()}`,
+                        role: staff.role || 'server', // Default to server role
+                        skill: staff.skill || 50,
+                        speed: staff.speed || 50,
+                        chattiness: staff.chattiness || 50
+                    });
+                }
+            });
+        }
     }
 
     updateAutomationAvailability() {
@@ -856,6 +937,27 @@ class GameController {
         }
     }
 
+    skipDayDueToCash() {
+        // Consequence: Skip day, lose potential revenue, still have fixed costs
+        this.notificationSystem.warning('⏭️ Day skipped due to insufficient cash');
+        const summary = this.engine.processEndOfDay();
+        this.showDaySummary(summary);
+    }
+
+    updateMarkup(value) {
+        const markup = parseInt(value) || 100;
+        this.engine.markupPercentage = markup;
+        
+        // Update both slider and input
+        const slider = document.getElementById('markup-slider');
+        const input = document.getElementById('markup-input');
+        if (slider) slider.value = markup;
+        if (input) input.value = markup;
+        
+        // Refresh display products to show new prices
+        this.renderDisplayProducts();
+    }
+
     // ==================== MAIN MENU ====================
     showMainMenu() {
         console.log('Displaying Main Menu');
@@ -1444,6 +1546,32 @@ class GameController {
 
     // ==================== BUYING PHASE ====================
     showBuyingPhase() {
+        // Phase 1: Cash flow consequence - check if player has enough cash
+        const minCashRequired = 50; // Minimum cash to operate
+        if (this.engine.cash < minCashRequired) {
+            this.showPopup({
+                icon: '💰',
+                title: 'Insufficient Funds',
+                message: `You need at least $${minCashRequired} to buy ingredients. Current cash: $${this.engine.cash.toFixed(2)}. You cannot open today.`,
+                type: 'error',
+                buttons: [
+                    { 
+                        text: 'Skip to Next Day', 
+                        action: () => {
+                            this.skipDayDueToCash();
+                        }
+                    }
+                ]
+            });
+            return;
+        }
+
+        // Warn if cash is low
+        const cashRunway = this.engine.getCashRunwayDays();
+        if (cashRunway <= 3 && cashRunway > 0) {
+            this.notificationSystem.warning(`⚠️ Low cash warning: Only ${cashRunway} days of runway remaining!`);
+        }
+
         const container = document.getElementById('game-container');
         if (container) {
             container.style.padding = '0';
@@ -2220,6 +2348,16 @@ class GameController {
                 <!-- Shop Display -->
                 <div class="shop-display">
                     <h3>🏪 Your Display Case</h3>
+                    <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px;">
+                            <span style="font-weight: bold;">Markup %:</span>
+                            <input type="range" id="markup-slider" min="0" max="500" value="${this.engine.markupPercentage || 100}" 
+                                   style="flex: 1;" oninput="window.game.updateMarkup(this.value)">
+                            <input type="number" id="markup-input" min="0" max="500" value="${this.engine.markupPercentage || 100}" 
+                                   style="width: 70px; padding: 4px;" oninput="window.game.updateMarkup(this.value)">
+                            <span style="color: #7f8c8d; font-size: 12px;">(Sell price = Cost × ${1 + (this.engine.markupPercentage || 100) / 100})</span>
+                        </label>
+                    </div>
                     <div class="display-products" id="display-products"></div>
                 </div>
                 
@@ -2326,13 +2464,18 @@ class GameController {
                 const quality = this.engine.getProductQuality(key);
                 const qualityLabel = this.engine.getQualityLabel(quality);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
-                const effectivePrice = this.engine.getRecipeBasePrice(key) * priceMultiplier;
+                const basePrice = this.engine.getRecipeBasePrice(key);
+                const effectivePrice = basePrice * priceMultiplier;
+                const cost = this.engine.calculateRecipeCost(key);
 
                 return `
                     <div class="display-item ${stock === 0 ? 'sold-out' : ''}">
                         <div class="display-icon">${recipe.icon}</div>
                         <div class="display-name">${recipe.name}</div>
-                        <div class="display-price" title="Base: $${this.engine.getRecipeBasePrice(key).toFixed(2)}">$${effectivePrice.toFixed(2)}</div>
+                        <div class="display-price" title="Cost: $${cost.toFixed(2)} | Base: $${basePrice.toFixed(2)}">
+                            $${effectivePrice.toFixed(2)}
+                            <span style="font-size: 10px; color: #7f8c8d; display: block;">cost: $${cost.toFixed(2)}</span>
+                        </div>
                         <div class="display-quality" style="color: ${qualityLabel.color}">${qualityLabel.emoji}</div>
                         <div class="display-qty">${stock}x</div>
                     </div>
@@ -2352,10 +2495,181 @@ class GameController {
         return (this.activeCustomers || []).find(c => c.id === customerId);
     }
 
-    manualServeCustomer(customerId) {
+    /**
+     * Serve customer - always via staff assignment
+     */
+    async manualServeCustomer(customerId) {
         const customer = this.getCustomerById(customerId);
         if (!customer) return;
-        this.completeCustomerSale({ customer, manualOverride: true });
+
+        // Customer just orders what they want
+        if (customer.wantsItem) {
+            const saleResult = this.engine.processSale(customer.wantsItem, 1);
+            
+            if (saleResult.success) {
+                // Record purchase in customer database
+                if (this.customerDB && customer.dbId) {
+                    const dbCustomer = this.customerDB.customers.get(customer.dbId);
+                    if (dbCustomer) {
+                        const quality = saleResult.quality || 100;
+                        const price = saleResult.revenue || 0;
+                        this.customerDB.processPurchase(dbCustomer, customer.wantsItem, price, quality);
+                    }
+                }
+                
+                // Show success
+                const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
+                const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)];
+                
+                customer.state = 'success';
+                customer.resultMessage = msg;
+                customer.resultRevenue = saleResult.revenue;
+                customer.resultFace = '😊';
+                
+                this.releaseAssignedStaff(customer);
+                this.renderCustomerArea();
+                
+                // Notify about revenue
+                if (this.notificationSystem) {
+                    this.notificationSystem.moneyEarned(saleResult.revenue);
+                }
+                
+                this.logAutomationEvent('sale', `${customer.name} bought ${customer.wantsItem}`, {
+                    item: customer.wantsItem,
+                    amount: `$${saleResult.revenue.toFixed(2)}`,
+                    auto: false
+                });
+                
+                this.renderDisplayProducts();
+                this.updateStats();
+                
+                setTimeout(() => {
+                    this.removeCustomer(customer);
+                }, 2000);
+            } else {
+                this.handleOutOfStock(customer);
+            }
+        } else {
+            this.removeCustomer(customer);
+        }
+    }
+
+    /**
+     * Assign a staff member to serve a customer
+     */
+    assignStaffToCustomer(customerId) {
+        const customer = this.getCustomerById(customerId);
+        if (!customer) return;
+
+        const selectElement = document.getElementById(`staff-select-${customerId}`);
+        if (!selectElement || !selectElement.value) {
+            if (this.notificationSystem) {
+                this.notificationSystem.warning('Please select a staff member first');
+            }
+            return;
+        }
+
+        const staffId = selectElement.value;
+        const staff = this.staffManager ? this.staffManager.getStaff(staffId) : null;
+
+        if (!staff) {
+            if (this.notificationSystem) {
+                this.notificationSystem.error('Staff member not found');
+            }
+            return;
+        }
+
+        // Check if staff has server role
+        if (staff.role !== 'server' && staff.role !== 'owner') {
+            if (this.notificationSystem) {
+                this.notificationSystem.warning(`${staff.name} is a ${staff.role}, not a server. Only servers can serve customers.`);
+            }
+            return;
+        }
+
+        // Check if staff is available
+        if (!this.staffManager.isStaffAvailable(staff)) {
+            if (this.notificationSystem) {
+                this.notificationSystem.warning(`${staff.name} is currently busy`);
+            }
+            return;
+        }
+
+        // Create a task for this customer interaction
+        const task = this.staffManager.createTask('customer', {
+            customerId: customer.id,
+            customerName: customer.name,
+            wantsItem: customer.wantsItem,
+            priority: 'normal'
+        });
+
+        // Assign the task
+        const result = this.staffManager.assignTask(staff, task);
+
+        if (result.success) {
+            customer.assignedStaff = staff;
+            customer.requiresManualService = false;
+            customer.serviceDuration = task.estimatedTime * 1000;
+
+            if (this.notificationSystem) {
+                this.notificationSystem.success(`${staff.name} is now serving ${customer.name}`, {
+                    icon: '👔',
+                    title: 'Staff Assigned'
+                });
+            }
+
+            // Start auto-service for this customer
+            this.startStaffAutoService(customer, staff, task);
+            this.renderCustomerArea();
+        } else {
+            if (this.notificationSystem) {
+                this.notificationSystem.error(result.reason || 'Could not assign staff');
+            }
+        }
+    }
+
+    /**
+     * Handle staff auto-service of customer
+     */
+    startStaffAutoService(customer, staff, task) {
+        const duration = task.estimatedTime * 1000;
+        const startTime = Date.now();
+
+        // Update progress periodically
+        const progressInterval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(100, (elapsed / duration) * 100);
+
+            const progressFill = document.querySelector(`[data-customer-id="${customer.id}"] .service-progress-fill`);
+            if (progressFill) {
+                progressFill.style.width = `${progress}%`;
+            }
+
+            if (progress >= 100) {
+                clearInterval(progressInterval);
+            }
+        }, 100);
+
+        // Complete after duration
+        setTimeout(() => {
+            clearInterval(progressInterval);
+
+            // Complete the task
+            if (this.staffManager) {
+                this.staffManager.completeTask(task.id, { success: true });
+            }
+
+            // Process the sale
+            this.completeCustomerSale({ customer, auto: true });
+
+            // Notify
+            if (this.notificationSystem) {
+                this.notificationSystem.success(`${staff.name} completed serving ${customer.name}`, {
+                    icon: '✅',
+                    title: 'Service Complete'
+                });
+            }
+        }, duration);
     }
 
     cancelCustomerOrder(customerId) {
@@ -2422,6 +2736,14 @@ class GameController {
         const etaSeconds = Math.max(1, Math.round(((customer.serviceDuration || 2000) / 1000)));
         const showProgress = !requiresManual && !!customer.serviceDuration;
 
+        // Get available staff for assignment dropdown (only servers and owner)
+        const availableStaff = this.staffManager ? 
+            this.staffManager.getAvailableStaff().filter(s => s.role === 'server' || s.role === 'owner') : 
+            [];
+        const staffOptions = availableStaff.map(s => 
+            `<option value="${s.id}">${s.name}${s.role !== 'owner' ? ` (👔 ${s.role})` : ''}</option>`
+        ).join('');
+
         return `
             <div class="customer-popup ${requiresManual ? 'manual-needed' : ''}" data-customer-id="${customer.id}">
                 <div class="customer-face" style="font-size: 64px;">${baseFace}</div>
@@ -2438,8 +2760,22 @@ class GameController {
                             <div class="service-progress-fill" style="width: 0%;"></div>
                         </div>
                     ` : ''}
+                    ${availableStaff.length > 0 ? `
+                        <div class="staff-assignment" style="margin: 10px 0;">
+                            <select class="staff-select" id="staff-select-${customer.id}" 
+                                    style="padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,215,0,0.3); 
+                                           background: rgba(0,0,0,0.3); color: white; width: 100%; margin-bottom: 8px;">
+                                <option value="">Assign Staff...</option>
+                                ${staffOptions}
+                            </select>
+                            <button class="btn btn-primary" style="width: 100%;" 
+                                    onclick="window.game.assignStaffToCustomer('${customer.id}')">
+                                👔 Assign Selected Staff
+                            </button>
+                        </div>
+                    ` : ''}
                     <div class="service-actions">
-                        <button class="btn btn-secondary" onclick="window.game.manualServeCustomer('${customer.id}')">Serve Manually</button>
+                        <button class="btn btn-secondary" onclick="window.game.manualServeCustomer('${customer.id}')">🙋 Serve Manually</button>
                         <button class="btn btn-link" style="color: #c0392b;" onclick="window.game.cancelCustomerOrder('${customer.id}')">Cancel Order</button>
                     </div>
                 </div>
@@ -2553,18 +2889,22 @@ class GameController {
         const greetings = GAME_CONFIG.CUSTOMER_DIALOGUES.greeting;
         const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
+        // Get customer mood for preference filtering
+        const customerMood = customerData.currentMood || 50;
+        const customerPreferences = customerData.preferences || null;
+
         // Find available products that this customer segment is willing to buy
         const available = Object.entries(this.engine.products)
             .filter(([key, p]) => {
                 if (p.quantity <= 0) return false;
 
-                // Demand check based on current price
+                // Demand check based on current price and customer mood
                 const recipe = GAME_CONFIG.RECIPES[key];
                 const quality = this.engine.getProductQuality(key);
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
                 const currentPrice = this.engine.getRecipeBasePrice(key) * priceMultiplier;
 
-                return this.engine.willCustomerBuy(key, segment, currentPrice);
+                return this.engine.willCustomerBuy(key, segment, currentPrice, customerMood, customerPreferences);
             })
             .map(([key]) => key);
 
@@ -2617,6 +2957,20 @@ class GameController {
             }
 
             this.engine.missedCustomer();
+            
+            // Phase 1: Pricing elasticity consequence
+            // Track if customer left due to price vs. stockout
+            const hasAnyStock = Object.values(this.engine.products).some(p => p.quantity > 0);
+            if (hasAnyStock && available.length === 0) {
+                // Customer left because prices are too high!
+                this.priceRelatedMisses = (this.priceRelatedMisses || 0) + 1;
+                
+                // After 3 price-related misses, warn the player
+                if (this.priceRelatedMisses >= 3) {
+                    this.notificationSystem.warning('💸 Customers are leaving because prices are too high!');
+                    this.priceRelatedMisses = 0; // Reset counter
+                }
+            }
 
             setTimeout(() => {
                 if (customerArea) {
@@ -2631,6 +2985,7 @@ class GameController {
         const orderMsg = orderDialogues[Math.floor(Math.random() * orderDialogues.length)]
             .replace('{item}', GAME_CONFIG.RECIPES[wantsItem]?.name || wantsItem);
 
+        // Create enhanced customer object with all database properties
         const newCustomer = {
             id: `cust-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             face: customerData.face || '🙂',
@@ -2642,7 +2997,26 @@ class GameController {
             orderMessage: orderMsg,
             state: 'waiting',
             assignedStaff: null,
-            requiresManualService: false
+            requiresManualService: false,
+            
+            // Add full customer database properties for CustomerInteractionScene
+            ageGroup: customerData.ageGroup || '26-35',
+            personality: customerData.personality || {
+                patience: 50,
+                chattiness: 50,
+                impulsiveness: 50,
+                flexibility: 50,
+                moodiness: 50
+            },
+            currentMood: customerData.currentMood || 50,
+            favoriteItems: customerData.favoriteItems || [],
+            externalFactors: customerData.externalFactors || {
+                weatherSensitivity: 50,
+                timeOfDaySensitivity: 50,
+                economicSensitivity: 50
+            },
+            visits: customerData.visits || 0,
+            satisfaction: customerData.satisfaction || 75
         };
 
         this.activeCustomers.push(newCustomer);
@@ -2739,13 +3113,23 @@ class GameController {
 
     assignCustomerToStaff() {
         if (!this.engine.staff || this.engine.staff.length === 0) return null;
-        const available = this.engine.staff.filter(staff => !staff.currentCustomer && staff.fatigue < 95);
+        
+        // Only servers and owners can serve customers
+        const available = this.engine.staff.filter(staff => 
+            !staff.currentCustomer && 
+            staff.fatigue < 95 &&
+            (staff.role === 'server' || staff.role === 'owner')
+        );
+        
         if (available.length === 0) return null;
+        
+        // Sort by skill level and fatigue
         available.sort((a, b) => {
             const skillDiff = b.skillLevel - a.skillLevel;
             const fatigueDiff = a.fatigue - b.fatigue;
             return skillDiff !== 0 ? skillDiff : fatigueDiff;
         });
+        
         return available[0];
     }
 
@@ -3624,6 +4008,13 @@ class GameController {
         const result = this.engine.hireStaff(staffConfig);
         if (result.success) {
             this.updateAutomationAvailability();
+            
+            // Phase 1: Labor cost consequence - warn if labor costs are getting high
+            const laborCostPercent = this.engine.getLaborCostPercent();
+            if (laborCostPercent > 45) {
+                this.notificationSystem.warning(`⚠️ Labor costs now ${laborCostPercent.toFixed(0)}% of revenue (target: <35%)`);
+            }
+            
             this.showPopup({
                 icon: '✅',
                 title: 'Staff Hired!',
