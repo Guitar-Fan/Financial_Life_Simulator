@@ -129,4 +129,72 @@ staff performed in the interaction, and how customer behaved in the interaction,
 now implement stage 1 of realistic gameplay plan, then step 2 and 3 adverse
 At last implement stage 4, 5, and 6
 
-Highly doubt there is AI here, 
+Look at previous commit to see what files were created and modified. I should have had a more complex customer gameplay,
+but gameplay looks the exact same.
+
+the new customer interaction system doesn't properly record the transaction amount, and no money in earned.
+Also the customer database looks exactly the same
+
+The daily costs (rent and utilities) are too high to be realistic. Usually these costs
+would be billed monthly, 
+
+code new seasonality, scenario system with customer behavior, so certain items are favorable at certain time.
+strawberries,
+
+in selling mode, there isn't any option to assign staff to customer, 
+the game is still notifying every time an hour passes (NotificationSystem.js should handle all notifications, no other file should), 
+and when an item is finished. No revenue is coming in, when i enter manual interaction, the time stops and doesn't start after I'm done.
+The newly integrated logic of REALISTIC_GAMEPLAY_PLAN.md into the game is full of bugs.
+
+Delete all verbal interaction with customer logic, revert to
+customer just orders what they want. Try to have a more robust customer handling system, so a customer is always served
+by a staff. code different roles in bakery, right now just customer role, and producer role.
+add a functionality for user to set markup percentage from cost to make item. make 
+customer behavior and buy rate affected by their mood on what ingredients they want for the day and the price
+
+make an .md file on how to make this gameplay have finance and buisness education value, by integrating
+principles into gameplay without outright telling the user that they are learning this principle. My goal
+is if I were to send this game to a small business owner, they would say the finance aspect of my game is so
+true. use real reputable books, websites, finance studies, and other resources you find on the internet
+that teach finance principles. 
+
+Shift the game to a more financial lense 
+
+acli rovodev auth login
+
+how to modify system instructions 
+
+make the prompt emphasize to make it a engaging game for teens barely exposed to the reality of the financial world
+When writing inital code, make it small, then edit the file in small amounts
+
+redesign tax evasion simulator into an well thought out, graphically custom board game.Redesign graphics
+to be game like using a babylon.js library through cdn link (don't use any of the online assets, just the code).
+Gameplay will be user(s) roll dice to move to square on a Monopoly themed Game board, where each space is a either a buisness opportunity, working at a job square, random chance investment opportunity, semi-stable investment square (real-estate, 401k, bank programs, slow moving investments), others.
+There will also be types of squares to reduce tax through real life strategies. Gameplay should balance randomness with user control over finance to be realistic to real life. Make a plan md first, then execute in small steps.
+
+Act as a Senior Creative Developer. Modify tax policy html to a high-fidelity, single-page 3D board game titled 'The Wealth Architect: Equity vs. Income.'
+
+Technical Requirements:
+
+Use Babylon.js via CDN to render a 3D 'Monopoly-style' board. Do not use external assets; generate all geometry (dice, board, player tokens) using code.
+
+Use Tailwind CSS to build a modern, 'FinTech-inspired' UI overlay that tracks Cash, Assets, Debt, and the player's 'Effective Tax Rate.'
+
+Gameplay Mechanics:
+
+The Dice System: Players roll to move around 50-space perimeter.
+
+The Hustle (Job Squares): Landing here generates high cash flow, but triggers a 30% 'Income Tax' penalty immediately.
+
+The Portfolio (Investment Squares): Allows players to buy assets (Real Estate/Stocks). These appreciate in value but trigger 0% tax because they are 'unrealized gains.'
+
+The 'Buy, Borrow, Die' Mechanic: Include a feature where players with high assets can choose to 'Borrow against Equity' at 4% interest instead of selling assets or working for cash, demonstrating a significantly lower cost of living compared to income tax.
+
+Target Audience: Teens. The game must be fast-paced, visually engaging, and highly educational regarding the legal structures of the modern financial system. Focus on the technical accuracy of Progressive Income Tax vs. Asset-Backed Lending."
+
+do i have coderabbit ai on this repo
+CodeRabbit PR test: This line is added to check if CodeRabbit reviews this pull request.
+open a pull request or push code to check if coderabbit works. I usually just straight up commit and sync to main branch.
+Checking rovo dev 
+
+could you do the steps until I see coderabbit work
