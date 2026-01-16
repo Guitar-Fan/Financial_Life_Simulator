@@ -91,6 +91,11 @@ export function matchTaxLots(taxLots, sharesToSell, method = 'FIFO') {
     }
   });
 
+  const totalAvailable = taxLots.reduce((sum, lot) => sum + Math.max(0, lot.shares || 0), 0);
+  if (sharesToSell > totalAvailable) {
+    throw new Error(`Insufficient shares to sell. Requested ${sharesToSell}, available ${totalAvailable}.`);
+  }
+
   const matches = [];
   let remaining = sharesToSell;
 
