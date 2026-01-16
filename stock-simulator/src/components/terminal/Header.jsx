@@ -1,0 +1,181 @@
+/**
+ * Header Component - Top navigation and status bar
+ * 
+ * Displays: Market time, playback controls, account summary
+ * 
+ * Design: Mimics the dense information bar found at the top of
+ * professional terminals. Every pixel serves a purpose.
+ */
+
+import React from 'react';
+import { 
+  Play, 
+  Pause, 
+  FastForward, 
+  RotateCcw,
+  Settings,
+  Bell
+} from 'lucide-react';
+import { useMarketStore } from '../../stores/marketStore';
+import { usePlayerStore } from '../../stores/playerStore';
+
+export function Header({ currentDate, currentTime, isPlaying, cash }) {
+  const { 
+    play, 
+    pause, 
+    togglePlayback, 
+    playbackSpeed, 
+    setPlaybackSpeed,
+    reset 
+  } = useMarketStore();
+  
+  const { positions } = usePlayerStore();
+  const tickers = useMarketStore((s) => s.tickers);
+  
+  // Calculate portfolio value
+  const portfolioValue = Object.entries(positions).reduce((total, [symbol, pos]) => {
+    const currentPrice = tickers[symbol]?.price || 0;
+    return total + (pos.shares * currentPrice);
+  }, 0);
+  
+  const totalValue = cash + portfolioValue;
+  const startingCash = usePlayerStore((s) => s.startingCash);
+  const totalGain = totalValue - startingCash;
+  const totalGainPercent = ((totalGain / startingCash) * 100).toFixed(2);
+  const isPositive = totalGain >= 0;
+
+  const speedOptions = [1, 5, 10, 50];
+
+  return (
+    <header className="h-12 px-4 flex items-center justify-between bg-terminal-surface border-b border-terminal-border">
+      {/* Left: Logo & Market Time */}
+      <div className="flex items-center gap-6">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded bg-terminal-accent flex items-center justify-center">
+            <span className="text-white font-bold text-sm">MT</span>
+          </div>
+          <span className="text-terminal-text font-semibold hidden sm:block">
+            Market Terminal
+          </span>
+        </div>
+        
+        {/* Market Time Display */}
+        <div className="flex items-center gap-3 pl-4 border-l border-terminal-border">
+          <div className="text-center">
+            <div className="text-xxs text-terminal-muted uppercase">Date</div>
+            <div className="text-sm font-mono text-terminal-text">
+              {currentDate || '----/--/--'}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-xxs text-terminal-muted uppercase">Time</div>
+            <div className="text-sm font-mono text-terminal-text">
+              {currentTime || '--:--'}
+            </div>
+          </div>
+        </div>
+        
+        {/* Playback Controls */}
+        <div className="flex items-center gap-1 pl-4 border-l border-terminal-border">
+          <button
+            onClick={togglePlayback}
+            className="p-2 hover:bg-terminal-border rounded transition-colors"
+            title={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? (
+              <Pause className="w-4 h-4 text-terminal-text" />
+            ) : (
+              <Play className="w-4 h-4 text-gain" />
+            )}
+          </button>
+          
+          {/* Speed Selector */}
+          <div className="flex items-center gap-1 ml-2">
+            <FastForward className="w-3 h-3 text-terminal-muted" />
+            {speedOptions.map((speed) => (
+              <button
+                key={speed}
+                onClick={() => setPlaybackSpeed(speed)}
+                className={`px-2 py-1 text-xs font-mono rounded transition-colors ${
+                  playbackSpeed === speed
+                    ? 'bg-terminal-accent text-white'
+                    : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
+                }`}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={reset}
+            className="p-2 ml-2 hover:bg-terminal-border rounded transition-colors"
+            title="Reset Simulation"
+          >
+            <RotateCcw className="w-4 h-4 text-terminal-muted" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Right: Account Summary */}
+      <div className="flex items-center gap-6">
+        {/* Account Values */}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-xxs text-terminal-muted uppercase">Cash</div>
+            <div className="text-sm font-mono text-terminal-text">
+              {formatCurrency(cash)}
+            </div>
+          </div>
+          
+          <div className="text-right">
+            <div className="text-xxs text-terminal-muted uppercase">Portfolio</div>
+            <div className="text-sm font-mono text-terminal-text">
+              {formatCurrency(portfolioValue)}
+            </div>
+          </div>
+          
+          <div className="text-right pl-3 border-l border-terminal-border">
+            <div className="text-xxs text-terminal-muted uppercase">Total Value</div>
+            <div className="text-sm font-mono text-terminal-text">
+              {formatCurrency(totalValue)}
+            </div>
+          </div>
+          
+          <div className="text-right">
+            <div className="text-xxs text-terminal-muted uppercase">P&L</div>
+            <div className={`text-sm font-mono ${isPositive ? 'text-gain' : 'text-loss'}`}>
+              {isPositive ? '+' : ''}{formatCurrency(totalGain)} ({isPositive ? '+' : ''}{totalGainPercent}%)
+            </div>
+          </div>
+        </div>
+        
+        {/* Action Icons */}
+        <div className="flex items-center gap-2 pl-4 border-l border-terminal-border">
+          <button className="p-2 hover:bg-terminal-border rounded transition-colors relative">
+            <Bell className="w-4 h-4 text-terminal-muted" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-loss rounded-full" />
+          </button>
+          <button className="p-2 hover:bg-terminal-border rounded transition-colors">
+            <Settings className="w-4 h-4 text-terminal-muted" />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/**
+ * Format number as currency
+ */
+function formatCurrency(value) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
+export default Header;
