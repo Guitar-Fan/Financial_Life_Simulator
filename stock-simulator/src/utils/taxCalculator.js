@@ -218,7 +218,7 @@ export function compareStrategies(grossReturn, tradingFrequency, holdingPeriodMo
   
   // Estimate transaction costs (slippage, spread)
   const transactionCostPerTrade = 0.001; // 10 bps per trade
-  const totalTransactionCosts = tradingFrequency * transactionCostPerTrade * 2; // Round trip
+  const totalTransactionCosts = Math.min(1, tradingFrequency * transactionCostPerTrade * 2); // Cap at 100%
   
   const afterTransactionCosts = grossReturn * (1 - totalTransactionCosts);
   const taxOnGains = Math.max(0, afterTransactionCosts * taxRate);
@@ -231,7 +231,7 @@ export function compareStrategies(grossReturn, tradingFrequency, holdingPeriodMo
     taxRate,
     taxOwed: taxOnGains,
     netReturn,
-    effectiveReturn: netReturn / grossReturn
+    effectiveReturn: grossReturn !== 0 ? netReturn / grossReturn : 0
   };
 }
 
