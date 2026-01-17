@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles for terminal aesthetic */
+@layer base {
+  * {
+    @apply border-terminal-border;
+  }
+
+  body {
+    @apply bg-terminal-bg text-terminal-text font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-terminal-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-terminal-border rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-terminal-muted;
+  }
+}
+
+@layer components {
+  /* Terminal panel styles */
+  .terminal-panel {
+    @apply bg-terminal-surface border border-terminal-border rounded-sm;
+  }
+
+  .terminal-header {
+    @apply flex items-center justify-between px-3 py-2 border-b border-terminal-border;
+    @apply text-xs font-medium text-terminal-muted uppercase tracking-wider;
+  }
+
+  /* Price display */
+  .price-gain {
+    @apply text-gain;
+  }
+
+  .price-loss {
+    @apply text-loss;
+  }
+
+  /* Data table styles */
+  .data-table {
+    @apply w-full text-sm font-mono;
+  }
+
+  .data-table th {
+    @apply text-left text-xs text-terminal-muted font-medium uppercase tracking-wider;
+    @apply px-3 py-2 border-b border-terminal-border;
+  }
+
+  .data-table td {
+    @apply px-3 py-2 border-b border-terminal-border/50;
+  }
+
+  .data-table tr:hover {
+    @apply bg-terminal-border/20;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply px-4 py-2 bg-terminal-accent text-white font-medium rounded-sm;
+    @apply hover:bg-terminal-accent/90 transition-colors;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-buy {
+    @apply px-4 py-2 bg-gain text-white font-medium rounded-sm;
+    @apply hover:bg-gain/90 transition-colors;
+  }
+
+  .btn-sell {
+    @apply px-4 py-2 bg-loss text-white font-medium rounded-sm;
+    @apply hover:bg-loss/90 transition-colors;
+  }
+
+  /* Input styles */
+  .input-field {
+    @apply w-full px-3 py-2 bg-terminal-bg border border-terminal-border rounded-sm;
+    @apply text-terminal-text font-mono text-sm;
+    @apply focus:outline-none focus:border-terminal-accent focus:ring-1 focus:ring-terminal-accent/50;
+    @apply placeholder:text-terminal-muted;
+  }
+
+  /* Status indicators */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-live {
+    @apply bg-gain animate-pulse;
+  }
+
+  .status-paused {
+    @apply bg-yellow-500;
+  }
+
+  .status-offline {
+    @apply bg-terminal-muted;
+  }
+}
+
+/* React Grid Layout overrides */
+.react-grid-layout {
+  @apply relative;
+}
+
+.react-grid-item {
+  @apply transition-all duration-100;
+}
+
+.react-grid-item.react-grid-placeholder {
+  @apply bg-terminal-accent/20 rounded-sm;
+}
+
+.react-grid-item > .react-resizable-handle {
+  @apply absolute w-5 h-5;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  content: '';
+  @apply absolute right-1 bottom-1 w-2 h-2 border-r-2 border-b-2 border-terminal-muted;
+}
+
+/* Lightweight Charts container */
+.chart-container {
+  @apply w-full h-full;
+}
+
+/* Animation utilities */
+@keyframes ticker-flash-green {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(34, 197, 94, 0.2); }
+}
+
+@keyframes ticker-flash-red {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(239, 68, 68, 0.2); }
+}
+
+.flash-gain {
+  animation: ticker-flash-green 0.3s ease-out;
+}
+
+.flash-loss {
+  animation: ticker-flash-red 0.3s ease-out;
+}
