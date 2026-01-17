@@ -155,6 +155,9 @@ export function detectWashSale(ticker, saleDate, saleLoss, allTaxLots) {
  * Calculate tax liability for realized gains
  */
 export function calculateTaxLiability(shortTermGains, longTermGains, useSimplified = true) {
+  if (!useSimplified) {
+    throw new Error('Progressive tax calculation is not implemented yet.');
+  }
   if (useSimplified) {
     // Game uses simplified flat rates for clarity
     const stTax = Math.max(0, shortTermGains * TAX_RATES.shortTerm.flatRate);
@@ -169,10 +172,6 @@ export function calculateTaxLiability(shortTermGains, longTermGains, useSimplifi
         : 0
     };
   }
-
-  // Progressive bracket calculation (more realistic)
-  // ... implementation for advanced mode
-  return { shortTermTax: 0, longTermTax: 0, totalTax: 0, effectiveRate: 0 };
 }
 
 /**

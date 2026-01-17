@@ -31,7 +31,11 @@ export function calculateSlippage({
   timeOfDay = 'NORMAL' // OPEN, NORMAL, CLOSE
 }) {
   // Base slippage from spread (you pay half the spread)
-  const spreadBps = (currentSpread / currentPrice) * 10000 / 2;
+  if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+  return { totalBps: 0, spreadComponent: 0, marketImpact: 0, priceImpact: 0 };
+  }
+  const safeSpread = Math.max(0, currentSpread);
+  const spreadBps = (safeSpread / currentPrice) * 10000 / 2;
 
   // Market impact - larger orders relative to volume have more impact
   const volumeRatio = orderShares / (avgDailyVolume || 1000000);
@@ -196,7 +200,9 @@ export function calculateRoundTripCost({
   });
 
   const totalSlippageBps = entrySlippage.totalBps + exitSlippage.totalBps;
-  const slippageCost = (totalSlippageBps / 10000) * entryPrice * shares;
+  const entrySlippageCost = (entrySlippage.totalBps / 10000) * entryPrice * shares;
+  const exitSlippageCost = (exitSlippage.totalBps / 10000) * exitPrice * shares;
+  const slippageCost = entrySlippageCost + exitSlippageCost;
 
   // SEC fee (on sells only): $22.90 per $1,000,000 of principal
   const secFee = (exitPrice * shares / 1000000) * 22.90;

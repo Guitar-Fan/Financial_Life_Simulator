@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useMarketStore } from './marketStore';
 
 const INITIAL_CASH = 25000; // PDT threshold - intentional
 
@@ -65,14 +66,24 @@ export const usePlayerStore = create(
       }),
       
       // Order management
-      placeOrder: (order) => set((state) => ({
-        orders: [...state.orders, {
-          ...order,
-          id: `ORD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          status: 'PENDING',
-          timestamp: new Date().toISOString()
-        }]
-      })),
+
+      placeOrder: (order) => {
+  let orderId; // Add this variable to capture the ID
+  set((state) => {
+    const newOrder = {
+      id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      ...order,
+      status: 'PENDING',
+      timestamp: Date.now()
+    };
+    orderId = newOrder.id; // Capture the ID before returning
+
+    return {
+      orders: [...state.orders, newOrder]
+    };
+  });
+  return orderId; // Return the captured ID
+},
       
       fillOrder: (orderId, fillPrice, fillQuantity) => {
         const state = get();
@@ -119,11 +130,13 @@ export const usePlayerStore = create(
         set((s) => ({
           cash: Math.round((s.cash + cashChange) * 100) / 100,
           positions: {
-            ...s.positions,
-            [order.ticker]: newShares > 0 
-              ? { shares: newShares, avgCost: Math.round(newAvgCost * 100) / 100 }
-              : undefined
-          },
+            ...Object.fromEntries(
+             Object.entries(s.positions).filter(([k]) => k !== order.ticker)
+           ),
+           ...(newShares > 0 && {
+             [order.ticker]: { shares: newShares, avgCost: Math.round(newAvgCost * 100) / 100 }
+           })
+         },
           orders: s.orders.map(o => 
             o.id === orderId 
               ? { ...o, status: 'FILLED', fillPrice, filledAt: new Date().toISOString() }
@@ -133,16 +146,9 @@ export const usePlayerStore = create(
           tradesExecuted: s.tradesExecuted + 1
         }));
         
-        // Clean up undefined positions
-        set((s) => {
-          const cleanPositions = Object.fromEntries(
-            Object.entries(s.positions).filter(([_, v]) => v !== undefined)
-          );
-          return { positions: cleanPositions };
-        });
-        
-        // Check for unlocks
-        get().checkUnlocks();
+        // Check for unlocks with current market prices
+        const marketTickers = useMarketStore.getState().tickers;
+        get().checkUnlocks(marketTickers);
       },
       
       cancelOrder: (orderId) => set((state) => ({
@@ -208,7 +214,7 @@ export const usePlayerStore = create(
       },
       
       // Progression unlocks
-      checkUnlocks: () => {
+      checkUnlocks: (tickers = {}) => {
         const state = get();
         const newUnlocks = [];
         
@@ -223,7 +229,7 @@ export const usePlayerStore = create(
         }
         
         // Unlock more tickers at 5% gain
-        const portfolioValue = get().getPortfolioValue();
+        const portfolioValue = get().getPortfolioValue(tickers);
         const totalValue = state.cash + portfolioValue;
         const gainPercent = ((totalValue - state.startingCash) / state.startingCash) * 100;
         
@@ -257,9 +263,17 @@ export const usePlayerStore = create(
       },
       
       // Calculate current portfolio value (unrealized)
-      getPortfolioValue: () => {
-        // This will be called with current prices from market store
-        return 0; // Placeholder - actual calculation in component
+      getPortfolioValue: (tickers = {}) => {
+        const state = get();
+        let portfolioValue = 0;
+        
+        // Sum up the value of all positions
+        for (const [ticker, position] of Object.entries(state.positions)) {
+          const currentPrice = tickers[ticker]?.price || 0;
+          portfolioValue += position.shares * currentPrice;
+        }
+        
+        return Math.round(portfolioValue * 100) / 100;
       },
       
       // Achievement tracking

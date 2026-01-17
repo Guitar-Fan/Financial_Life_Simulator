@@ -510,6 +510,14 @@ async function seed() {
       // Fall back to synthetic
       const tickerData = generateSyntheticData(ticker);
       await saveJSON(`tickers/${ticker.symbol}.json`, tickerData);
+
+      // Generate intraday ticks for fallback data
+      const intradayTicks = generateIntradayTicks(tickerData);
+      await saveJSON(`intraday/${ticker.symbol}_ticks.json`, {
+        ticker: ticker.symbol,
+        ticks: intradayTicks
+      });
+      
       tickerIndex.push({
         symbol: ticker.symbol,
         name: ticker.name,

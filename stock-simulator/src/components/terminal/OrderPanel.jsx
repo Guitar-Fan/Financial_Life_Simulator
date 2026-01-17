@@ -96,7 +96,7 @@ export function OrderPanel() {
       errors.push('Enter a limit price');
     }
     
-    if (orderType === 'STOP' && !stopPrice) {
+    if ((orderType === 'STOP' || orderType === 'STOP_LIMIT') && !stopPrice) {
       errors.push('Enter a stop price');
     }
     
@@ -107,38 +107,34 @@ export function OrderPanel() {
   }, [selectedTicker, quantity, side, orderPreview, cash, positionShares, orderType, limitPrice, stopPrice]);
   
   // Handle order submission
-  const handleSubmit = () => {
-    if (!validation.isValid || !orderPreview) return;
-    
-    const order = {
-      ticker: selectedTicker,
-      side,
-      type: orderType,
-      quantity: orderPreview.quantity,
-      limitPrice: orderType === 'LIMIT' ? parseFloat(limitPrice) : null,
-      stopPrice: orderType === 'STOP' || orderType === 'STOP_LIMIT' ? parseFloat(stopPrice) : null
-    };
-    
-    placeOrder(order);
-    
-    // For market orders, execute immediately (simulated)
-    if (orderType === 'MARKET') {
-      setTimeout(() => {
-        const state = usePlayerStore.getState();
-        const pendingOrder = state.orders.find(
-          o => o.ticker === selectedTicker && o.status === 'PENDING'
-        );
-        if (pendingOrder) {
-          fillOrder(pendingOrder.id, orderPreview.executionPrice, orderPreview.quantity);
-        }
-      }, 100 + Math.random() * 200); // Simulate execution delay
-    }
-    
-    // Reset form
-    setQuantity('');
-    setLimitPrice('');
-    setStopPrice('');
+const handleSubmit = () => {
+  if (!validation.isValid || !orderPreview) return;
+  
+  const order = {
+    ticker: selectedTicker,
+    side,
+    type: orderType,
+    quantity: orderPreview.quantity,
+    limitPrice: orderType === 'LIMIT' ? parseFloat(limitPrice) : null,
+    stopPrice: orderType === 'STOP' || orderType === 'STOP_LIMIT' ? parseFloat(stopPrice) : null
   };
+  
+  // Capture the order ID returned by placeOrder
+  const orderId = placeOrder(order);
+  
+  // For market orders, execute immediately (simulated)
+  if (orderType === 'MARKET') {
+    setTimeout(() => {
+      // Use the captured orderId directly instead of searching
+      fillOrder(orderId, orderPreview.executionPrice, orderPreview.quantity);
+    }, 100 + Math.random() * 200); // Simulate execution delay
+  }
+  
+  // Reset form
+  setQuantity('');
+  setLimitPrice('');
+  setStopPrice('');
+};
   
   // Quick quantity buttons
   const setQuickQuantity = (multiplier) => {
