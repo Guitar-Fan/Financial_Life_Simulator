@@ -45,53 +45,125 @@
 
         .hud-panel {
             @apply bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl;
+            border-left: 4px solid #c5a059;
+            box-shadow: 0 8px 32px rgba(197, 160, 89, 0.1);
         }
 
-        /* 3D Card Animation */
+        /* 3D Card Animation - Vintage Postcard Style */
         .card-container {
             perspective: 1000px;
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 320px; height: 480px;
+            width: 340px; height: 500px;
             pointer-events: none;
             z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .card-container.card-active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
 
         .card-inner {
             position: relative;
             width: 100%; height: 100%;
             text-align: center;
-            transition: transform 0.8s;
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             transform-style: preserve-3d;
-            transform: rotateY(180deg) scale(0);
+            transform: rotateY(180deg) scale(0.3) rotateZ(-15deg);
         }
 
         .card-active .card-inner {
-            transform: rotateY(0deg) scale(1);
+            transform: rotateY(0deg) scale(1) rotateZ(0deg);
         }
 
         .card-face {
-            @apply absolute w-full h-full backface-hidden rounded-2xl border-4 border-white overflow-hidden shadow-2xl flex flex-col;
+            @apply absolute w-full h-full backface-hidden rounded-lg overflow-hidden flex flex-col;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.1);
+            background: linear-gradient(145deg, #1a1a1a 0%, #0f0f0f 100%);
         }
         
         .card-front {
-            @apply bg-zinc-900 text-white;
+            @apply text-white;
+            border: 6px solid;
+            position: relative;
+        }
+
+        .card-front::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.01) 10px,
+                rgba(255,255,255,0.01) 20px
+            );
+            pointer-events: none;
         }
         
         .card-back {
-            @apply bg-gradient-to-br from-gold to-yellow-700 flex items-center justify-center;
+            @apply flex items-center justify-center;
             transform: rotateY(180deg);
+            background: linear-gradient(145deg, #c5a059 0%, #8b7355 100%);
         }
 
-        /* District Themes */
-        .district-fidi { border-color: #0ea5e9; }
-        .district-midtown { border-color: #64748b; }
-        .district-bk { border-color: #a855f7; }
-        .district-ues { border-color: #eab308; }
+        /* District Themes - Vintage NYC Aesthetic */
+        .district-fidi { 
+            border-color: #0ea5e9;
+            background: linear-gradient(145deg, #001a2e 0%, #000d1a 100%);
+        }
+        .district-midtown { 
+            border-color: #64748b;
+            background: linear-gradient(145deg, #1a1e2e 0%, #0d0f1a 100%);
+        }
+        .district-bk { 
+            border-color: #a855f7;
+            background: linear-gradient(145deg, #1a0a2e 0%, #0d051a 100%);
+        }
+        .district-ues { 
+            border-color: #eab308;
+            background: linear-gradient(145deg, #2e2200 0%, #1a1300 100%);
+        }
+        .district-corner {
+            border-color: #c5a059;
+            background: linear-gradient(145deg, #2a1a0a 0%, #150d05 100%);
+        }
 
         .btn-action {
              @apply px-4 py-2 rounded font-bold text-xs uppercase tracking-wide border border-white/20 hover:bg-white/10 transition-colors flex items-center gap-2;
+        }
+
+        /* Vintage Typography for Tiles */
+        .tile-label {
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* Pulse Animation for Active Player */
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px currentColor); }
+            50% { filter: drop-shadow(0 0 16px currentColor); }
+        }
+
+        /* Stamp Effect for Card */
+        .stamp-effect {
+            animation: stamp 0.3s cubic-bezier(0.36, 0, 0.66, -0.56) forwards;
+        }
+
+        @keyframes stamp {
+            0% { transform: scale(1.2) rotate(5deg); }
+            50% { transform: scale(0.95) rotate(-3deg); }
+            100% { transform: scale(1) rotate(0deg); }
         }
     </style>
 </head>
@@ -178,22 +250,30 @@
         <div id="card-display" class="card-container pointer-events-auto">
             <div class="card-inner">
                 <!-- Front -->
-                <div class="card-face card-front p-6 district-fidi border-t-8">
-                    <div class="flex justify-between items-start mb-6">
-                        <h3 id="card-title" class="font-serif font-black text-2xl uppercase leading-none">
+                <div class="card-face card-front p-6 district-fidi">
+                    <!-- Decorative Corner Elements -->
+                    <div class="absolute top-2 left-2 w-8 h-8 border-l-2 border-t-2 border-white/20"></div>
+                    <div class="absolute top-2 right-2 w-8 h-8 border-r-2 border-t-2 border-white/20"></div>
+                    <div class="absolute bottom-2 left-2 w-8 h-8 border-l-2 border-b-2 border-white/20"></div>
+                    <div class="absolute bottom-2 right-2 w-8 h-8 border-r-2 border-b-2 border-white/20"></div>
+                    
+                    <div class="flex justify-between items-start mb-6 relative">
+                        <h3 id="card-title" class="font-serif font-black text-2xl uppercase leading-tight tracking-wide">
                             Market<br>Crash</h3>
-                        <i id="card-icon" data-lucide="trending-down" class="w-8 h-8 text-red-500"></i>
+                        <div class="w-16 h-16 flex items-center justify-center rounded-full bg-black/40 border-2" id="card-icon-wrapper">
+                            <i id="card-icon" data-lucide="trending-down" class="w-8 h-8 text-red-500"></i>
+                        </div>
                     </div>
-                    <div class="flex-grow flex items-center justify-center">
-                        <p id="card-desc" class="font-serif text-lg text-center leading-relaxed text-zinc-300">
+                    <div class="flex-grow flex items-center justify-center px-4">
+                        <p id="card-desc" class="font-serif text-base text-center leading-relaxed text-zinc-200">
                             Your portfolio took a hit. Assets depreciate by 10%.
                         </p>
                     </div>
-                    <div class="border-t border-white/20 pt-4">
-                        <div id="card-effect" class="text-center font-mono font-bold text-red-400 text-sm mb-4">LOSE
+                    <div class="border-t border-white/30 pt-4 mt-4">
+                        <div id="card-effect" class="text-center font-mono font-bold text-red-400 text-lg mb-4 tracking-wider">LOSE
                             $5,000 ASSETS</div>
                         <button onclick="Game.resolveCard()"
-                            class="w-full py-3 bg-white text-black font-bold uppercase tracking-widest hover:bg-gray-200">Continue</button>
+                            class="w-full py-3 bg-white text-black font-bold uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95 rounded border-b-4 border-zinc-400">Continue →</button>
                     </div>
                 </div>
             </div>
@@ -318,26 +398,48 @@
             },
 
             buildBoard() {
-                // Table
+                // Table (Darker wood texture)
                 const tableGeo = new THREE.BoxGeometry(30, 1, 30);
-                const tableMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+                const tableMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x0a0505, 
+                    roughness: 0.7,
+                    metalness: 0.1 
+                });
                 const table = new THREE.Mesh(tableGeo, tableMat);
                 table.position.y = -0.6;
                 table.receiveShadow = true;
                 this.scene.add(table);
 
-                // Board Surface (Felt)
+                // Board Surface (Vintage green felt with texture)
                 const boardGeo = new THREE.BoxGeometry(22, 0.2, 22);
-                const boardMat = new THREE.MeshStandardMaterial({ color: 0x1a472a, roughness: 0.9 });
+                const boardMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x1a472a, 
+                    roughness: 0.95,
+                    metalness: 0
+                });
                 const board = new THREE.Mesh(boardGeo, boardMat);
                 board.receiveShadow = true;
                 this.scene.add(board);
 
-                // Spaces
+                // Add board border (golden trim)
+                const borderGeo = new THREE.BoxGeometry(22.5, 0.25, 22.5);
+                const borderMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xc5a059, 
+                    roughness: 0.3,
+                    metalness: 0.7
+                });
+                const border = new THREE.Mesh(borderGeo, borderMat);
+                border.position.y = -0.05;
+                this.scene.add(border);
+
+                // Spaces with enhanced graphics
                 this.spaceGroup = new THREE.Group();
                 const count = 48;
                 const offset = 10;
                 const step = 20 / 12;
+
+                // Property names for tiles
+                const tileNames = this.generateTileNames();
 
                 for (let i = 0; i < count; i++) {
                     let x, z, rot, color = 0xf3e5ab;
@@ -358,12 +460,14 @@
                     const w = step * 0.95;
                     const isCorner = i % 12 === 0;
 
-                    // Tile Base
-                    const tileGeo = new THREE.BoxGeometry(w, 0.1, isCorner ? w : 2.5);
-                    const tileMat = new THREE.MeshStandardMaterial({ color: color });
+                    // Tile Base with enhanced depth
+                    const tileGeo = new THREE.BoxGeometry(w, 0.15, isCorner ? w : 2.5);
+                    const tileMat = new THREE.MeshStandardMaterial({ 
+                        color: color,
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
                     const tile = new THREE.Mesh(tileGeo, tileMat);
-
-                    if (!isCorner) tile.scale.z = 1;
 
                     tile.position.set(x, 0.15, z);
                     if (!isCorner) {
@@ -371,14 +475,117 @@
                         if (i >= 36) tile.rotation.y = Math.PI / 2;
                     }
 
-                    // Add Text/Label logic placeholder
+                    // Add border strip on top for non-corner tiles
+                    if (!isCorner) {
+                        const stripGeo = new THREE.BoxGeometry(w, 0.16, 0.6);
+                        const stripMat = new THREE.MeshStandardMaterial({ 
+                            color: color,
+                            emissive: color,
+                            emissiveIntensity: 0.3
+                        });
+                        const strip = new THREE.Mesh(stripGeo, stripMat);
+                        strip.position.y = 0.08;
+                        strip.position.z = -0.95;
+                        tile.add(strip);
 
-                    tile.userData = { id: i, type: isCorner ? 'corner' : 'prop' };
+                        // Add text label using canvas texture
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 256;
+                        canvas.height = 128;
+                        const ctx = canvas.getContext('2d');
+                        
+                        ctx.fillStyle = '#000000';
+                        ctx.fillRect(0, 0, 256, 128);
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 16px Cinzel, serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        
+                        const name = tileNames[i] || `SPACE ${i}`;
+                        const words = name.split(' ');
+                        if (words.length > 2) {
+                            ctx.fillText(words.slice(0, 2).join(' '), 128, 50);
+                            ctx.fillText(words.slice(2).join(' '), 128, 78);
+                        } else if (words.length === 2) {
+                            ctx.fillText(words[0], 128, 50);
+                            ctx.fillText(words[1], 128, 78);
+                        } else {
+                            ctx.fillText(name, 128, 64);
+                        }
+                        
+                        const texture = new THREE.CanvasTexture(canvas);
+                        const labelGeo = new THREE.PlaneGeometry(w * 0.9, 0.5);
+                        const labelMat = new THREE.MeshBasicMaterial({ 
+                            map: texture, 
+                            transparent: true 
+                        });
+                        const label = new THREE.Mesh(labelGeo, labelMat);
+                        label.position.y = 0.16;
+                        label.rotation.x = -Math.PI / 2;
+                        tile.add(label);
+                    } else {
+                        // Corner tiles get special icons
+                        const cornerCanvas = document.createElement('canvas');
+                        cornerCanvas.width = 256;
+                        cornerCanvas.height = 256;
+                        const cornerCtx = cornerCanvas.getContext('2d');
+                        
+                        cornerCtx.fillStyle = this.getCornerColor(i);
+                        cornerCtx.fillRect(0, 0, 256, 256);
+                        
+                        cornerCtx.fillStyle = '#000000';
+                        cornerCtx.font = 'bold 24px Cinzel, serif';
+                        cornerCtx.textAlign = 'center';
+                        cornerCtx.textBaseline = 'middle';
+                        
+                        const cornerName = this.getCornerName(i);
+                        const cornerWords = cornerName.split(' ');
+                        cornerWords.forEach((word, idx) => {
+                            cornerCtx.fillText(word, 128, 100 + idx * 35);
+                        });
+                        
+                        const cornerTexture = new THREE.CanvasTexture(cornerCanvas);
+                        const cornerLabelGeo = new THREE.PlaneGeometry(w * 0.9, w * 0.9);
+                        const cornerLabelMat = new THREE.MeshBasicMaterial({ 
+                            map: cornerTexture, 
+                            transparent: true 
+                        });
+                        const cornerLabel = new THREE.Mesh(cornerLabelGeo, cornerLabelMat);
+                        cornerLabel.position.y = 0.16;
+                        cornerLabel.rotation.x = -Math.PI / 2;
+                        tile.add(cornerLabel);
+                    }
+
+                    tile.userData = { id: i, type: isCorner ? 'corner' : 'prop', name: tileNames[i] };
                     tile.castShadow = true;
                     tile.receiveShadow = true;
                     this.spaceGroup.add(tile);
                 }
                 this.scene.add(this.spaceGroup);
+            },
+
+            generateTileNames() {
+                return [
+                    'GO', 'WALL ST', 'STOCK TIP', 'NYSE', 'TAX PENALTY', 'FERRY TERMINAL',
+                    'BATTERY PARK', 'OPPORTUNITY', 'STONE ST', 'GOLDMAN SACHS', 'FED RESERVE', 'CITIGROUP',
+                    'TIMES SQUARE', 'BROADWAY', 'AUDIT', 'ROCKEFELLER', 'MET LIFE', 'CHRYSLER BLDG',
+                    'GRAND CENTRAL', 'CORPORATE TAX', 'MADISON AVE', 'CHANCE', 'FIFTH AVE', 'TRUMP TOWER',
+                    'CENTRAL PARK', 'PLAZA HOTEL', 'MUSEUM MILE', 'FRICK MANSION', 'UPPER EAST', 'PROPERTY TAX',
+                    'GRACIE MANSION', 'GUGGENHEIM', 'ASSET SEIZURE', 'CARNEGIE HILL', 'LUXURY TAX', 'BILLIONAIRES ROW',
+                    'WILLIAMSBURG', 'BROOKLYN BRIDGE', 'DUMBO', 'PROSPECT PARK', 'SALES TAX', 'BARCLAYS CENTER',
+                    'PARK SLOPE', 'IRS AUDIT', 'GOWANUS', 'SUNSET PARK', 'OFFSHORE ACCOUNT', 'RED HOOK'
+                ];
+            },
+
+            getCornerColor(index) {
+                const colors = ['#c5a059', '#0ea5e9', '#c5a059', '#a855f7'];
+                return colors[index / 12];
+            },
+
+            getCornerName(index) {
+                const names = ['GO COLLECT $2000', 'FEDERAL RESERVE', 'LUXURY TAX', 'IRS AUDIT'];
+                return names[index / 12];
             },
 
             createDice() {
@@ -602,24 +809,66 @@
                 p.assets += effect.assets;
                 p.taxLiability += effect.tax;
 
-                // Show Card
+                // Show Card with proper setup
                 const card = document.getElementById('card-display');
+                const cardInner = card.querySelector('.card-inner');
+                const face = card.querySelector('.card-face');
+                const iconWrapper = document.getElementById('card-icon-wrapper');
+                
+                // Reset state first
+                card.classList.remove('card-active');
+                cardInner.style.transform = 'rotateY(180deg) scale(0.3) rotateZ(-15deg)';
+                
+                // Update content
                 document.getElementById('card-title').textContent = title;
                 document.getElementById('card-desc').textContent = desc;
-                document.getElementById('card-effect').textContent = effect.cash > 0 ? `GAIN $${effect.cash}` : (effect.cash < 0 ? `PAY $${Math.abs(effect.cash)}` : '');
+                
+                let effectText = '';
+                let effectColor = 'text-zinc-400';
+                if (effect.cash > 0) {
+                    effectText = `+ $${effect.cash.toLocaleString()}`;
+                    effectColor = 'text-green-400';
+                } else if (effect.cash < 0) {
+                    effectText = `- $${Math.abs(effect.cash).toLocaleString()}`;
+                    effectColor = 'text-red-400';
+                } else if (effect.tax > 0) {
+                    effectText = `TAX DUE: $${effect.tax.toLocaleString()}`;
+                    effectColor = 'text-orange-400';
+                }
+                document.getElementById('card-effect').textContent = effectText;
+                document.getElementById('card-effect').className = `text-center font-mono font-bold ${effectColor} text-lg mb-4 tracking-wider`;
 
-                // Color Code
-                const face = card.querySelector('.card-face');
-                face.className = `card-face card-front p-6 border-t-8 district-${type}`;
+                // Color Code and border style
+                face.className = `card-face card-front p-6 district-${type}`;
+                iconWrapper.className = `w-16 h-16 flex items-center justify-center rounded-full bg-black/40 border-2 border-${type === 'fidi' ? 'blue' : type === 'midtown' ? 'slate' : type === 'ues' ? 'yellow' : 'purple'}-400`;
 
-                card.classList.add('card-active');
+                // Trigger animation with delay for proper rendering
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        card.classList.add('card-active');
+                    });
+                });
 
                 this.updateUI();
-                lucide.createIcons();
+                setTimeout(() => lucide.createIcons(), 100);
             },
 
             resolveCard() {
-                document.getElementById('card-display').classList.remove('card-active');
+                const card = document.getElementById('card-display');
+                
+                // Ensure proper cleanup with animations
+                const cardInner = card.querySelector('.card-inner');
+                cardInner.style.transition = 'transform 0.4s ease-in';
+                cardInner.style.transform = 'rotateY(180deg) scale(0.3) rotateZ(15deg)';
+                
+                setTimeout(() => {
+                    card.classList.remove('card-active');
+                    // Reset for next time
+                    setTimeout(() => {
+                        cardInner.style.transition = '';
+                        cardInner.style.transform = '';
+                    }, 300);
+                }, 400);
 
                 // Next turn
                 STATE.activeIdx = (STATE.activeIdx + 1) % STATE.players.length;
