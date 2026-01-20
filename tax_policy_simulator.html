@@ -1,686 +1,784 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tax RPG: Financial Life Simulator</title>
+    <title>Tax RPG: Wealth Quest</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
 
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'sans-serif'],
-                        display: ['Outfit', 'sans-serif'],
-                    },
-                    colors: {
-                        background: '#020617',
-                        surface: '#0f172a',
-                        primary: '#3b82f6', // Blue 500
-                        secondary: '#8b5cf6', // Violet 500
-                        accent: '#f59e0b', // Amber 500
-                        success: '#10b981',
-                        danger: '#ef4444',
-                        'gov': '#64748b', // Slate for Govt
-                        'biz': '#f97316', // Orange for Biz
-                        'rich': '#a855f7', // Purple for Rich
-                    },
-                    backgroundImage: {
-                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-                        'glass': 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)',
-                        'gold-gradient': 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS 4.0 Beta -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+
+    <!-- Anime.js -->
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Charts -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <style>
+    <style type="text/tailwindcss">
+        @theme {
+            --color-deep-bg: #020617;
+            --color-glass-panel: rgba(15, 23, 42, 0.7);
+            --color-neon-blue: #06b6d4;
+            --color-neon-purple: #8b5cf6;
+            --color-neon-green: #10b981;
+            --color-neon-red: #ef4444;
+            
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --animate-float: float 6s ease-in-out infinite;
+            --animate-glow: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+            to { text-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 30px rgba(139, 92, 246, 0.6); }
+        }
+
         body {
-            background-color: #020617;
-            background-image:
-                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
-            color: #e2e8f0;
+            @apply bg-deep-bg text-slate-200 font-body overflow-x-hidden selection:bg-neon-blue selection:text-white;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.05) 0%, transparent 25%);
         }
 
         .glass-panel {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            @apply bg-glass-panel backdrop-blur-xl border border-white/5 shadow-xl;
         }
 
-        .profile-card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .card-3d {
+            transition: transform 0.1s ease-out;
+            transform-style: preserve-3d;
         }
 
-        .profile-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(59, 130, 246, 0.5);
-            box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+        .strategy-card {
+            @apply relative overflow-hidden rounded-xl border border-slate-700 bg-slate-800/40 p-5 transition-all duration-300 hover:border-slate-500 hover:bg-slate-800/60 cursor-pointer;
         }
 
-        .profile-selected {
-            border-color: #3b82f6 !important;
-            background: rgba(59, 130, 246, 0.1) !important;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        .strategy-card::before {
+            content: '';
+            @apply absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity duration-300;
+        }
+        
+        .strategy-card:hover::before {
+            @apply opacity-100;
         }
 
-        .locked-strategy {
-            opacity: 0.5;
-            cursor: not-allowed;
-            filter: grayscale(1);
+        .strategy-active {
+            @apply border-neon-blue bg-neon-blue/10 shadow-[0_0_20px_rgba(6,182,212,0.1)];
+        }
+
+        .btn-primary {
+            @apply bg-gradient-to-r from-neon-blue to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-lg shadow-cyan-900/20 active:scale-95 flex items-center gap-2 justify-center;
+        }
+
+        .btn-secondary {
+            @apply bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-6 rounded-lg transition-all border border-slate-700 hover:border-slate-500 active:scale-95;
+        }
+
+        .stat-value {
+            @apply font-mono font-bold tracking-tight;
+        }
+        
+        .particle {
+            @apply absolute pointer-events-none rounded-full blur-[1px];
         }
     </style>
 </head>
 
-<body class="antialiased min-h-screen pb-20">
+<body class="min-h-screen flex flex-col">
 
     <!-- Navbar -->
-    <nav class="border-b border-white/5 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+    <nav class="sticky top-0 z-50 border-b border-white/5 bg-slate-900/80 backdrop-blur-2xl">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="bg-blue-600/20 p-2 rounded-lg text-blue-400">
-                    <i data-lucide="gamepad-2" class="w-6 h-6"></i>
+                <div
+                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i data-lucide="wallet" class="text-white w-5 h-5"></i>
                 </div>
                 <div>
-                    <h1 class="font-display font-bold text-lg leading-tight">TaxRPG <span
-                            class="text-xs font-normal text-slate-400 border border-slate-700 px-1 rounded ml-2">SIMULATOR
-                            v2.0</span></h1>
+                    <h1 class="font-display font-bold text-xl tracking-tight text-white leading-none">Tax<span
+                            class="text-neon-blue">Quest</span></h1>
+                    <span class="text-[10px] uppercase tracking-widest text-slate-500 font-mono">Sim v4.0</span>
                 </div>
             </div>
-            <div class="flex items-center gap-4 text-sm">
-                <div class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-slate-400">System Active</span>
+
+            <div class="flex items-center gap-6">
+                <div
+                    class="hidden md:flex items-center gap-4 bg-slate-800/50 rounded-full px-4 py-1.5 border border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i>
+                        <span class="font-mono text-sm text-slate-200">Year: <span id="game-year"
+                                class="text-white font-bold">1</span></span>
+                    </div>
+                    <div class="w-px h-4 bg-slate-700"></div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-4 h-4 text-neon-green"></i>
+                        <span class="font-mono text-sm text-neon-green" id="game-networth">$0</span>
+                    </div>
                 </div>
+
+                <button onclick="resetGame()" class="text-slate-400 hover:text-white transition-colors"
+                    title="Restart Quest">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-12">
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full space-y-8 relative">
 
-        <!-- Intro -->
-        <header class="text-center max-w-2xl mx-auto">
-            <h2 class="font-display font-bold text-4xl text-white mb-4">Choose Your Financial Destiny</h2>
-            <p class="text-slate-400 text-lg">Your background dictates your tax rules. Not everyone can play the same
-                game.</p>
-        </header>
+        <!-- Game Intro / Class Selection -->
+        <div id="intro-screen" class="max-w-4xl mx-auto text-center py-12">
+            <h2
+                class="font-display font-black text-5xl md:text-6xl mb-6 bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent animate-float">
+                Select Your Origin
+            </h2>
+            <p class="text-slate-400 text-xl mb-12 max-w-2xl mx-auto">
+                Embark on a wealth-building journey. Your background determines your taxes, audit risks, and growth
+                potential.
+            </p>
 
-        <!-- Profile Selection -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-            <!-- Profile 1: Government Employee -->
-            <button onclick="selectProfile('gov')" id="profile-gov"
-                class="profile-card profile-selected glass-panel rounded-2xl p-6 text-left relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i data-lucide="building-2" class="w-32 h-32"></i>
-                </div>
-                <div class="relative z-10">
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Class: W2 -->
+                <button onclick="startGame('gov')"
+                    class="group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 p-8 hover:border-neon-blue transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(6,182,212,0.2)]">
                     <div
-                        class="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center mb-4 text-slate-200 shadow-lg">
-                        <i data-lucide="scale" class="w-6 h-6"></i>
+                        class="absolute inset-0 bg-gradient-to-br from-neon-blue/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     </div>
-                    <h3 class="font-display font-bold text-xl text-white mb-1">Public Servant</h3>
-                    <p class="text-xs font-mono text-slate-400 uppercase tracking-wider mb-4">W-2 • STABLE • HIGH TAX
-                    </p>
-
-                    <ul class="space-y-2 text-sm text-slate-300 mb-6">
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            Guaranteed Pension</li>
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            Excellent Benefits</li>
-                        <li class="flex items-center gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500"></i> No
-                            Business Expensing</li>
-                        <li class="flex items-center gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500"></i> Full
-                            FICA Taxes</li>
-                    </ul>
-
-                    <div class="border-t border-white/10 pt-4 flex justify-between items-center text-xs">
-                        <span class="text-slate-500">Starting Salary</span>
-                        <span class="font-mono text-white font-bold">$65,000</span>
+                    <i data-lucide="building-2"
+                        class="w-16 h-16 mx-auto mb-6 text-slate-500 group-hover:text-neon-blue transition-colors"></i>
+                    <h3 class="font-display font-bold text-2xl text-white mb-2">Public Servant</h3>
+                    <div class="flex gap-2 justify-center mb-4">
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Stability ★★★</span>
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Risk ★</span>
                     </div>
-                </div>
-            </button>
+                    <p class="text-sm text-slate-400">Guaranteed pension & benefits. High tax burden, low loophole
+                        access.</p>
+                </button>
 
-            <!-- Profile 2: Business Owner -->
-            <button onclick="selectProfile('biz')" id="profile-biz"
-                class="profile-card glass-panel rounded-2xl p-6 text-left relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i data-lucide="store" class="w-32 h-32"></i>
-                </div>
-                <div class="relative z-10">
+                <!-- Class: Biz -->
+                <button onclick="startGame('biz')"
+                    class="group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 p-8 hover:border-neon-purple transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)]">
                     <div
-                        class="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center mb-4 text-white shadow-lg">
-                        <i data-lucide="briefcase" class="w-6 h-6"></i>
+                        class="absolute inset-0 bg-gradient-to-br from-neon-purple/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     </div>
-                    <h3 class="font-display font-bold text-xl text-white mb-1">Entrepreneur</h3>
-                    <p class="text-xs font-mono text-orange-400 uppercase tracking-wider mb-4">1099 • VARIABLE •
-                        FLEXIBLE</p>
-
-                    <ul class="space-y-2 text-sm text-slate-300 mb-6">
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            Write-off Expenses</li>
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            20% QBID Deduction</li>
-                        <li class="flex items-center gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500"></i> Double
-                            FICA (SE Tax)</li>
-                        <li class="flex items-center gap-2"><i data-lucide="alert-circle"
-                                class="w-4 h-4 text-amber-500"></i> Audit Risk</li>
-                    </ul>
-
-                    <div class="border-t border-white/10 pt-4 flex justify-between items-center text-xs">
-                        <span class="text-slate-500">Starting Revenue</span>
-                        <span class="font-mono text-white font-bold">$120,000</span>
+                    <i data-lucide="rocket"
+                        class="w-16 h-16 mx-auto mb-6 text-slate-500 group-hover:text-neon-purple transition-colors"></i>
+                    <h3 class="font-display font-bold text-2xl text-white mb-2">Founder</h3>
+                    <div class="flex gap-2 justify-center mb-4">
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Growth ★★★</span>
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Risk ★★★</span>
                     </div>
-                </div>
-            </button>
+                    <p class="text-sm text-slate-400">Unlimited upside. Access to expenses & QBI. High audit risk.</p>
+                </button>
 
-            <!-- Profile 3: Old Money -->
-            <button onclick="selectProfile('rich')" id="profile-rich"
-                class="profile-card glass-panel rounded-2xl p-6 text-left relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i data-lucide="landmark" class="w-32 h-32"></i>
-                </div>
-                <div class="relative z-10">
+                <!-- Class: Rich -->
+                <button onclick="startGame('rich')"
+                    class="group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 p-8 hover:border-amber-500 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]">
                     <div
-                        class="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center mb-4 text-white shadow-lg">
-                        <i data-lucide="crown" class="w-6 h-6"></i>
+                        class="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     </div>
-                    <h3 class="font-display font-bold text-xl text-white mb-1">Dynastic Wealth</h3>
-                    <p class="text-xs font-mono text-purple-400 uppercase tracking-wider mb-4">ASSETS • PASSIVE •
-                        OPTIMIZED</p>
+                    <i data-lucide="crown"
+                        class="w-16 h-16 mx-auto mb-6 text-slate-500 group-hover:text-amber-500 transition-colors"></i>
+                    <h3 class="font-display font-bold text-2xl text-white mb-2">Old Money</h3>
+                    <div class="flex gap-2 justify-center mb-4">
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Tax 0%</span>
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Passive</span>
+                    </div>
+                    <p class="text-sm text-slate-400">Start rich. Stay rich. Use debt mechanisms to avoid all taxes.</p>
+                </button>
+            </div>
+        </div>
 
-                    <ul class="space-y-2 text-sm text-slate-300 mb-6">
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            Capital Gains Rates</li>
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            Borrow Against Assets</li>
-                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-                            NO FICA / Payroll Tax</li>
-                        <li class="flex items-center gap-2"><i data-lucide="x" class="w-4 h-4 text-slate-500"></i> Low
-                            "Earned" Income</li>
-                    </ul>
+        <!-- Quest Dashboard (Hidden initially) -->
+        <div id="quest-dashboard"
+            class="hidden grid lg:grid-cols-12 gap-6 opacity-0 translate-y-10 transition-all duration-700">
 
-                    <div class="border-t border-white/10 pt-4 flex justify-between items-center text-xs">
-                        <span class="text-slate-500">Starting Assets</span>
-                        <span class="font-mono text-white font-bold">$10,000,000</span>
+            <!-- Left: Decisions & Events (Col 4) -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Current Year Status -->
+                <div class="glass-panel p-6 rounded-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-5">
+                        <i data-lucide="activity" class="w-32 h-32"></i>
+                    </div>
+
+                    <h3 class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-4">Financial Overview</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-end border-b border-white/5 pb-2">
+                            <span class="text-slate-300">Annual Income</span>
+                            <span id="stat-income" class="stat-value text-xl text-white">$0</span>
+                        </div>
+                        <div class="flex justify-between items-end border-b border-white/5 pb-2">
+                            <span class="text-slate-300">Tax Strategies</span>
+                            <span id="stat-strategies" class="stat-value text-neon-blue">0 Active</span>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <span class="text-slate-300">Projected Tax</span>
+                            <span id="stat-tax" class="stat-value text-neon-red">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mt-6">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-500">Effective Tax Rate</span>
+                            <span id="stat-rate" class="text-white">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="tax-bar"
+                                class="h-full bg-gradient-to-r from-neon-blue to-neon-purple w-0 transition-all duration-500">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </button>
-        </section>
 
-        <!-- Dashboard -->
-        <div id="game-dashboard" class="grid lg:grid-cols-3 gap-8 opacity-100 transition-opacity duration-500">
+                <!-- Action Deck -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3
+                        class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-4 flex items-center justify-between">
+                        <span>Strategy Deck</span>
+                        <span id="points-badge"
+                            class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px]">2 Points
+                            Avail</span>
+                    </h3>
 
-            <!-- Left: Controls & Stats -->
-            <div class="lg:col-span-1 space-y-6">
-                <!-- Income Control -->
-                <div class="glass-panel rounded-2xl p-6">
-                    <label class="block text-sm font-bold text-slate-400 mb-2">Adjust Scale</label>
-                    <div class="flex items-baseline gap-1 mb-4">
-                        <span class="text-3xl font-display font-bold text-white" id="income-display">$65,000</span>
+                    <div id="strategy-container" class="space-y-3">
+                        <!-- Populated by JS -->
                     </div>
-                    <input type="range" id="income-slider"
-                        class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                        min="0" max="200" value="20">
-                    <div class="flex justify-between text-xs text-slate-500 mt-2">
-                        <span>Baseline</span>
-                        <span>Max Potential</span>
+
+                    <button onclick="endTurn()" class="w-full mt-6 btn-primary py-4 text-lg">
+                        <span>File Taxes & End Year</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                    <!-- Auto-Run Button -->
+                    <button onclick="autoRun()" class="w-full mt-2 btn-secondary text-xs py-2">
+                        Simulate Remaining Years
+                    </button>
+                </div>
+            </div>
+
+            <!-- Middle: Main Visual & Events (Col 5) -->
+            <div class="lg:col-span-5 space-y-6">
+                <!-- Event Card -->
+                <div id="event-card"
+                    class="glass-panel p-1 rounded-2xl h-[300px] flex items-center justify-center relative overflow-hidden group">
+                    <div
+                        class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1611974765270-ca12586343bb?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-10 group-hover:opacity-20 transition-opacity duration-1000">
+                    </div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+
+                    <div class="relative z-10 text-center p-8">
+                        <div id="event-icon"
+                            class="w-20 h-20 rounded-full bg-slate-800/80 border border-slate-600 flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                            <i data-lucide="play" class="w-8 h-8 text-slate-200"></i>
+                        </div>
+                        <h2 id="event-title" class="font-display font-bold text-3xl text-white mb-2">Year 1 Begins</h2>
+                        <p id="event-desc" class="text-slate-300 leading-relaxed">Allocate your strategy points to
+                            minimize your tax liability before the fiscal year ends.</p>
                     </div>
                 </div>
 
-                <!-- Tax Bill Breakdown -->
-                <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-                    <h4 class="font-display font-bold text-white mb-4 flex items-center gap-2">
-                        <i data-lucide="receipt" class="w-4 h-4 text-slate-400"></i> Tax Bill Impact
-                    </h4>
+                <!-- Wealth Chart -->
+                <div class="glass-panel p-6 rounded-2xl min-h-[300px] flex flex-col">
+                    <h3 class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-4">Wealth Trajectory</h3>
+                    <div class="flex-grow relative w-full h-full min-h-[250px]">
+                        <canvas id="wealth-chart"></canvas>
+                    </div>
+                </div>
+            </div>
 
-                    <div class="space-y-3 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Federal Tax</span>
-                            <span id="tax-fed" class="font-mono text-red-400">-$0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">FICA / SE Tax</span>
-                            <span id="tax-fica" class="font-mono text-red-400">-$0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">State Tax</span>
-                            <span id="tax-state" class="font-mono text-red-400">-$0</span>
-                        </div>
-                        <div class="h-px bg-white/10 my-2"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-white">Effective Rate</span>
-                            <div class="text-right">
-                                <span id="tax-rate" class="block font-mono text-xl font-bold text-white">0%</span>
-                                <span id="tax-saved-msg" class="text-xs text-emerald-400 hidden">Saved $12,000!</span>
+            <!-- Right: Assets & Net Worth (Col 3) -->
+            <div class="lg:col-span-3 space-y-6">
+
+                <div class="glass-panel p-6 rounded-2xl h-full flex flex-col relative overflow-hidden">
+                    <div
+                        class="absolute top-0 right-0 w-64 h-64 bg-neon-blue/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2">
+                    </div>
+
+                    <h3 class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-6">Portfolio</h3>
+
+                    <div class="space-y-6 flex-grow">
+                        <!-- Asset Item -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-400">Cash Reserves</span>
+                                <span id="asset-cash" class="text-white font-mono">$0</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full">
+                                <div class="h-full bg-slate-500 w-full rounded-full"></div>
                             </div>
                         </div>
 
-                        <!-- Visual Bar -->
-                        <div class="w-full h-4 bg-slate-800 rounded-full mt-4 overflow-hidden flex">
-                            <div id="bar-keep" class="h-full bg-emerald-500" style="width: 70%"></div>
-                            <div id="bar-tax" class="h-full bg-red-500" style="width: 30%"></div>
+                        <!-- Asset Item -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-400">Investments</span>
+                                <span id="asset-invest" class="text-white font-mono">$0</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full">
+                                <div class="h-full bg-neon-purple w-full rounded-full"></div>
+                            </div>
                         </div>
-                        <div class="flex justify-between text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                            <span>Keep</span>
-                            <span>Tax</span>
+
+                        <!-- Asset Item -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-400">Real Estate</span>
+                                <span id="asset-property" class="text-white font-mono">$0</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full">
+                                <div class="h-full bg-amber-500 w-full rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-8 border-t border-white/5">
+                        <div class="text-center">
+                            <span class="text-xs text-slate-500 uppercase">Total Net Worth</span>
+                            <div id="portfolio-total" class="font-display font-bold text-3xl text-white mt-1">$0</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Strategy Deck -->
-            <div class="lg:col-span-2 space-y-6">
-                <div class="glass-panel rounded-2xl p-6">
-                    <h3 class="font-display font-bold text-xl text-white mb-6 flex items-center justify-between">
-                        <span>Available Strategies</span>
-                        <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded">SELECT TO
-                            ACTIVATE</span>
-                    </h3>
+        </div>
 
-                    <div class="grid md:grid-cols-2 gap-4">
-
-                        <!-- Strategy: Standard Deduction -->
-                        <button onclick="toggleStrategy('standard')" id="strat-standard"
-                            class="group text-left p-4 rounded-xl border border-slate-700 bg-slate-800/30 hover:bg-slate-700/50 transition-all">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-white">Standard Deduction</h4>
-                                <i data-lucide="shield" class="w-5 h-5 text-slate-400"></i>
-                            </div>
-                            <p class="text-sm text-slate-400 mb-2">Reduce taxable income by a fixed amount ($14,600).
-                                Simple and safe.</p>
-                            <span
-                                class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 uppercase">Universal</span>
-                        </button>
-
-                        <!-- Strategy: Business Expensing -->
-                        <button onclick="toggleStrategy('expense')" id="strat-expense"
-                            class="group text-left p-4 rounded-xl border border-slate-700 bg-slate-800/30 hover:bg-slate-700/50 transition-all">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-white">Business "Expensing"</h4>
-                                <i data-lucide="coffee" class="w-5 h-5 text-orange-400"></i>
-                            </div>
-                            <p class="text-sm text-slate-400 mb-2">Deduct cars, dinners, and travel as "necessary"
-                                costs.</p>
-                            <span
-                                class="strat-tag inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-400 uppercase">Business
-                                Only</span>
-                        </button>
-
-                        <!-- Strategy: Buy Borrow Die -->
-                        <button onclick="toggleStrategy('bbd')" id="strat-bbd"
-                            class="group text-left p-4 rounded-xl border border-slate-700 bg-slate-800/30 hover:bg-slate-700/50 transition-all">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-white">Buy, Borrow, Die</h4>
-                                <i data-lucide="infinity" class="w-5 h-5 text-purple-400"></i>
-                            </div>
-                            <p class="text-sm text-slate-400 mb-2">Borrow against assets to pay 0% tax. Loans aren't
-                                income.</p>
-                            <div class="flex gap-2">
-                                <span
-                                    class="strat-tag inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 uppercase">Assets
-                                    > $1M</span>
-                            </div>
-                        </button>
-
-                        <!-- Strategy: QBI Deduction -->
-                        <button onclick="toggleStrategy('qbi')" id="strat-qbi"
-                            class="group text-left p-4 rounded-xl border border-slate-700 bg-slate-800/30 hover:bg-slate-700/50 transition-all">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-white">Section 199A (QBI)</h4>
-                                <i data-lucide="scissors" class="w-5 h-5 text-blue-400"></i>
-                            </div>
-                            <p class="text-sm text-slate-400 mb-2">Slice 20% off your taxable income automatically.</p>
-                            <span
-                                class="strat-tag inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-400 uppercase">Business
-                                Only</span>
-                        </button>
-
-                    </div>
+        <!-- End Game Screen -->
+        <div id="end-screen" class="hidden absolute inset-0 z-50 flex items-center justify-center p-4">
+            <div
+                class="bg-slate-900 border border-slate-700 rounded-3xl p-12 max-w-2xl w-full shadow-2xl text-center relative overflow-hidden">
+                <div
+                    class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5">
                 </div>
+                <div class="relative z-10">
+                    <i data-lucide="trophy" class="w-20 h-20 text-amber-400 mx-auto mb-6"></i>
+                    <h2 class="font-display font-bold text-4xl text-white mb-2">Quest Complete</h2>
+                    <p class="text-slate-400 mb-8">You survived 30 years of tax policy.</p>
 
-                <!-- Projection View -->
-                <div class="glass-panel rounded-2xl p-6">
-                    <h4 class="font-display font-bold text-white mb-4">Life Outcome (30 Years)</h4>
-                    <canvas id="projection-chart" height="100"></canvas>
+                    <div class="bg-black/30 rounded-xl p-8 mb-8 backdrop-blur-sm border border-white/5">
+                        <div class="text-sm text-slate-500 uppercase tracking-widest mb-1">Final Net Worth</div>
+                        <div id="final-score" class="font-mono text-5xl font-bold text-neon-green mb-4">$10,432,100
+                        </div>
+                        <div class="flex justify-center gap-4 text-sm">
+                            <span class="text-slate-400">Lifetime Tax: <span id="final-tax"
+                                    class="text-red-400">$0</span></span>
+                            <span class="text-slate-400">Rate: <span id="final-rate"
+                                    class="text-blue-400">0%</span></span>
+                        </div>
+                    </div>
+
+                    <button onclick="location.reload()" class="btn-primary mx-auto">
+                        Play Again
+                    </button>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- Scripts -->
+    <!-- JS Logic -->
     <script>
-        // --- Data Definitions ---
+        // --- Game Config & Data ---
+        const CONFIG = {
+            years: 30,
+            startYear: 1
+        };
+
         const PROFILES = {
             gov: {
-                name: 'Public Servant',
-                icon: 'building-2',
-                base: 65000,
-                max: 180000,
-                type: 'w2',
-                assets: 50000,
-                color: '#64748b',
-                allowed: ['standard'], // Govt worker options often limited to basics + pension (implicit)
-                desc: 'Government work is stable but rigid. You cannot deduct expenses or use asset-based loops.'
+                name: "Public Servant",
+                salary: 75000,
+                assets: 20000,
+                growth: 0.03, // Low salary growth
+                risk: 0.0,
+                color: '#06b6d4',
+                strategies: ['standard', 'ira', 'municipals']
             },
             biz: {
-                name: 'Entrepreneur',
-                icon: 'store',
-                base: 120000,
-                max: 2000000, // High ceiling
-                type: '1099',
-                assets: 200000,
-                color: '#f97316',
-                allowed: ['standard', 'expense', 'qbi'],
-                desc: 'You have high control over taxation but face Self-Employment taxes.'
+                name: "Founder",
+                salary: 120000,
+                assets: 50000,
+                growth: 0.08, // High potential
+                risk: 0.2, // Audit risk
+                color: '#8b5cf6',
+                strategies: ['standard', 'expense', 'qbi', 'sep_ira', 'offshore']
             },
             rich: {
-                name: 'Dynastic Wealth',
-                icon: 'landmark',
-                base: 0, // No salary
-                max: 0,
-                type: 'capital',
-                assets: 10000000, // Starts huge
-                color: '#a855f7',
-                allowed: ['standard', 'bbd'],
-                desc: 'Income is optional. You live off loans and capital gains.'
+                name: "Old Money",
+                salary: 0,
+                assets: 10000000,
+                growth: 0.06, // Investment growth
+                risk: 0.05,
+                color: '#f59e0b',
+                strategies: ['standard', 'bbd', 'trusts', 'oz']
             }
         };
 
         const STRATEGIES = {
-            standard: { name: 'Standard Deduction', val: 14600, type: 'deduction' },
-            expense: { name: 'Expensing', val: 0.15, type: 'percent_deduction' }, // Expense 15% of revenue
-            qbi: { name: 'QBI', val: 0.20, type: 'percent_deduction_post' }, // 20% of net
-            bbd: { name: 'Buy Borrow Die', val: 0.0, type: 'override' } // 0 tax
+            standard: { id: 'standard', name: "Standard Deduction", cost: 0, desc: "Automatic $14.6k deduction.", type: 'passive' },
+            expense: { id: 'expense', name: "Biz Expenses", cost: 1, desc: "Write off 20% of revenue.", type: 'active' },
+            qbi: { id: 'qbi', name: "QBI Deduction", cost: 1, desc: "20% deduction on qualified income.", type: 'active' },
+            ira: { id: 'ira', name: "Max 401k/IRA", cost: 1, desc: "Defer tax on $23k/yr.", type: 'active' },
+            municipals: { id: 'municipals', name: "Muni Bonds", cost: 1, desc: "Tax-free interest income.", type: 'active' },
+            bbd: { id: 'bbd', name: "Buy Borrow Die", cost: 2, desc: "Live off loans. Pay 0% tax.", type: 'ultimate' },
+            offshore: { id: 'offshore', name: "Cayman LLC", cost: 2, desc: "High audit risk. Zero tax.", type: 'risky' }
         };
 
-        // --- State ---
-        let currentProfileId = 'gov';
-        let incomeScale = 20; // % of max
-        let activeStrategies = new Set(['standard']);
-        let chartInstance = null;
+        // --- Game State ---
+        let state = {
+            profile: null,
+            year: 1,
+            netWorth: 0,
+            cash: 0,
+            income: 0,
+            points: 2,
+            activeStrategies: new Set(['standard']),
+            history: { wealth: [], tax: [] },
+            gameOver: false,
+            isAutoRunning: false
+        };
 
-        // --- Core Logic ---
-        function calculateTaxes() {
-            const profile = PROFILES[currentProfileId];
-            let rawIncome = 0;
-            let currentAssets = 0;
+        let chart;
 
-            // 1. Determine base numbers based on simulator slider
-            if (profile.type === 'capital') {
-                // For rich, slider adjusts "Living Expenses" drawn from assets
-                // But for sim simplicity, let's say slider adjusts total asset base scale
-                const scale = document.getElementById('income-slider').value / 20; // 1.0 = baseline
-                currentAssets = profile.assets * scale;
-                rawIncome = currentAssets * 0.05; // 5% yield/withdrawal
-            } else {
-                // For w2/biz, slider is income
-                const scale = document.getElementById('income-slider').value / 20;
-                rawIncome = profile.base * scale;
-            }
+        // --- Core Functions ---
 
-            // 2. Strategy Effects
-            let taxableIncome = rawIncome;
-            let deduction = 0;
-            let seTax = 0;
-            let effectiveRate = 0;
-            let fedTax = 0;
-            let stateTax = 0;
+        function startGame(profileId) {
+            const p = PROFILES[profileId];
+            state.profile = profileId;
+            state.income = p.salary;
+            state.netWorth = p.assets;
+            state.cash = p.assets * 0.1;
+            state.year = 1;
+            state.history.wealth = [state.netWorth];
+            state.history.tax = [];
 
-            // Apply 'Expense' (Business only)
-            if (activeStrategies.has('expense') && profile.type === '1099') {
-                deduction += rawIncome * STRATEGIES.expense.val;
-            }
+            // UI Transition
+            document.getElementById('intro-screen').style.display = 'none';
+            const board = document.getElementById('quest-dashboard');
+            board.classList.remove('hidden');
 
-            // Apply Standard Deduction
-            if (activeStrategies.has('standard')) {
-                // If Itemizing (business expensing includes standard) usually logic is complex
-                // Simplified: You get standard unless expensing is huge. simplified: stack for game fun
-                deduction += STRATEGIES.standard.val;
-            }
+            // Animate entry
+            setTimeout(() => {
+                board.classList.remove('opacity-0', 'translate-y-10');
+            }, 100);
 
-            let netIncome = Math.max(0, rawIncome - deduction);
-
-            // Apply QBI
-            if (activeStrategies.has('qbi') && profile.type === '1099') {
-                netIncome = netIncome * (1 - STRATEGIES.qbi.val);
-            }
-
-            // 3. Tax Calculation
-            if (profile.type === 'w2') {
-                // FICA
-                const ssCap = 168600;
-                let fica = Math.min(rawIncome, ssCap) * 0.062 + rawIncome * 0.0145;
-                seTax = fica; // Just calling it seTax var for simplicity
-
-                // Fed
-                fedTax = calculateFedBracket(netIncome);
-                stateTax = netIncome * 0.05;
-
-            } else if (profile.type === '1099') {
-                // SE Tax (Employer + Employee side) approx 15.3%
-                const ssCap = 168600;
-                let se = Math.min(netIncome, ssCap) * 0.124 + netIncome * 0.029;
-                seTax = se;
-
-                // Fed (deduct 1/2 SE tax)
-                const adjNet = netIncome - (se * 0.5);
-                fedTax = calculateFedBracket(adjNet);
-                stateTax = adjNet * 0.05;
-
-            } else if (profile.type === 'capital') {
-                // Buy Borrow Die?
-                if (activeStrategies.has('bbd')) {
-                    fedTax = 0;
-                    seTax = 0; // Loans aren't income
-                    stateTax = 0;
-                } else {
-                    // Normal LTCG
-                    fedTax = calculateLTCG(netIncome); // netIncome here is just the 5% withdrawal
-                    seTax = 0; // No FICA on gains
-                    stateTax = netIncome * 0.05;
-                }
-            }
-
-            const totalTax = fedTax + seTax + stateTax;
-            const keep = rawIncome - totalTax;
-            effectiveRate = (totalTax / rawIncome) * 100;
-            if (isNaN(effectiveRate)) effectiveRate = 0;
-
-            return {
-                raw: rawIncome,
-                assets: currentAssets || 0,
-                fed: fedTax,
-                fica: seTax,
-                state: stateTax,
-                total: totalTax,
-                keep: keep,
-                rate: effectiveRate
-            };
+            initChart();
+            renderStrategies();
+            updateStats();
         }
 
-        function calculateFedBracket(income) {
-            // Simplified 2024 single brackets
-            if (income < 11600) return income * 0.10;
-            if (income < 47150) return 1160 + (income - 11600) * 0.12;
-            if (income < 100525) return 5426 + (income - 47150) * 0.22;
-            if (income < 191950) return 17168 + (income - 100525) * 0.24;
-            if (income < 243725) return 39110 + (income - 191950) * 0.32;
-            return 55678 + (income - 243725) * 0.35; // Cap at 35 for simplicity
-        }
+        function renderStrategies() {
+            const container = document.getElementById('strategy-container');
+            container.innerHTML = '';
 
-        function calculateLTCG(income) {
-            if (income < 47000) return 0;
-            if (income < 518000) return (income - 47000) * 0.15;
-            return 70650 + (income - 518000) * 0.20;
-        }
+            const allowed = PROFILES[state.profile].strategies;
 
-        // --- UI Updates ---
-        const formatMoney = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+            allowed.forEach(sid => {
+                const s = STRATEGIES[sid];
+                const isActive = state.activeStrategies.has(sid);
 
-        function updateUI() {
-            const result = calculateTaxes();
+                const btn = document.createElement('div');
+                btn.className = `strategy-card group ${isActive ? 'strategy-active' : ''}`;
+                btn.onclick = () => toggleStrategy(sid);
 
-            // 1. Text Update
-            document.getElementById('income-display').textContent = formatMoney(result.raw);
-            document.getElementById('tax-fed').textContent = '-' + formatMoney(result.fed);
-            document.getElementById('tax-fica').textContent = '-' + formatMoney(result.fica);
-            document.getElementById('tax-state').textContent = '-' + formatMoney(result.state);
+                let iconName = 'shield';
+                if (s.type === 'risky') iconName = 'alert-triangle';
+                if (s.type === 'ultimate') iconName = 'infinity';
 
-            document.getElementById('tax-rate').textContent = result.rate.toFixed(1) + '%';
-
-            // 2. Bar visuals
-            const totalScale = result.raw > 0 ? result.raw : 1;
-            const taxPct = (result.total / totalScale) * 100;
-            const keepPct = 100 - taxPct;
-
-            document.getElementById('bar-keep').style.width = keepPct + '%';
-            document.getElementById('bar-tax').style.width = taxPct + '%';
-
-            if (result.rate < 15 && result.raw > 100000) {
-                document.getElementById('tax-saved-msg').classList.remove('hidden');
-                document.getElementById('tax-saved-msg').textContent = "Tax Efficiency High!";
-            } else {
-                document.getElementById('tax-saved-msg').classList.add('hidden');
-            }
-
-            // 3. Lock/Unlock Strategies based on Profile
-            const profile = PROFILES[currentProfileId];
-            ['expense', 'qbi', 'bbd'].forEach(strat => {
-                const el = document.getElementById('strat-' + strat);
-                if (profile.allowed.includes(strat)) {
-                    el.classList.remove('locked-strategy');
-                    // visual check if active
-                    if (activeStrategies.has(strat)) {
-                        el.classList.add('border-blue-500', 'bg-blue-500/10');
-                        el.classList.remove('border-slate-700');
-                    } else {
-                        el.classList.remove('border-blue-500', 'bg-blue-500/10');
-                        el.classList.add('border-slate-700');
-                    }
-                } else {
-                    el.classList.add('locked-strategy');
-                    el.classList.remove('border-blue-500', 'bg-blue-500/10');
-                    // Force disable if somehow active
-                    if (activeStrategies.has(strat)) activeStrategies.delete(strat);
-                }
+                btn.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-white flex items-center gap-2">
+                             <i data-lucide="${iconName}" class="w-4 h-4 text-slate-400 group-hover:text-white"></i>
+                             ${s.name}
+                        </span>
+                        ${isActive ? '<i data-lucide="check-circle" class="w-4 h-4 text-neon-blue"></i>' : `<span class="text-xs text-slate-500 font-mono">${s.cost} PT</span>`}
+                    </div>
+                    <p class="text-xs text-slate-400">${s.desc}</p>
+                `;
+                container.appendChild(btn);
             });
-
-            updateChart(result.keep);
-        }
-
-        function selectProfile(id) {
-            currentProfileId = id;
-
-            // Visual selection
-            document.querySelectorAll('.profile-card').forEach(el => el.classList.remove('profile-selected'));
-            document.getElementById('profile-' + id).classList.add('profile-selected');
-
-            // Reset strategies
-            activeStrategies = new Set(['standard']);
-
-            updateUI();
+            lucide.createIcons();
         }
 
         function toggleStrategy(id) {
-            const profile = PROFILES[currentProfileId];
-            if (!profile.allowed.includes(id)) return; // Locked
+            if (state.gameOver) return;
+            const s = STRATEGIES[id];
 
-            if (activeStrategies.has(id)) {
-                activeStrategies.delete(id);
+            if (state.activeStrategies.has(id)) {
+                if (id !== 'standard') { // Cannot remove standard
+                    state.activeStrategies.delete(id);
+                    state.points += s.cost;
+                }
             } else {
-                activeStrategies.add(id);
+                if (state.points >= s.cost) {
+                    state.activeStrategies.add(id);
+                    state.points -= s.cost;
+                } else {
+                    shakeUI('#points-badge');
+                    return;
+                }
             }
-            updateUI();
+
+            renderStrategies();
+            updateStats(true); // Preview mode
         }
 
-        // --- Chart ---
+        function calculateYearlyTax(isProjected = false) {
+            let gross = state.income;
+            // If Rich, income is mostly capital gains (simulated)
+            if (state.profile === 'rich') {
+                gross = state.netWorth * 0.08; // 8% gain
+            } else {
+                // Determine raise
+                if (!isProjected) gross = gross * (1 + PROFILES[state.profile].growth);
+            }
+
+            let taxable = gross;
+            let deduction = 0;
+
+            // Apply Strategies
+            if (state.activeStrategies.has('standard')) deduction += 14600;
+            if (state.activeStrategies.has('expense')) deduction += gross * 0.20;
+            if (state.activeStrategies.has('ira')) deduction += 23000;
+            if (state.activeStrategies.has('qbi')) deduction += (Math.max(0, taxable - deduction) * 0.20);
+
+            taxable = Math.max(0, taxable - deduction);
+
+            // Calculate Tax
+            let tax = 0;
+
+            if (state.profile === 'rich') {
+                // Capital Gains logic
+                if (state.activeStrategies.has('bbd')) {
+                    tax = 0; // Buy Borrow Die
+                } else {
+                    tax = taxable * 0.20; // 20% LTCG
+                }
+            } else {
+                // Ordinary Income logic (Simplified bracket)
+                // Effective rate approx
+                const rate = taxable > 200000 ? 0.32 : taxable > 100000 ? 0.24 : 0.12;
+                tax = taxable * rate;
+
+                // Add FICA if not rich/public servant has diff rules?
+                // Biz pays SE tax
+                if (state.profile === 'biz' && !state.activeStrategies.has('offshore')) {
+                    tax += gross * 0.153;
+                }
+                if (state.profile === 'gov') {
+                    tax += gross * 0.0765;
+                }
+            }
+
+            if (state.activeStrategies.has('offshore')) {
+                // Risky! tax becomes 0, but risk check happens on turn end
+                tax = 0;
+            }
+
+            return { gross, tax, net: gross - tax };
+        }
+
+        function updateStats(preview = false) {
+            const calcs = calculateYearlyTax(true);
+            const rate = (calcs.tax / Math.max(1, calcs.gross)) * 100;
+
+            document.getElementById('stat-income').textContent = formatMoney(calcs.gross);
+            document.getElementById('stat-tax').textContent = formatMoney(calcs.tax);
+            document.getElementById('stat-rate').textContent = rate.toFixed(1) + '%';
+            document.getElementById('stat-strategies').textContent = `${state.activeStrategies.size} Active`;
+            document.getElementById('points-badge').textContent = `${state.points} Pt Avail`;
+
+            document.getElementById('tax-bar').style.width = Math.min(rate * 2, 100) + '%';
+
+            // Global stats
+            document.getElementById('game-year').textContent = state.year;
+            document.getElementById('game-networth').textContent = formatMoney(state.netWorth);
+
+            // Assets
+            const nw = state.netWorth;
+            document.getElementById('asset-cash').textContent = formatMoney(nw * 0.1);
+            document.getElementById('asset-invest').textContent = formatMoney(nw * 0.5);
+            document.getElementById('asset-property').textContent = formatMoney(nw * 0.4);
+            document.getElementById('portfolio-total').textContent = formatMoney(nw);
+        }
+
+        function endTurn() {
+            if (state.year > CONFIG.years) return;
+
+            // 1. Process Finance
+            const calcs = calculateYearlyTax();
+            state.income = calcs.gross; // Commit the raise
+            state.netWorth += calcs.net; // Add net income to wealth
+            // Passive growth on existing wealth
+            state.netWorth = state.netWorth * 1.07;
+
+            // 2. Events & Risks
+            handleEvents();
+
+            // 3. Update History
+            state.history.wealth.push(state.netWorth);
+            state.history.tax.push(calcs.tax);
+            updateChart();
+
+            // 4. Advance
+            state.year++;
+
+            if (state.year > CONFIG.years) {
+                endGame();
+            } else {
+                updateStats();
+                // Reset points occasionally?
+                // For simplified gameplay, keep points static or allow slight regen
+            }
+        }
+
+        function autoRun() {
+            if (state.isAutoRunning) return;
+            state.isAutoRunning = true;
+
+            const interval = setInterval(() => {
+                if (state.year >= CONFIG.years) {
+                    clearInterval(interval);
+                    state.isAutoRunning = false;
+                } else {
+                    endTurn();
+                }
+            }, 200);
+        }
+
+        function handleEvents() {
+            // Simplified event text update
+            const events = [
+                { yr: 5, t: "Market Boom", d: "Assets appreciate 15%!" },
+                { yr: 10, t: "Audit Inspection", d: "IRS checking expenses..." },
+                { yr: 20, t: "Policy Shift", d: "Capital Gains tax raised." }
+            ];
+
+            const ev = events.find(e => e.yr === state.year);
+            if (ev) {
+                document.getElementById('event-title').textContent = ev.t;
+                document.getElementById('event-desc').textContent = ev.d;
+                animateEvent();
+            } else {
+                document.getElementById('event-title').textContent = `Year ${state.year}`;
+                document.getElementById('event-desc').textContent = "Fiscal year active. Review strategy.";
+            }
+
+            // Audit Check
+            if (state.activeStrategies.has('offshore') || state.activeStrategies.has('expense')) {
+                if (Math.random() < PROFILES[state.profile].risk) {
+                    // Penalty!
+                    const penalty = state.netWorth * 0.05;
+                    state.netWorth -= penalty;
+                    document.getElementById('event-title').textContent = "AUDIT CAUGHT!";
+                    document.getElementById('event-desc').textContent = `You were fined ${formatMoney(penalty)}. Risks didn't pay off.`;
+                    document.getElementById('event-title').classList.add('text-neon-red');
+                    setTimeout(() => document.getElementById('event-title').classList.remove('text-neon-red'), 2000);
+                }
+            }
+        }
+
+        function endGame() {
+            state.gameOver = true;
+            document.getElementById('quest-dashboard').classList.add('blur-sm');
+            document.getElementById('end-screen').classList.remove('hidden');
+
+            // countup
+            anime({
+                targets: document.getElementById('final-score'),
+                innerHTML: [0, state.netWorth],
+                round: 1,
+                easing: 'easeInOutExpo',
+                formatter: val => formatMoney(val)
+            });
+
+            const totalTax = state.history.tax.reduce((a, b) => a + b, 0);
+            document.getElementById('final-tax').textContent = formatMoney(totalTax);
+        }
+
+        function animateEvent() {
+            anime({
+                targets: '#event-card',
+                scale: [0.95, 1],
+                opacity: [0.8, 1],
+                duration: 500
+            });
+        }
+
+        function shakeUI(selector) {
+            anime({
+                targets: selector,
+                translateX: [-5, 5, -5, 5, 0],
+                duration: 400,
+                easing: 'easeInOutSine'
+            });
+        }
+
+        // --- Chart --
         function initChart() {
-            const ctx = document.getElementById('projection-chart').getContext('2d');
-            chartInstance = new Chart(ctx, {
+            const ctx = document.getElementById('wealth-chart').getContext('2d');
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: Array.from({ length: 30 }, (_, i) => i + 1),
+                    labels: state.history.wealth.map((_, i) => i + 1),
                     datasets: [{
-                        label: 'Net Wealth',
-                        data: [],
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        label: 'Net Worth',
+                        data: state.history.wealth,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
                         fill: true,
-                        tension: 0.4
+                        tension: 0.4,
+                        pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { display: false },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#64748b' }
+                            display: false,
+                            grid: { display: false }
                         }
-                    }
+                    },
+                    animation: { duration: 0 } // handled by manual updates mostly
                 }
             });
         }
 
-        function updateChart(annualNet) {
-            if (!chartInstance) return;
-            const data = [];
-            let wealth = 0;
-
-            // Simple compound
-            const rate = PROFILES[currentProfileId].type === 'capital' ? 0.08 : 0.06;
-
-            for (let i = 0; i < 30; i++) {
-                // For 'Rich', annualNet is 'spending money', the wealth grows separately
-                // For others, annualNet is added to wealth
-                if (PROFILES[currentProfileId].type === 'capital') {
-                    // Wealth grows by market - spending
-                    // We need to estimate base wealth
-                    let base = PROFILES[currentProfileId].assets * (document.getElementById('income-slider').value / 20);
-                    // This is complex for a simple chart, simplified:
-                    wealth = base * Math.pow(1.07, i); // Just show the asset growth curve
-                } else {
-                    wealth = (wealth + annualNet) * (1 + rate);
-                }
-                data.push(wealth);
-            }
-
-            chartInstance.data.datasets[0].data = data;
-            chartInstance.data.datasets[0].borderColor = PROFILES[currentProfileId].color;
-            chartInstance.data.datasets[0].backgroundColor = PROFILES[currentProfileId].color + '20'; // hex + alpha
-            chartInstance.update();
+        function updateChart() {
+            if (!chart) return;
+            chart.data.labels = Array.from({ length: state.year }, (_, i) => i + 1);
+            chart.data.datasets[0].data = state.history.wealth;
+            chart.update();
         }
 
-        // --- Init ---
+        // --- Utils --
+        const formatMoney = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+        function resetGame() {
+            location.reload();
+        }
+
+        // Init Icons
         lucide.createIcons();
-        initChart();
-
-        document.getElementById('income-slider').addEventListener('input', updateUI);
-
-        // Start
-        updateUI();
 
     </script>
 </body>
