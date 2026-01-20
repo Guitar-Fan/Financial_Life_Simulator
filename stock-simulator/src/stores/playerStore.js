@@ -6,7 +6,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { useMarketStore } from './marketStore';
 
 const INITIAL_CASH = 25000; // PDT threshold - intentional
 
@@ -40,6 +39,16 @@ export const usePlayerStore = create(
       unlockedOrderTypes: ['MARKET'], // Start with market only
       achievements: [],
       tradesExecuted: 0,
+      
+      // IPO-related progression (Stage 2)
+      ipoParticipations: 0,        // Number of IOIs submitted
+      ipoAllocationsReceived: 0,   // Number of successful allocations
+      s1AnalysesCompleted: 0,      // Number of S-1 quizzes completed
+      ipoUnlocks: {
+        canSubmitIOI: true,        // Basic IOI submission (always unlocked)
+        advancedAnalysis: false,   // Unlocked after 3 S-1 analyses
+        priorityAllocation: false  // Unlocked after 5 successful allocations (slightly better odds)
+      },
       
       // Actions
       setCash: (amount) => set({ cash: amount }),
@@ -147,8 +156,11 @@ export const usePlayerStore = create(
         }));
         
         // Check for unlocks with current market prices
-        const marketTickers = useMarketStore.getState().tickers;
-        get().checkUnlocks(marketTickers);
+        // Note: Import dynamically to avoid circular dependency
+        import('./marketStore').then(({ useMarketStore }) => {
+          const marketTickers = useMarketStore.getState().tickers;
+          get().checkUnlocks(marketTickers);
+        });
       },
       
       cancelOrder: (orderId) => set((state) => ({
@@ -277,12 +289,140 @@ export const usePlayerStore = create(
       },
       
       // Achievement tracking
-      addAchievement: (achievement) => set((state) => ({
-        achievements: [...state.achievements, {
-          ...achievement,
-          earnedAt: new Date().toISOString()
-        }]
-      })),
+      addAchievement: (achievement) => set((state) => {
+        // Don't add duplicate achievements
+        if (state.achievements.some(a => a.id === achievement.id)) {
+          return state;
+        }
+        return {
+          achievements: [...state.achievements, {
+            ...achievement,
+            earnedAt: new Date().toISOString()
+          }]
+        };
+      }),
+      
+      // IPO Progression Actions (Stage 2)
+      recordIOISubmission: () => set((state) => {
+        const newCount = state.ipoParticipations + 1;
+        const newAchievements = [...state.achievements];
+        
+        // Achievement: First IOI
+        if (newCount === 1 && !state.achievements.some(a => a.id === 'first_ioi')) {
+          newAchievements.push({
+            id: 'first_ioi',
+            title: 'IPO Participant',
+            description: 'Submitted your first Indication of Interest',
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        // Achievement: 5 IOIs
+        if (newCount === 5 && !state.achievements.some(a => a.id === 'active_ipo_investor')) {
+          newAchievements.push({
+            id: 'active_ipo_investor',
+            title: 'Active IPO Investor',
+            description: 'Submitted 5 Indications of Interest',
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        return { 
+          ipoParticipations: newCount,
+          achievements: newAchievements
+        };
+      }),
+      
+      recordIPOAllocation: (shares, ticker) => set((state) => {
+        const newCount = state.ipoAllocationsReceived + 1;
+        const newAchievements = [...state.achievements];
+        const newUnlocks = { ...state.ipoUnlocks };
+        
+        // Achievement: First Allocation
+        if (newCount === 1 && !state.achievements.some(a => a.id === 'first_allocation')) {
+          newAchievements.push({
+            id: 'first_allocation',
+            title: 'Allocation Received',
+            description: `Received your first IPO allocation (${shares} shares of ${ticker})`,
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        // Achievement: 3 Allocations
+        if (newCount === 3 && !state.achievements.some(a => a.id === 'ipo_veteran')) {
+          newAchievements.push({
+            id: 'ipo_veteran',
+            title: 'IPO Veteran',
+            description: 'Received allocations in 3 different IPOs',
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        // Unlock: Priority allocation after 5 successful allocations
+        if (newCount >= 5) {
+          newUnlocks.priorityAllocation = true;
+        }
+        
+        return { 
+          ipoAllocationsReceived: newCount,
+          achievements: newAchievements,
+          ipoUnlocks: newUnlocks
+        };
+      }),
+      
+      recordS1Analysis: (score, ipoTicker) => set((state) => {
+        const newCount = state.s1AnalysesCompleted + 1;
+        const newAchievements = [...state.achievements];
+        const newUnlocks = { ...state.ipoUnlocks };
+        
+        // Achievement: First Analysis
+        if (newCount === 1 && !state.achievements.some(a => a.id === 'first_analysis')) {
+          newAchievements.push({
+            id: 'first_analysis',
+            title: 'Due Diligence',
+            description: 'Completed your first S-1 prospectus analysis',
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        // Achievement: Perfect Score
+        if (score === 100 && !state.achievements.some(a => a.id === 'perfect_analysis')) {
+          newAchievements.push({
+            id: 'perfect_analysis',
+            title: 'Risk Analyst',
+            description: 'Achieved a perfect score on an S-1 analysis',
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        // Achievement: 5 Analyses
+        if (newCount === 5 && !state.achievements.some(a => a.id === 'seasoned_analyst')) {
+          newAchievements.push({
+            id: 'seasoned_analyst',
+            title: 'Seasoned Analyst',
+            description: 'Completed 5 S-1 prospectus analyses',
+            category: 'ipo',
+            earnedAt: new Date().toISOString()
+          });
+        }
+        
+        // Unlock: Advanced analysis after 3 completions
+        if (newCount >= 3) {
+          newUnlocks.advancedAnalysis = true;
+        }
+        
+        return { 
+          s1AnalysesCompleted: newCount,
+          achievements: newAchievements,
+          ipoUnlocks: newUnlocks
+        };
+      }),
       
       // Reset player state
       reset: () => set({
@@ -295,7 +435,16 @@ export const usePlayerStore = create(
         unlockedTickers: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'JPM'],
         unlockedOrderTypes: ['MARKET'],
         achievements: [],
-        tradesExecuted: 0
+        tradesExecuted: 0,
+        // Reset IPO progression
+        ipoParticipations: 0,
+        ipoAllocationsReceived: 0,
+        s1AnalysesCompleted: 0,
+        ipoUnlocks: {
+          canSubmitIOI: true,
+          advancedAnalysis: false,
+          priorityAllocation: false
+        }
       })
     }),
     {
@@ -309,7 +458,12 @@ export const usePlayerStore = create(
         unlockedTickers: state.unlockedTickers,
         unlockedOrderTypes: state.unlockedOrderTypes,
         achievements: state.achievements,
-        tradesExecuted: state.tradesExecuted
+        tradesExecuted: state.tradesExecuted,
+        // Persist IPO progression
+        ipoParticipations: state.ipoParticipations,
+        ipoAllocationsReceived: state.ipoAllocationsReceived,
+        s1AnalysesCompleted: state.s1AnalysesCompleted,
+        ipoUnlocks: state.ipoUnlocks
       })
     }
   )

@@ -4,3 +4,4 @@
 
 export * from './taxCalculator';
 export * from './slippage';
+export * from './ipoAllocation';

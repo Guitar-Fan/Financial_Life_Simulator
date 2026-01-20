@@ -14,12 +14,15 @@ import {
   FastForward, 
   RotateCcw,
   Settings,
-  Bell
+  Bell,
+  TrendingUp,
+  Landmark,
+  Receipt
 } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
 import { usePlayerStore } from '../../stores/playerStore';
 
-export function Header({ currentDate, currentTime, isPlaying, cash }) {
+export function Header({ currentDate, currentTime, isPlaying, cash, mode, onModeChange }) {
   const { 
     play, 
     pause, 
@@ -74,6 +77,46 @@ export function Header({ currentDate, currentTime, isPlaying, cash }) {
               {currentTime || '--:--'}
             </div>
           </div>
+        </div>
+        
+        {/* Mode Switcher */}
+        <div className="flex items-center gap-1 pl-4 border-l border-terminal-border" data-tutorial="mode-switcher">
+          <button
+            onClick={() => onModeChange?.('TRADING')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              mode === 'TRADING'
+                ? 'bg-terminal-accent text-white'
+                : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
+            }`}
+            title="Secondary Market Trading"
+          >
+            <TrendingUp className="w-3 h-3" />
+            Trading
+          </button>
+          <button
+            onClick={() => onModeChange?.('IPO')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              mode === 'IPO'
+                ? 'bg-terminal-accent text-white'
+                : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
+            }`}
+            title="Primary Market (IPOs)"
+          >
+            <Landmark className="w-3 h-3" />
+            IPO
+          </button>
+          <button
+            onClick={() => onModeChange?.('TAX')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              mode === 'TAX'
+                ? 'bg-terminal-accent text-white'
+                : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
+            }`}
+            title="Tax Center & Reports"
+          >
+            <Receipt className="w-3 h-3" />
+            Tax
+          </button>
         </div>
         
         {/* Playback Controls */}
