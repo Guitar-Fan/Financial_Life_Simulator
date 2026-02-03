@@ -288,7 +288,7 @@ class ModeHubScene extends Phaser.Scene {
         }).setOrigin(0.5).setVisible(false).setDepth(10);
 
         // HUD text
-        this.add.text(20, 20, 'Walk to a pad and press E to enter a mode', {
+        this.add.text(20, 20, 'Click a pad to enter a mode (or walk up and press E)', {
             fontFamily: 'Inter, sans-serif',
             fontSize: '18px',
             color: '#dfe6e9'
@@ -354,6 +354,9 @@ class ModeHubScene extends Phaser.Scene {
 
         pad.on('pointerover', () => this.highlightPad(pad, shadow, glow, text, sub));
         pad.on('pointerout', () => this.resetPad(pad, shadow, glow, text, sub));
+        
+        // Click to enter mode directly (accessibility improvement)
+        pad.on('pointerdown', () => this.enterMode(mode));
 
         // Physics zone for proximity detection
         const zone = this.add.zone(x, y, 180, 180);

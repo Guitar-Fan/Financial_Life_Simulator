@@ -1204,6 +1204,203 @@ class GameController {
     // ==================== SETUP PHASE ====================
     showSetupPhase() {
         console.log('showSetupPhase called');
+        // Show choice between StoryBook (educational) and Quick Start
+        this.showSetupModeChoice();
+    }
+
+    showSetupModeChoice() {
+        const container = document.getElementById('game-container');
+        if (!container) return;
+
+        container.classList.add('full-screen');
+        container.innerHTML = `
+            <div style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                background: linear-gradient(135deg, #1a1208 0%, #2d1f14 50%, #1a1208 100%);
+                padding: 40px;
+            ">
+                <h1 style="
+                    font-family: 'Fredoka', cursive;
+                    font-size: 48px;
+                    color: #d4af37;
+                    text-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+                    margin-bottom: 20px;
+                ">🥐 Start Your Bakery</h1>
+                
+                <p style="
+                    font-family: 'Georgia', serif;
+                    font-size: 18px;
+                    color: #a08060;
+                    text-align: center;
+                    max-width: 600px;
+                    margin-bottom: 40px;
+                    line-height: 1.6;
+                ">Choose how you'd like to begin your entrepreneurial journey</p>
+                
+                <div style="
+                    display: flex;
+                    gap: 30px;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                ">
+                    <!-- StoryBook Mode -->
+                    <div id="choice-storybook" style="
+                        background: linear-gradient(145deg, #2a1f15, #3d2a1a);
+                        border: 3px solid #d4af37;
+                        border-radius: 20px;
+                        padding: 30px;
+                        width: 280px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        text-align: center;
+                    " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 40px rgba(212, 175, 55, 0.3)';"
+                       onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                        <div style="font-size: 60px; margin-bottom: 15px;">📚</div>
+                        <h2 style="
+                            font-family: 'Fredoka', cursive;
+                            font-size: 24px;
+                            color: #d4af37;
+                            margin-bottom: 10px;
+                        ">Interactive Storybook</h2>
+                        <p style="
+                            font-family: 'Georgia', serif;
+                            font-size: 14px;
+                            color: #c9a66b;
+                            line-height: 1.5;
+                            margin-bottom: 15px;
+                        ">Learn the real steps of starting a business through an engaging story</p>
+                        <div style="
+                            background: rgba(76, 175, 80, 0.2);
+                            border: 1px solid #4caf50;
+                            border-radius: 10px;
+                            padding: 10px;
+                            font-size: 12px;
+                            color: #81c784;
+                        ">✨ Recommended for first-time players</div>
+                        <div style="
+                            margin-top: 15px;
+                            font-size: 12px;
+                            color: #8b7355;
+                        ">⏱ ~15 minutes</div>
+                    </div>
+                    
+                    <!-- Quick Start Mode -->
+                    <div id="choice-quickstart" style="
+                        background: linear-gradient(145deg, #1a1510, #2a2015);
+                        border: 2px solid #8b7355;
+                        border-radius: 20px;
+                        padding: 30px;
+                        width: 280px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        text-align: center;
+                    " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 40px rgba(139, 115, 85, 0.2)';"
+                       onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                        <div style="font-size: 60px; margin-bottom: 15px;">🏃</div>
+                        <h2 style="
+                            font-family: 'Fredoka', cursive;
+                            font-size: 24px;
+                            color: #c9a66b;
+                            margin-bottom: 10px;
+                        ">Quick Start</h2>
+                        <p style="
+                            font-family: 'Georgia', serif;
+                            font-size: 14px;
+                            color: #a08060;
+                            line-height: 1.5;
+                            margin-bottom: 15px;
+                        ">Explore the startup city and make decisions at your own pace</p>
+                        <div style="
+                            background: rgba(139, 115, 85, 0.2);
+                            border: 1px solid #8b7355;
+                            border-radius: 10px;
+                            padding: 10px;
+                            font-size: 12px;
+                            color: #a08060;
+                        ">🎮 Walk around & interact with buildings</div>
+                        <div style="
+                            margin-top: 15px;
+                            font-size: 12px;
+                            color: #8b7355;
+                        ">⏱ ~5-10 minutes</div>
+                    </div>
+                </div>
+                
+                <button id="choice-skip" style="
+                    margin-top: 40px;
+                    background: transparent;
+                    border: none;
+                    color: #666;
+                    font-family: 'Inter', sans-serif;
+                    font-size: 14px;
+                    cursor: pointer;
+                    padding: 10px 20px;
+                    transition: color 0.3s;
+                " onmouseover="this.style.color='#a08060'" onmouseout="this.style.color='#666'">
+                    Skip setup and use default settings →
+                </button>
+            </div>
+        `;
+
+        // Wire up buttons
+        document.getElementById('choice-storybook').onclick = () => this.showStoryBookSetup();
+        document.getElementById('choice-quickstart').onclick = () => this.showStartupCitySetup();
+        document.getElementById('choice-skip').onclick = () => this.skipSetupWithDefaults();
+    }
+
+    showStoryBookSetup() {
+        console.log('Starting StoryBook setup...');
+        try {
+            this.cleanupPhaser();
+
+            const container = document.getElementById('game-container');
+            if (!container) {
+                throw new Error('game-container element not found');
+            }
+
+            container.classList.add('full-screen');
+            container.style.padding = '';
+            container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 100%; overflow: hidden;"></div>`;
+
+            if (typeof Phaser === 'undefined') {
+                throw new Error('Phaser library not loaded');
+            }
+            if (typeof StoryBookScene === 'undefined') {
+                throw new Error('StoryBookScene class not loaded');
+            }
+
+            const config = {
+                type: Phaser.AUTO,
+                width: window.innerWidth,
+                height: window.innerHeight - 60,
+                parent: 'phaser-container',
+                backgroundColor: '#1a1208',
+                scale: {
+                    mode: Phaser.Scale.RESIZE,
+                    autoCenter: Phaser.Scale.CENTER_BOTH
+                },
+                physics: {
+                    default: 'arcade',
+                    arcade: { gravity: { y: 0 }, debug: false }
+                },
+                scene: [StoryBookScene]
+            };
+
+            this.phaserGame = new Phaser.Game(config);
+            console.log('StoryBook setup initialized');
+        } catch (err) {
+            console.error('Error in showStoryBookSetup:', err);
+            alert('Failed to start storybook: ' + err.message);
+            this.showMainMenu();
+        }
+    }
+
+    showStartupCitySetup() {
+        console.log('showStartupCitySetup called');
         try {
             console.log('Cleaning up previous Phaser instance...');
             this.cleanupPhaser();
@@ -1302,6 +1499,68 @@ class GameController {
         } else if (type === 'utility_internet') {
             this.setupChoices.utilities.internet = options.utilities.find(u => u.id === id);
         }
+    }
+
+    skipSetupWithDefaults() {
+        console.log('Skipping setup with defaults...');
+        // Apply default setup choices
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        
+        this.setupChoices = {
+            location: options.locations.find(l => l.id === 'suburban') || options.locations[0],
+            financing: options.financing.find(f => f.id === 'savings') || options.financing[0],
+            equipment: {
+                oven: options.equipment.ovens.find(o => o.id === 'standard') || options.equipment.ovens[1],
+                mixer: options.equipment.mixers.find(m => m.id === 'standard') || options.equipment.mixers[1],
+                display: options.equipment.displays.find(d => d.id === 'standard') || options.equipment.displays[1]
+            },
+            staff: options.staff.find(s => s.id === 'solo') || options.staff[0],
+            paperwork: options.paperwork.filter(p => p.required).map(p => p.id),
+            insurance: options.insurance.find(i => i.id === 'basic') || options.insurance[0],
+            utilities: {
+                power: options.utilities.find(u => u.id === 'power_standard'),
+                internet: options.utilities.find(u => u.id === 'internet_basic')
+            }
+        };
+
+        this.finishSetup();
+    }
+
+    finishStoryBookSetup(choices, budget) {
+        console.log('Finishing StoryBook setup with choices:', choices);
+        
+        // Convert storybook choices to engine-compatible format
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        
+        // Map storybook choices to game config options
+        this.setupChoices = {
+            location: options.locations.find(l => l.id === (choices.location || 'suburban')) || options.locations[0],
+            financing: options.financing.find(f => f.id === (choices.financing || 'savings')) || options.financing[0],
+            equipment: {
+                oven: options.equipment.ovens.find(o => o.id === (choices.equipment?.oven || 'standard')) || options.equipment.ovens[1],
+                mixer: options.equipment.mixers.find(m => m.id === (choices.equipment?.mixer || 'standard')) || options.equipment.mixers[1],
+                display: options.equipment.displays.find(d => d.id === (choices.equipment?.display || 'standard')) || options.equipment.displays[1]
+            },
+            staff: options.staff.find(s => s.id === (choices.staff || 'solo')) || options.staff[0],
+            paperwork: choices.permits || options.paperwork.filter(p => p.required).map(p => p.id),
+            insurance: options.insurance.find(i => i.id === (choices.insurance || 'basic')) || options.insurance[0],
+            utilities: {
+                power: options.utilities.find(u => u.id === 'power_standard'),
+                internet: options.utilities.find(u => u.id === 'internet_basic')
+            }
+        };
+
+        // Store business name from storybook
+        if (choices.businessName) {
+            this.businessName = choices.businessName;
+        }
+
+        // Apply budget adjustments if any
+        if (budget && budget.spent > 0) {
+            this.engine.cash -= budget.spent;
+        }
+
+        this.finishSetup();
     }
 
     canFinishSetup() {
