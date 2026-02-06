@@ -1,0 +1,293 @@
+<template>
+  <BakeryCard :title="title" variant="elevated" padding="lg">
+    <!-- Staff Summary -->
+    <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Total Staff</p>
+        <p class="text-2xl font-bold text-bakery-brown-900">{{ staffStore.employees.length }}</p>
+      </div>
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">On Shift</p>
+        <p class="text-2xl font-bold text-profit">{{ employeesOnShift }}</p>
+      </div>
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Daily Payroll</p>
+        <p class="text-2xl font-bold text-bakery-brown-900">{{ formatCurrency(dailyPayroll) }}</p>
+      </div>
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Avg Skill</p>
+        <p class="text-2xl font-bold text-bakery-gold-600">{{ averageSkill.toFixed(1) }}</p>
+      </div>
+    </div>
+
+    <!-- Hire New Staff Button -->
+    <div class="mb-6">
+      <BakeryButton @click="showHireModal = true" variant="primary" size="md">
+        👔 Hire New Employee
+      </BakeryButton>
+    </div>
+
+    <!-- Employee Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div
+        v-for="employee in staffStore.employees"
+        :key="employee.id"
+        class="bg-white rounded-lg p-4 shadow-sm border border-bakery-brown-200 hover:shadow-md transition-shadow"
+      >
+        <!-- Employee Header -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <span class="text-4xl">{{ employee.face }}</span>
+            <div>
+              <h4 class="font-bold text-bakery-brown-900">{{ employee.name }}</h4>
+              <BakeryBadge :variant="getRoleBadgeVariant(employee.role)" size="sm">
+                {{ employee.role }}
+              </BakeryBadge>
+            </div>
+          </div>
+          <button
+            @click="fireEmployee(employee.id)"
+            class="text-loss hover:text-red-700 transition-colors"
+            title="Fire employee"
+          >
+            ❌
+          </button>
+        </div>
+
+        <!-- Employee Stats -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-bakery-brown-600">Skill Level:</span>
+            <span class="font-medium">{{ employee.skillLevel }}/10</span>
+          </div>
+          <BakeryProgressBar
+            :value="employee.skillLevel * 10"
+            size="sm"
+            variant="info"
+          />
+
+          <div class="flex justify-between text-sm">
+            <span class="text-bakery-brown-600">Efficiency:</span>
+            <span class="font-medium">{{ (employee.efficiency * 100).toFixed(0) }}%</span>
+          </div>
+
+          <div class="flex justify-between text-sm">
+            <span class="text-bakery-brown-600">Daily Salary:</span>
+            <span class="font-medium text-bakery-brown-900">{{ formatCurrency(employee.baseSalary) }}</span>
+          </div>
+
+          <div class="flex justify-between text-sm">
+            <span class="text-bakery-brown-600">Status:</span>
+            <BakeryBadge
+              :variant="isEmployeeOnShift(employee.id) ? 'success' : 'neutral'"
+              size="sm"
+            >
+              {{ isEmployeeOnShift(employee.id) ? 'On Shift' : 'Off Duty' }}
+            </BakeryBadge>
+          </div>
+        </div>
+
+        <!-- Schedule Toggle -->
+        <div class="mt-3 pt-3 border-t border-bakery-brown-100">
+          <button
+            @click="toggleShift(employee.id)"
+            :class="[
+              'w-full py-2 px-3 rounded-md text-sm font-medium transition-colors',
+              isEmployeeOnShift(employee.id)
+                ? 'bg-loss/10 text-loss hover:bg-loss/20'
+                : 'bg-profit/10 text-profit hover:bg-profit/20'
+            ]"
+          >
+            {{ isEmployeeOnShift(employee.id) ? '📴 Clock Out' : '⏰ Clock In' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div
+        v-if="staffStore.staff.length === 0"
+        class="col-span-full text-center py-12 text-bakery-brown-500"
+      >
+        <p class="text-6xl mb-4">👥</p>
+        <p class="text-lg">No employees yet</p>
+        <p class="text-sm mt-2">Hire your first team member to get started!</p>
+      </div>
+    </div>
+
+    <!-- Hire Employee Modal -->
+    <BakeryModal
+      v-model="showHireModal"
+      title="Hire New Employee"
+      size="lg"
+    >
+      <div class="space-y-4">
+        <p class="text-bakery-brown-600">
+          Choose from available candidates:
+        </p>
+
+        <div class="grid grid-cols-1 gap-3">
+          <div
+            v-for="candidate in availableCandidates"
+            :key="candidate.id"
+            class="p-4 border border-bakery-brown-200 rounded-lg hover:border-bakery-gold-500 cursor-pointer transition-colors"
+            @click="hireCandidate(candidate)"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">{{ candidate.face }}</span>
+                <div>
+                  <h5 class="font-bold text-bakery-brown-900">{{ candidate.name }}</h5>
+                  <p class="text-sm text-bakery-brown-600">{{ candidate.role }}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-bakery-brown-600">Salary</p>
+                <p class="font-bold text-bakery-brown-900">{{ formatCurrency(candidate.baseSalary) }}/day</p>
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span class="text-bakery-brown-600">Skill:</span>
+                <span class="font-medium ml-1">{{ candidate.skillLevel }}/10</span>
+              </div>
+              <div>
+                <span class="text-bakery-brown-600">Efficiency:</span>
+                <span class="font-medium ml-1">{{ (candidate.efficiency * 100).toFixed(0) }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </BakeryModal>
+  </BakeryCard>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useBakeryStaffStore } from '@/stores';
+import { BakeryCard, BakeryButton, BakeryBadge, BakeryProgressBar, BakeryModal } from '@/components/base';
+import type { Employee, EmployeeRole } from '@/types/bakery-game-types';
+
+interface Props {
+  title?: string;
+}
+
+withDefaults(defineProps<Props>(), {
+  title: 'Staff Management',
+});
+
+const staffStore = useBakeryStaffStore();
+const showHireModal = ref(false);
+
+// Sample candidates for hiring
+const availableCandidates = ref<Employee[]>([
+  {
+    id: 'candidate-1',
+    name: 'Sarah Miller',
+    face: '👩‍🍳',
+    role: 'baker',
+    skillLevel: 7,
+    efficiency: 1.2,
+    baseSalary: 120,
+    weeklyHours: 0,
+  },
+  {
+    id: 'candidate-2',
+    name: 'Mike Johnson',
+    face: '👨‍🍳',
+    role: 'baker',
+    skillLevel: 5,
+    efficiency: 1.0,
+    baseSalary: 90,
+    weeklyHours: 0,
+  },
+  {
+    id: 'candidate-3',
+    name: 'Emma Davis',
+    face: '👩',
+    role: 'cashier',
+    skillLevel: 6,
+    efficiency: 1.1,
+    baseSalary: 80,
+    weeklyHours: 0,
+  },
+  {
+    id: 'candidate-4',
+    name: 'Alex Chen',
+    face: '👨',
+    role: 'decorator',
+    skillLevel: 8,
+    efficiency: 1.3,
+    baseSalary: 100,
+    weeklyHours: 0,
+  },
+]);
+
+// Computed properties
+const employeesOnShift = computed(() => {
+  return staffStore.activeShiftEmployees.length;
+});
+
+const dailyPayroll = computed(() => {
+  return staffStore.employees.reduce((sum, emp) => sum + emp.baseSalary, 0);
+});
+
+const averageSkill = computed(() => {
+  if (staffStore.employees.length === 0) return 0;
+  const totalSkill = staffStore.employees.reduce((sum, emp) => sum + emp.skillLevel, 0);
+  return totalSkill / staffStore.employees.length;
+});
+
+// Helper functions
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const getRoleBadgeVariant = (role: EmployeeRole) => {
+  const variants: Record<EmployeeRole, 'primary' | 'success' | 'warning' | 'info'> = {
+    baker: 'warning',
+    decorator: 'primary',
+    cashier: 'success',
+    manager: 'info',
+  };
+  return variants[role] || 'neutral';
+};
+
+const isEmployeeOnShift = (employeeId: string) => {
+  return staffStore.activeShiftEmployees.some(id => id === employeeId);
+};
+
+const toggleShift = (employeeId: string) => {
+  const employee = staffStore.employees.find(e => e.id === employeeId);
+  if (!employee) return;
+
+  if (isEmployeeOnShift(employeeId)) {
+    staffStore.clockOutEmployee(employeeId);
+  } else {
+    staffStore.clockInEmployee(employeeId);
+  }
+};
+
+const hireCandidate = (candidate: Employee) => {
+  staffStore.hireEmployee({
+    ...candidate,
+    id: `emp-${Date.now()}`, // Generate unique ID
+  });
+  
+  // Remove from available candidates
+  availableCandidates.value = availableCandidates.value.filter(c => c.id !== candidate.id);
+  
+  showHireModal.value = false;
+};
+
+const fireEmployee = (employeeId: string) => {
+  if (confirm('Are you sure you want to fire this employee?')) {
+    staffStore.fireEmployee(employeeId);
+  }
+};
+</script>

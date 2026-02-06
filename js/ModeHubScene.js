@@ -293,6 +293,84 @@ class ModeHubScene extends Phaser.Scene {
             fontSize: '18px',
             color: '#dfe6e9'
         }).setDepth(10);
+        
+        // Listen for resize events
+        this.scale.on('resize', this.handleResize, this);
+    }
+    
+    handleResize(gameSize) {
+        const { width, height } = gameSize;
+        
+        // Destroy and recreate all elements for simplicity
+        // In production, you'd reposition existing elements
+        this.children.removeAll(true);
+        this.pads = [];
+        
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        // Recreate scene elements
+        this.cameras.main.setBackgroundColor('#05060b');
+        this.physics.world.setBounds(0, 0, width, height);
+
+        this.createBackgroundLayers();
+
+        // Ground
+        const ground = this.add.tileSprite(centerX, centerY, width, height, 'hub_ground');
+        ground.setTint(0x0f1824);
+        ground.setDepth(0.1);
+
+        this.createAmbientParticles();
+
+        this.add.rectangle(centerX, centerY + 60, width * 0.88, height * 0.33, 0xffffff, 0.05)
+            .setDepth(0.2)
+            .setBlendMode(Phaser.BlendModes.ADD);
+        this.add.image(centerX, centerY + 70, 'pad_shadow')
+            .setScale(width / 277, height / 480)
+            .setAlpha(0.3)
+            .setDepth(0.15);
+        this.add.image(centerX, centerY + 60, 'hub_glow_cool')
+            .setScale(width / 357)
+            .setBlendMode(Phaser.BlendModes.ADD)
+            .setAlpha(0.25)
+            .setDepth(0.25);
+
+        // Player
+        if (this.player) {
+            const oldX = this.player.x;
+            const oldY = this.player.y;
+            this.player.destroy();
+            this.player = this.physics.add.sprite(oldX, oldY, 'hub_player');
+            this.player.setCollideWorldBounds(true);
+            this.player.setDepth(5);
+        }
+
+        // Pads data - relative to center
+        const padData = [
+            { key: 'pad_buy', label: 'BUY', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Stock inventory' },
+            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Produce goods' },
+            { key: 'pad_sell', label: 'SELL', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Open shop' },
+            { key: 'pad_summary', label: 'SUMMARY', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'Review stats' },
+            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Design custom bakes' }
+        ];
+
+        padData.forEach(data => this.createPad(data));
+
+        // Interaction hint
+        this.interactionText = this.add.text(centerX, height - 40, '', {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '18px',
+            color: '#ffffff',
+            backgroundColor: '#000000aa',
+            padding: { x: 12, y: 6 }
+        }).setOrigin(0.5).setVisible(false).setDepth(10);
+
+        // HUD text
+        this.add.text(20, 20, 'Click a pad to enter a mode (or walk up and press E)', {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '18px',
+            color: '#dfe6e9'
+        }).setDepth(10);
     }
 
     createPad({ key, label, mode, x, y, desc }) {

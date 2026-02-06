@@ -1,0 +1,346 @@
+<template>
+  <BakeryCard :title="title" variant="elevated" padding="lg">
+    <!-- Customer Summary -->
+    <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Total Customers</p>
+        <p class="text-2xl font-bold text-bakery-brown-900">{{ customerStore.allCustomers.length }}</p>
+      </div>
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Returning</p>
+        <p class="text-2xl font-bold text-profit">{{ returningCustomers }}</p>
+      </div>
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Avg Satisfaction</p>
+        <p class="text-2xl font-bold text-bakery-gold-600">{{ avgSatisfaction.toFixed(1) }}%</p>
+      </div>
+      <div class="text-center p-3 bg-bakery-cream-50 rounded-lg">
+        <p class="text-sm text-bakery-brown-600">Loyalty Tier</p>
+        <p class="text-2xl font-bold text-bakery-brown-900">{{ topLoyaltyTier }}</p>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="mb-6 flex flex-wrap gap-3">
+      <div class="flex-1 min-w-[200px]">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search customers..."
+          class="w-full px-4 py-2 border border-bakery-brown-300 rounded-lg focus:ring-2 focus:ring-bakery-gold-500 focus:border-transparent"
+        />
+      </div>
+      <select
+        v-model="filterLoyalty"
+        class="px-4 py-2 border border-bakery-brown-300 rounded-lg focus:ring-2 focus:ring-bakery-gold-500 focus:border-transparent"
+      >
+        <option value="all">All Tiers</option>
+        <option value="new">New</option>
+        <option value="bronze">Bronze</option>
+        <option value="silver">Silver</option>
+        <option value="gold">Gold</option>
+        <option value="platinum">Platinum</option>
+      </select>
+      <select
+        v-model="filterSegment"
+        class="px-4 py-2 border border-bakery-brown-300 rounded-lg focus:ring-2 focus:ring-bakery-gold-500 focus:border-transparent"
+      >
+        <option value="all">All Segments</option>
+        <option value="value">Value Seekers</option>
+        <option value="quality">Quality Focused</option>
+        <option value="convenience">Convenience</option>
+        <option value="premium">Premium</option>
+      </select>
+    </div>
+
+    <!-- Customer Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-bakery-brown-100">
+          <tr>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Customer</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Loyalty</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Visits</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Satisfaction</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Lifetime Value</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Segment</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-bakery-brown-900">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-bakery-brown-100">
+          <tr
+            v-for="customer in filteredCustomers"
+            :key="customer.id"
+            class="hover:bg-bakery-cream-50 transition-colors"
+          >
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">{{ customer.face }}</span>
+                <div>
+                  <p class="font-medium text-bakery-brown-900">{{ customer.name }}</p>
+                  <p class="text-xs text-bakery-brown-600">{{ getAgeGroupLabel(customer.ageGroup) }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <BakeryBadge :variant="getLoyaltyBadgeVariant(customer.loyaltyTier)" size="sm">
+                {{ customer.loyaltyTier }}
+              </BakeryBadge>
+            </td>
+            <td class="px-4 py-3 text-bakery-brown-900">{{ customer.visitCount }}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <BakeryProgressBar
+                  :value="customer.satisfaction * 100"
+                  size="sm"
+                  :variant="customer.satisfaction >= 0.7 ? 'success' : customer.satisfaction >= 0.4 ? 'warning' : 'danger'"
+                  class="w-20"
+                />
+                <span class="text-sm font-medium">{{ (customer.satisfaction * 100).toFixed(0) }}%</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 font-medium text-bakery-brown-900">
+              {{ formatCurrency(customer.lifetimeValue) }}
+            </td>
+            <td class="px-4 py-3">
+              <span class="text-sm text-bakery-brown-700">{{ customer.segment }}</span>
+            </td>
+            <td class="px-4 py-3">
+              <button
+                @click="viewCustomerDetails(customer)"
+                class="text-bakery-gold-600 hover:text-bakery-gold-700 transition-colors"
+              >
+                👁️ View
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Empty State -->
+      <div
+        v-if="filteredCustomers.length === 0"
+        class="text-center py-12 text-bakery-brown-500"
+      >
+        <p class="text-6xl mb-4">👥</p>
+        <p class="text-lg">No customers found</p>
+        <p class="text-sm mt-2">Try adjusting your filters</p>
+      </div>
+    </div>
+
+    <!-- Customer Details Modal -->
+    <BakeryModal
+      v-model="showDetailsModal"
+      :title="`Customer Profile: ${selectedCustomer?.name || ''}`"
+      size="xl"
+    >
+      <div v-if="selectedCustomer" class="space-y-6">
+        <!-- Customer Header -->
+        <div class="flex items-center gap-4 p-4 bg-bakery-cream-50 rounded-lg">
+          <span class="text-6xl">{{ selectedCustomer.face }}</span>
+          <div class="flex-1">
+            <h3 class="text-2xl font-bold text-bakery-brown-900">{{ selectedCustomer.name }}</h3>
+            <p class="text-bakery-brown-600">{{ getAgeGroupLabel(selectedCustomer.ageGroup) }}</p>
+            <div class="flex gap-2 mt-2">
+              <BakeryBadge :variant="getLoyaltyBadgeVariant(selectedCustomer.loyaltyTier)">
+                {{ selectedCustomer.loyaltyTier }}
+              </BakeryBadge>
+              <BakeryBadge variant="info">{{ selectedCustomer.segment }}</BakeryBadge>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="p-4 bg-white rounded-lg border border-bakery-brown-200">
+            <p class="text-sm text-bakery-brown-600">Visits</p>
+            <p class="text-xl font-bold text-bakery-brown-900">{{ selectedCustomer.visitCount }}</p>
+          </div>
+          <div class="p-4 bg-white rounded-lg border border-bakery-brown-200">
+            <p class="text-sm text-bakery-brown-600">Satisfaction</p>
+            <p class="text-xl font-bold text-profit">{{ (selectedCustomer.satisfaction * 100).toFixed(0) }}%</p>
+          </div>
+          <div class="p-4 bg-white rounded-lg border border-bakery-brown-200">
+            <p class="text-sm text-bakery-brown-600">Lifetime Value</p>
+            <p class="text-xl font-bold text-bakery-brown-900">{{ formatCurrency(selectedCustomer.lifetimeValue) }}</p>
+          </div>
+          <div class="p-4 bg-white rounded-lg border border-bakery-brown-200">
+            <p class="text-sm text-bakery-brown-600">Avg Purchase</p>
+            <p class="text-xl font-bold text-bakery-brown-900">
+              {{ formatCurrency(selectedCustomer.lifetimeValue / Math.max(1, selectedCustomer.visitCount)) }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Personality Traits -->
+        <div>
+          <h4 class="font-bold text-bakery-brown-900 mb-3">Personality Traits</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-bakery-brown-600">Patience</span>
+                <span class="font-medium">{{ selectedCustomer.personality.patience }}/10</span>
+              </div>
+              <BakeryProgressBar :value="selectedCustomer.personality.patience * 10" size="sm" />
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-bakery-brown-600">Chattiness</span>
+                <span class="font-medium">{{ selectedCustomer.personality.chattiness }}/10</span>
+              </div>
+              <BakeryProgressBar :value="selectedCustomer.personality.chattiness * 10" size="sm" variant="info" />
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-bakery-brown-600">Impulsiveness</span>
+                <span class="font-medium">{{ selectedCustomer.personality.impulsiveness }}/10</span>
+              </div>
+              <BakeryProgressBar :value="selectedCustomer.personality.impulsiveness * 10" size="sm" variant="warning" />
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-bakery-brown-600">Generosity</span>
+                <span class="font-medium">{{ selectedCustomer.personality.generosity }}/10</span>
+              </div>
+              <BakeryProgressBar :value="selectedCustomer.personality.generosity * 10" size="sm" variant="success" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Preferences -->
+        <div>
+          <h4 class="font-bold text-bakery-brown-900 mb-3">Preferences</h4>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="text-sm text-bakery-brown-700">Sweetness</span>
+              <span class="font-medium ml-2">{{ (selectedCustomer.preferences.sweetness * 100).toFixed(0) }}%</span>
+            </div>
+            <div>
+              <span class="text-sm text-bakery-brown-700">Heartiness</span>
+              <span class="font-medium ml-2">{{ (selectedCustomer.preferences.heartiness * 100).toFixed(0) }}%</span>
+            </div>
+            <div>
+              <span class="text-sm text-bakery-brown-700">Indulgence</span>
+              <span class="font-medium ml-2">{{ (selectedCustomer.preferences.indulgence * 100).toFixed(0) }}%</span>
+            </div>
+            <div>
+              <span class="text-sm text-bakery-brown-700">Health Consciousness</span>
+              <span class="font-medium ml-2">{{ (selectedCustomer.preferences.healthConsciousness * 100).toFixed(0) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </BakeryModal>
+  </BakeryCard>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useBakeryCustomerStore } from '@/stores';
+import { BakeryCard, BakeryBadge, BakeryProgressBar, BakeryModal } from '@/components/base';
+import type { Customer } from '@/types/bakery-game-types';
+
+interface Props {
+  title?: string;
+}
+
+withDefaults(defineProps<Props>(), {
+  title: 'Customer Database',
+});
+
+const customerStore = useBakeryCustomerStore();
+const searchQuery = ref('');
+const filterLoyalty = ref('all');
+const filterSegment = ref('all');
+const showDetailsModal = ref(false);
+const selectedCustomer = ref<Customer | null>(null);
+
+// Computed properties
+const returningCustomers = computed(() => {
+  return Array.from(customerStore.customers.values()).filter(c => c.totalVisits > 1).length;
+});
+
+const avgSatisfaction = computed(() => {
+  const allCustomers = Array.from(customerStore.customers.values());
+  if (allCustomers.length === 0) return 0;
+  const totalSat = allCustomers.reduce((sum, c) => sum + c.satisfaction, 0);
+  return (totalSat / allCustomers.length) * 100;
+});
+
+const topLoyaltyTier = computed(() => {
+  const tiers = Array.from(customerStore.customers.values()).map(c => c.loyaltyTier);
+  const tierCounts = tiers.reduce((acc, tier) => {
+    acc[tier] = (acc[tier] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  let maxCount = 0;
+  let topTier = 'new';
+  Object.entries(tierCounts).forEach(([tier, count]) => {
+    if (count > maxCount) {
+      maxCount = count;
+      topTier = tier;
+    }
+  });
+  
+  return topTier;
+});
+
+const filteredCustomers = computed(() => {
+  let customers = Array.from(customerStore.customers.values());
+
+  // Filter by search query
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    customers = customers.filter(c => c.name.toLowerCase().includes(query));
+  }
+
+  // Filter by loyalty tier
+  if (filterLoyalty.value !== 'all') {
+    customers = customers.filter(c => c.loyaltyTier === filterLoyalty.value);
+  }
+
+  // Filter by segment
+  if (filterSegment.value !== 'all') {
+    customers = customers.filter(c => c.segment === filterSegment.value);
+  }
+
+  return customers;
+});
+
+// Helper functions
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const getAgeGroupLabel = (ageGroup: string) => {
+  const labels: Record<string, string> = {
+    young: '18-25',
+    adult: '26-40',
+    middle: '41-60',
+    senior: '60+',
+  };
+  return labels[ageGroup] || ageGroup;
+};
+
+const getLoyaltyBadgeVariant = (tier: string) => {
+  const variants: Record<string, 'neutral' | 'primary' | 'success' | 'warning'> = {
+    new: 'neutral',
+    bronze: 'warning',
+    silver: 'primary',
+    gold: 'success',
+    platinum: 'success',
+  };
+  return variants[tier] || 'neutral';
+};
+
+const viewCustomerDetails = (customer: Customer) => {
+  selectedCustomer.value = customer;
+  showDetailsModal.value = true;
+};
+</script>

@@ -29,3 +29,17 @@ public/data/
 # Test coverage
 coverage/
 
+Ported a Vue.js version of Sweet Success Bakery for robust backend and UX.
+-Vue.js offer several benefits over Vanilla js;
+1) Vue.js excels in backend, with automatic DOM updates.
+2) Modular UX building
+3) Reliable data storing
+cd stock-simulator
+npm run devs
+Reactive State Management: Vue's reactivity system automatically updates the UI (e.g., player health, scores, inventory) when the underlying data changes, eliminating manual DOM manipulation required in vanilla JS.
+Component-Based Structure: Game elements (menus, inventory slots, player stats) can be built as reusable, modular Single File Components (SFCs), which makes code easier to organize and maintain.
+Faster UI Development: Vue allows for quicker development of game interfaces, with built-in tools for handling complex interactivity compared to building everything from scratch in vanilla JavaScript.
+Performance: Vue is highly optimized, using a virtual DOM to ensure that updates are efficient, which is crucial for maintaining a smooth user experience in games.
+Ecosystem and Tools: Vue has a strong ecosystem, including Vite for fast build times, and integrates well with tools for state management, which helps in managing complex game states.
+
+The game barely works

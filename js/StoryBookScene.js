@@ -179,36 +179,77 @@ class StoryBookScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-LEFT', () => this.prevPage());
         this.input.keyboard.on('keydown-RIGHT', () => this.nextPage());
         this.input.keyboard.on('keydown-ESCAPE', () => this.showSkipConfirm());
+        
+        // Listen for resize events
+        this.scale.on('resize', this.handleResize, this);
+    }
+    
+    handleResize(gameSize) {
+        const { width, height } = gameSize;
+        this.centerX = width / 2;
+        this.centerY = height / 2;
+        
+        // Rebuild all UI elements with new dimensions
+        this.rebuildUI();
+    }
+    
+    rebuildUI() {
+        // Clear existing UI
+        if (this.background) this.background.destroy();
+        if (this.desk) this.desk.destroy();
+        if (this.glow) this.glow.destroy();
+        if (this.bookSpine) this.bookSpine.destroy();
+        if (this.leftPage) this.leftPage.destroy();
+        if (this.rightPage) this.rightPage.destroy();
+        if (this.leftContent) this.leftContent.destroy();
+        if (this.rightContent) this.rightContent.destroy();
+        if (this.shadow) this.shadow.destroy();
+        if (this.chapterTabsContainer) this.chapterTabsContainer.destroy();
+        if (this.prevBtn) this.prevBtn.destroy();
+        if (this.nextBtn) this.nextBtn.destroy();
+        if (this.budgetContainer) this.budgetContainer.destroy();
+        if (this.mentorContainer) this.mentorContainer.destroy();
+        
+        // Recreate all UI with new dimensions
+        this.createBackground();
+        this.createBook();
+        this.createChapterTabs();
+        this.createNavigation();
+        this.createBudgetTracker();
+        this.createMentorArea();
+        
+        // Reload current page
+        this.loadPage(this.currentChapter, this.currentPage);
     }
 
     createBackground() {
         const { width, height } = this.scale;
         
         // Warm gradient background (cozy reading room feel)
-        const gradient = this.add.graphics();
+        this.background = this.add.graphics();
         for (let i = 0; i <= 100; i++) {
             const t = i / 100;
             const r = Math.floor(30 + t * 15);
             const g = Math.floor(20 + t * 10);
             const b = Math.floor(15 + t * 8);
-            gradient.fillStyle(Phaser.Display.Color.GetColor(r, g, b));
-            gradient.fillRect(0, (i / 100) * height, width, height / 100 + 1);
+            this.background.fillStyle(Phaser.Display.Color.GetColor(r, g, b));
+            this.background.fillRect(0, (i / 100) * height, width, height / 100 + 1);
         }
-        gradient.setDepth(-10);
+        this.background.setDepth(-10);
 
         // Desk surface
-        const desk = this.add.graphics();
-        desk.fillStyle(0x5D4037, 0.9);
-        desk.fillRect(0, height * 0.75, width, height * 0.25);
-        desk.lineStyle(4, 0x3E2723);
-        desk.lineBetween(0, height * 0.75, width, height * 0.75);
-        desk.setDepth(-5);
+        this.desk = this.add.graphics();
+        this.desk.fillStyle(0x5D4037, 0.9);
+        this.desk.fillRect(0, height * 0.75, width, height * 0.25);
+        this.desk.lineStyle(4, 0x3E2723);
+        this.desk.lineBetween(0, height * 0.75, width, height * 0.75);
+        this.desk.setDepth(-5);
 
         // Ambient lamp glow
-        const glow = this.add.graphics();
-        glow.fillStyle(0xFFE4B5, 0.15);
-        glow.fillCircle(width * 0.15, height * 0.2, 150);
-        glow.setDepth(-4);
+        this.glow = this.add.graphics();
+        this.glow.fillStyle(0xFFE4B5, 0.15);
+        this.glow.fillCircle(width * 0.15, height * 0.2, 150);
+        this.glow.setDepth(-4);
     }
 
     createBook() {
@@ -222,10 +263,10 @@ class StoryBookScene extends Phaser.Scene {
         this.bookHeight = bookHeight;
 
         // Book shadow
-        const shadow = this.add.graphics();
-        shadow.fillStyle(0x000000, 0.3);
-        shadow.fillEllipse(this.bookX, this.bookY + bookHeight / 2 + 20, bookWidth * 0.9, 40);
-        shadow.setDepth(0);
+        this.shadow = this.add.graphics();
+        this.shadow.fillStyle(0x000000, 0.3);
+        this.shadow.fillEllipse(this.bookX, this.bookY + bookHeight / 2 + 20, bookWidth * 0.9, 40);
+        this.shadow.setDepth(0);
 
         // Book spine
         this.bookSpine = this.add.graphics();
@@ -248,27 +289,52 @@ class StoryBookScene extends Phaser.Scene {
         // Right page (interactive)
         this.rightPage = this.createPageSurface(this.bookX + bookWidth / 4 + 10, this.bookY, bookWidth / 2 - 20, bookHeight - 20);
 
-        // Page content containers
-        this.leftContent = this.add.container(this.bookX - bookWidth / 4 - 10, this.bookY - bookHeight / 2 + 30);
+        // Page content containers with masks to clip overflow
+        const pageContentWidth = bookWidth / 2 - 60; // Content width
+        const pageContentHeight = bookHeight - 80; // Leave margins top and bottom
+        
+        this.leftContent = this.add.container(this.bookX - bookWidth / 4 - 10, this.bookY - bookHeight / 2 + 50);
         this.leftContent.setDepth(5);
         
-        this.rightContent = this.add.container(this.bookX + bookWidth / 4 + 10, this.bookY - bookHeight / 2 + 30);
+        // Create mask for left page
+        const leftMask = this.make.graphics();
+        leftMask.fillStyle(0xffffff);
+        leftMask.fillRect(
+            this.bookX - bookWidth / 4 - 10 - pageContentWidth / 2,
+            this.bookY - bookHeight / 2 + 50,
+            pageContentWidth,
+            pageContentHeight
+        );
+        this.leftContent.setMask(leftMask.createGeometryMask());
+        
+        this.rightContent = this.add.container(this.bookX + bookWidth / 4 + 10, this.bookY - bookHeight / 2 + 50);
         this.rightContent.setDepth(5);
+        
+        // Create mask for right page
+        const rightMask = this.make.graphics();
+        rightMask.fillStyle(0xffffff);
+        rightMask.fillRect(
+            this.bookX + bookWidth / 4 + 10 - pageContentWidth / 2,
+            this.bookY - bookHeight / 2 + 50,
+            pageContentWidth,
+            pageContentHeight
+        );
+        this.rightContent.setMask(rightMask.createGeometryMask());
     }
 
     createPageSurface(x, y, w, h) {
         const page = this.add.graphics();
         
-        // Page base
-        page.fillStyle(0xFFFEF5);
+        // Page base - lighter cream for better text contrast
+        page.fillStyle(0xFFFDF7); // Lighter
         page.fillRoundedRect(x - w / 2, y - h / 2, w, h, 3);
         
         // Subtle page edge shadow
-        page.fillStyle(0xE8E4D9, 0.5);
+        page.fillStyle(0xE8DCC7, 0.4); // Slightly darker shadow
         page.fillRect(x - w / 2, y - h / 2, 3, h);
         
-        // Top decorative border
-        page.lineStyle(2, 0xC9A66B, 0.4);
+        // Top decorative border - darker for visibility
+        page.lineStyle(2, 0x8B4513, 0.6); // Darker brown border
         page.strokeRoundedRect(x - w / 2 + 15, y - h / 2 + 15, w - 30, h - 30, 2);
         
         page.setDepth(2);
@@ -288,9 +354,9 @@ class StoryBookScene extends Phaser.Scene {
             
             // Tab background
             const bg = this.add.graphics();
-            bg.fillStyle(index === this.currentChapter ? 0xD4AF37 : 0xC9A66B, 1);
+            bg.fillStyle(index === this.currentChapter ? 0xFFD700 : 0xD4A574, 1); // Brighter gold
             bg.fillRoundedRect(0, 0, 55, 75, { tl: 0, tr: 12, bl: 0, br: 12 });
-            bg.lineStyle(2, 0x8B4513);
+            bg.lineStyle(3, 0x5D3A1A); // Darker border, thicker
             bg.strokeRoundedRect(0, 0, 55, 75, { tl: 0, tr: 12, bl: 0, br: 12 });
             
             // Chapter icon
@@ -303,7 +369,7 @@ class StoryBookScene extends Phaser.Scene {
                 fontFamily: 'Georgia, serif',
                 fontSize: '18px',
                 fontStyle: 'bold',
-                color: '#5D3A1A'
+                color: '#1A0F08' // Dark brown for contrast
             }).setOrigin(0.5);
             
             tab.add([bg, icon, num]);
@@ -377,48 +443,48 @@ class StoryBookScene extends Phaser.Scene {
         this.pageIndicator = this.add.text(this.bookX, navY + 40, '', {
             fontFamily: 'Georgia, serif',
             fontSize: '14px',
-            color: '#A0826D'
+            color: '#8B4513' // Darker brown for better visibility
         }).setOrigin(0.5).setDepth(10);
         
         // Skip button (top right)
         const skipBtn = this.add.text(width - 20, 20, '⏭ Skip to Game', {
             fontFamily: 'Inter, sans-serif',
             fontSize: '14px',
-            color: '#A0826D',
-            backgroundColor: '#2D2015',
+            color: '#FFFFFF', // White text
+            backgroundColor: '#1A0F08', // Dark brown background
             padding: { x: 12, y: 8 }
         }).setOrigin(1, 0).setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.showSkipConfirm())
-            .on('pointerover', () => skipBtn.setColor('#D4AF37'))
-            .on('pointerout', () => skipBtn.setColor('#A0826D'));
+            .on('pointerover', () => skipBtn.setColor('#FFD700')) // Bright gold on hover
+            .on('pointerout', () => skipBtn.setColor('#FFFFFF'));
         skipBtn.setDepth(20);
     }
 
     createBudgetTracker() {
         const { width } = this.scale;
         
-        this.budgetContainer = this.add.container(width - 20, 70);
+        this.budgetContainer = this.add.container(width - 20, 60);
         
-        // Background panel - expanded for category breakdown
+        // Background panel - compact for category breakdown
         const bg = this.add.graphics();
-        bg.fillStyle(0x2D2015, 0.95);
-        bg.fillRoundedRect(-200, 0, 200, 180, 10);
-        bg.lineStyle(2, 0xD4AF37, 0.5);
-        bg.strokeRoundedRect(-200, 0, 200, 180, 10);
+        bg.fillStyle(0x1A0F08, 0.95); // Darker background
+        bg.fillRoundedRect(-180, 0, 180, 150, 8);
+        bg.lineStyle(2, 0xFFD700, 0.9); // Brighter gold border
+        bg.strokeRoundedRect(-180, 0, 180, 150, 8);
         
         // Title
-        const title = this.add.text(-100, 12, '💰 Your Budget', {
+        const title = this.add.text(-90, 10, '💰 Budget', {
             fontFamily: 'Georgia, serif',
             fontSize: '14px',
             fontStyle: 'bold',
-            color: '#D4AF37'
+            color: '#FFD700' // Bright gold
         }).setOrigin(0.5);
         
         // Starting capital
-        this.budgetStartText = this.add.text(-190, 32, `Starting: $${this.budget.starting.toLocaleString()}`, {
+        this.budgetStartText = this.add.text(-170, 30, `Start: $${this.budget.starting.toLocaleString()}`, {
             fontFamily: 'Inter, sans-serif',
             fontSize: '11px',
-            color: '#A0826D'
+            color: '#E0E0E0' // Light gray
         });
         
         // Category breakdown
@@ -432,30 +498,30 @@ class StoryBookScene extends Phaser.Scene {
         
         this.categoryTexts = {};
         categories.forEach((cat, i) => {
-            const y = 52 + i * 18;
-            this.categoryTexts[cat.key] = this.add.text(-190, y, `${cat.icon} ${cat.label}: $0`, {
-                fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#888'
+            const y = 48 + i * 16;
+            this.categoryTexts[cat.key] = this.add.text(-170, y, `${cat.icon} ${cat.label}: $0`, {
+                fontFamily: 'Inter, sans-serif', fontSize: '9px', color: '#C0C0C0' // Light gray
             });
             this.budgetContainer.add(this.categoryTexts[cat.key]);
         });
         
         // Remaining (highlighted)
-        this.budgetRemainingText = this.add.text(-190, 130, `Remaining: $${this.budget.starting.toLocaleString()}`, {
+        this.budgetRemainingText = this.add.text(-170, 115, `Remaining: $${this.budget.starting.toLocaleString()}`, {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '13px',
+            fontSize: '12px',
             fontStyle: 'bold',
-            color: '#4CAF50'
+            color: '#FFFFFF' // Always white
         });
         
         // 6-month runway indicator
-        this.runwayText = this.add.text(-190, 148, '📅 ~6 months runway', {
-            fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#81C784'
+        this.runwayText = this.add.text(-170, 132, '📅 ~6 months runway', {
+            fontFamily: 'Inter, sans-serif', fontSize: '9px', color: '#90EE90' // Light green
         });
         
         // Progress bar
         const barBg = this.add.graphics();
         barBg.fillStyle(0x1A1410);
-        barBg.fillRoundedRect(-190, 168, 170, 8, 4);
+        barBg.fillRoundedRect(-170, 143, 160, 6, 3);
         
         this.budgetBar = this.add.graphics();
         this.updateBudgetBar();
@@ -471,7 +537,7 @@ class StoryBookScene extends Phaser.Scene {
         this.budgetBar.clear();
         const color = pct > 0.5 ? 0x4CAF50 : pct > 0.25 ? 0xFFC107 : 0xF44336;
         this.budgetBar.fillStyle(color);
-        this.budgetBar.fillRoundedRect(-190, 168, 170 * pct, 8, 4);
+        this.budgetBar.fillRoundedRect(-170, 143, 160 * pct, 6, 3);
         
         this.budgetRemainingText.setText(`Remaining: $${remaining.toLocaleString()}`);
         this.budgetRemainingText.setColor(pct > 0.5 ? '#4CAF50' : pct > 0.25 ? '#FFC107' : '#F44336');
@@ -497,42 +563,42 @@ class StoryBookScene extends Phaser.Scene {
     createMentorArea() {
         const { width, height } = this.scale;
         
-        this.mentorContainer = this.add.container(20, height - 20);
+        this.mentorContainer = this.add.container(15, height - 15);
         
         // Mentor avatar
-        const avatar = this.add.text(30, -70, '👨‍🍳', { fontSize: '40px' });
+        const avatar = this.add.text(25, -60, '👨‍🍳', { fontSize: '36px' });
         
-        // Speech bubble background - larger for tips
+        // Speech bubble background - lighter with better border
         const bubble = this.add.graphics();
-        bubble.fillStyle(0xFFFEF5, 0.95);
-        bubble.fillRoundedRect(60, -95, 380, 85, 10);
-        bubble.fillTriangle(60, -55, 45, -45, 60, -45);
-        bubble.lineStyle(2, 0xC9A66B, 0.5);
-        bubble.strokeRoundedRect(60, -95, 380, 85, 10);
+        bubble.fillStyle(0xFFFDF7, 1); // Lighter background
+        bubble.fillRoundedRect(55, -80, 340, 75, 10);
+        bubble.fillTriangle(55, -45, 42, -35, 55, -35);
+        bubble.lineStyle(2, 0x8B4513, 0.8); // Darker brown border
+        bubble.strokeRoundedRect(55, -80, 340, 75, 10);
         
-        // Mentor text
-        this.mentorText = this.add.text(75, -88, 'Welcome! I\'m Pierre, your business mentor.\nLet\'s build your bakery dream together!', {
+        // Mentor text - darker for better contrast
+        this.mentorText = this.add.text(68, -75, 'Welcome! I\'m Pierre, your business mentor.\nLet\'s build your bakery dream together!', {
             fontFamily: 'Georgia, serif',
-            fontSize: '13px',
-            color: '#3E2723',
-            lineSpacing: 4,
-            wordWrap: { width: 350 }
+            fontSize: '12px',
+            color: '#1A0F08', // Much darker brown
+            lineSpacing: 3,
+            wordWrap: { width: 315 }
         });
         
         // Name label
-        const nameLabel = this.add.text(250, -105, 'Master Baker Pierre', {
+        const nameLabel = this.add.text(225, -90, 'Master Baker Pierre', {
             fontFamily: 'Georgia, serif',
-            fontSize: '11px',
+            fontSize: '10px',
             fontStyle: 'italic',
-            color: '#8B4513',
-            backgroundColor: '#FFF8E7',
-            padding: { x: 8, y: 3 }
+            color: '#FFFFFF',
+            backgroundColor: '#8B4513', // Dark brown background
+            padding: { x: 6, y: 2 }
         }).setOrigin(0.5);
         
         // Glossary term button (shows when term is available)
-        this.glossaryBtn = this.add.container(420, -55);
+        this.glossaryBtn = this.add.container(375, -45);
         const glossaryBg = this.add.graphics();
-        glossaryBg.fillStyle(0xE3F2FD, 1);
+        glossaryBg.fillStyle(0x4A90E2, 1); // Bright blue
         glossaryBg.fillRoundedRect(-15, -12, 30, 24, 12);
         const glossaryIcon = this.add.text(0, 0, '📖', { fontSize: '14px' }).setOrigin(0.5);
         this.glossaryBtn.add([glossaryBg, glossaryIcon]);
@@ -1583,10 +1649,10 @@ class StoryBookScene extends Phaser.Scene {
             fontFamily: 'Georgia, serif',
             fontSize: '20px',
             fontStyle: 'bold',
-            color: '#5D3A1A'
+            color: '#1A0F08' // Much darker for contrast
         });
         const underline = this.add.graphics();
-        underline.lineStyle(2, 0xC9A66B, 0.6);
+        underline.lineStyle(2, 0x8B4513, 0.8); // Darker brown
         underline.lineBetween(0, 28, titleText.width, 28);
         this.leftContent.add([titleText, underline]);
     }
@@ -1596,10 +1662,10 @@ class StoryBookScene extends Phaser.Scene {
             fontFamily: 'Georgia, serif',
             fontSize: '20px',
             fontStyle: 'bold',
-            color: '#5D3A1A'
+            color: '#1A0F08' // Much darker for contrast
         });
         const underline = this.add.graphics();
-        underline.lineStyle(2, 0xC9A66B, 0.6);
+        underline.lineStyle(2, 0x8B4513, 0.8); // Darker brown
         underline.lineBetween(0, 28, titleText.width, 28);
         this.rightContent.add([titleText, underline]);
     }
@@ -1617,7 +1683,7 @@ class StoryBookScene extends Phaser.Scene {
             fontFamily: 'Georgia, serif',
             fontSize: '14px',
             fontStyle: 'bold',
-            color: '#3E2723'
+            color: '#1A0F08' // Much darker for readability on gold
         }).setOrigin(0.5);
         
         btn.add([bg, label]);

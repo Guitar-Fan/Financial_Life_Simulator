@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:wght@300;400;700&family=Fira+Code&display=swap');
+
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, var(--color-bakery-brown-50), var(--color-bakery-cream-100));
+  font-family: var(--font-family-sans);
+  color: var(--color-bakery-brown-900);
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for bakery theme */
+.bakery-scrollbar::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.bakery-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-bakery-brown-100);
+  border-radius: 9999px;
+}
+
+.bakery-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-bakery-brown-400);
+  border-radius: 9999px;
+}
+
+.bakery-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-bakery-brown-500);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(var(--color-bakery-brown-800), 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--color-bakery-brown-700), 0.2);
+}
+
+/* Animations */
+@keyframes shimmer {
+  0%, 100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

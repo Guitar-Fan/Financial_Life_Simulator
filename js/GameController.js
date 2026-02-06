@@ -73,7 +73,34 @@ class GameController {
         this.initializeStrategyLayer();
         this.updateAutomationAvailability();
         this.renderAutomationFeed();
+        this.setupWindowResizeHandler();
         this.showMainMenu();
+    }
+    
+    setupWindowResizeHandler() {
+        // Handle window resize and fullscreen events
+        window.addEventListener('resize', () => {
+            if (this.phaserGame && this.phaserGame.scale) {
+                // Phaser's RESIZE mode will automatically handle this
+                // But we can add additional logic if needed
+                this.phaserGame.scale.resize(window.innerWidth, window.innerHeight - 60);
+            }
+        });
+        
+        // Handle fullscreen change events
+        document.addEventListener('fullscreenchange', () => {
+            if (this.phaserGame && this.phaserGame.scale) {
+                const height = document.fullscreenElement ? window.innerHeight : window.innerHeight - 60;
+                this.phaserGame.scale.resize(window.innerWidth, height);
+            }
+        });
+        
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (this.phaserGame && this.phaserGame.scale) {
+                const height = document.webkitFullscreenElement ? window.innerHeight : window.innerHeight - 60;
+                this.phaserGame.scale.resize(window.innerWidth, height);
+            }
+        });
     }
 
     setupEventListeners() {
