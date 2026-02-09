@@ -33,7 +33,7 @@ const buttonClasses = computed(() => {
   ];
 
   // Variant styles
-  const variants = {
+  const variants: Record<string, string> = {
     primary: 'bg-bakery-brown-700 text-white hover:bg-bakery-brown-800 focus:ring-bakery-brown-500 shadow-bakery',
     secondary: 'bg-bakery-cream-400 text-bakery-brown-900 hover:bg-bakery-cream-500 focus:ring-bakery-cream-500',
     success: 'bg-profit text-white hover:bg-green-600 focus:ring-green-500',
@@ -45,7 +45,7 @@ const buttonClasses = computed(() => {
   classes.push(variants[props.variant]);
 
   // Size styles
-  const sizes = {
+  const sizes: Record<string, string> = {
     xs: 'px-2 py-1 text-xs',
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2 text-base',

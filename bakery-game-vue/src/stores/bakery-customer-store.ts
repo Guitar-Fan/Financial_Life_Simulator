@@ -4,12 +4,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Customer, CustomerMetrics, CustomerSegment } from '../types/bakery-game-types';
+import { useBakeryGameStore } from './bakery-game-store';
 
 export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
   // ============ State ============
   const customers = ref<Map<string, Customer>>(new Map());
   const activeCustomers = ref<string[]>([]); // Currently in store
-  
+
   const metrics = ref<CustomerMetrics>({
     totalCustomers: 0,
     returningCustomers: 0,
@@ -21,15 +22,28 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
     npsScore: 0,
   });
 
+  const gameStore = useBakeryGameStore();
+
+  // Helper function for random segment
+  function randomSegment(): CustomerSegment {
+    const rand = Math.random();
+    const { budget, mainstream, premium } = gameStore.demographics;
+
+    if (rand < budget) return 'budget';
+    if (rand < budget + mainstream) return 'mainstream';
+    if (rand < budget + mainstream + premium) return 'premium';
+    return 'foodie';
+  }
+
   // ============ Getters ============
   const loyalCustomers = computed(() => {
-    return Array.from(customers.value.values()).filter(c => 
+    return Array.from(customers.value.values()).filter(c =>
       c.loyaltyTier === 'loyal' || c.loyaltyTier === 'vip'
     );
   });
 
   const atRiskCustomers = computed(() => {
-    return Array.from(customers.value.values()).filter(c => 
+    return Array.from(customers.value.values()).filter(c =>
       c.churnRisk > 0.6 && c.visits > 3
     );
   });
@@ -99,47 +113,47 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
       returnProbability: 0.5,
       churnRisk: 0.2,
     };
-    
+
     customers.value.set(customer.id, customer);
     metrics.value.totalCustomers++;
-    
+
     return customer;
   }
 
   function updateSatisfaction(customerId: string, satisfactionDelta: number, reason: string = '') {
     const customer = customers.value.get(customerId);
     if (!customer) return;
-    
+
     customer.satisfaction = Math.max(0, Math.min(100, customer.satisfaction + satisfactionDelta));
     customer.satisfactionHistory.push(customer.satisfaction);
-    
+
     // Update trust score
     if (satisfactionDelta > 0) {
       customer.trustScore = Math.min(100, customer.trustScore + satisfactionDelta * 0.5);
     } else {
       customer.trustScore = Math.max(0, customer.trustScore + satisfactionDelta * 0.8);
     }
-    
+
     // Update loyalty tier
     updateLoyaltyTier(customerId);
-    
+
     // Update return probability
     customer.returnProbability = 0.3 + (customer.satisfaction / 100) * 0.6;
     customer.churnRisk = 1 - customer.returnProbability;
-    
+
     console.log(`${customer.name} satisfaction: ${satisfactionDelta > 0 ? '+' : ''}${satisfactionDelta} - ${reason}`);
   }
 
   function recordPurchase(customerId: string, items: string[], total: number, day: number) {
     const customer = customers.value.get(customerId);
     if (!customer) return;
-    
+
     customer.visits++;
     customer.lastVisit = day;
     if (customer.firstVisit === 0) {
       customer.firstVisit = day;
     }
-    
+
     customer.totalSpent += total;
     customer.purchaseHistory.push({
       day,
@@ -147,7 +161,7 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
       total,
       satisfaction: customer.satisfaction,
     });
-    
+
     updateLoyaltyTier(customerId);
     recalculateMetrics();
   }
@@ -155,9 +169,9 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
   function updateMood(customerId: string, moodDelta: number) {
     const customer = customers.value.get(customerId);
     if (!customer) return;
-    
+
     customer.currentMood = Math.max(0, Math.min(100, customer.currentMood + moodDelta));
-    
+
     // Mood affects satisfaction
     if (customer.personality.moodiness > 0.7 && moodDelta < 0) {
       updateSatisfaction(customerId, moodDelta * 0.5, 'Mood affected');
@@ -166,14 +180,14 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
 
   function spawnCustomers(count: number, segment?: CustomerSegment): string[] {
     const spawned: string[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       const customerSegment = segment || randomSegment();
       const customer = createCustomer(customerSegment);
       activeCustomers.value.push(customer.id);
       spawned.push(customer.id);
     }
-    
+
     return spawned;
   }
 
@@ -187,7 +201,7 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
   function updateLoyaltyTier(customerId: string) {
     const customer = customers.value.get(customerId);
     if (!customer) return;
-    
+
     if (customer.visits >= 20 && customer.satisfaction >= 85) {
       customer.loyaltyTier = 'vip';
     } else if (customer.visits >= 10 && customer.satisfaction >= 75) {
@@ -201,22 +215,22 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
 
   function recalculateMetrics() {
     const allCustomers = Array.from(customers.value.values());
-    
+
     metrics.value.totalCustomers = allCustomers.length;
     metrics.value.returningCustomers = allCustomers.filter(c => c.visits > 1).length;
-    
+
     if (allCustomers.length > 0) {
-      metrics.value.averageSatisfaction = 
+      metrics.value.averageSatisfaction =
         allCustomers.reduce((sum, c) => sum + c.satisfaction, 0) / allCustomers.length;
-      
-      metrics.value.averageSpend = 
+
+      metrics.value.averageSpend =
         allCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / allCustomers.length;
-      
+
       metrics.value.customerLifetimeValue = lifetimeValue.value;
-      
+
       const churned = allCustomers.filter(c => c.churnRisk > 0.7).length;
       metrics.value.churnRate = churned / allCustomers.length;
-      
+
       // NPS Score (% promoters - % detractors)
       const promoters = allCustomers.filter(c => c.satisfaction >= 80).length;
       const detractors = allCustomers.filter(c => c.satisfaction < 60).length;
@@ -235,13 +249,6 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
     return willingness[segment];
   }
 
-  function randomSegment(): CustomerSegment {
-    const rand = Math.random();
-    if (rand < 0.15) return 'budget';
-    if (rand < 0.65) return 'mainstream';
-    if (rand < 0.90) return 'premium';
-    return 'foodie';
-  }
 
   function randomAgeGroup() {
     const groups = ['teen', 'young_adult', 'adult', 'senior'] as const;
@@ -279,14 +286,14 @@ export const useBakeryCustomerStore = defineStore('bakeryCustomer', () => {
     customers,
     activeCustomers,
     metrics,
-    
+
     // Getters
     loyalCustomers,
     atRiskCustomers,
     customersBySegment,
     lifetimeValue,
     getCustomerById,
-    
+
     // Actions
     createCustomer,
     updateSatisfaction,

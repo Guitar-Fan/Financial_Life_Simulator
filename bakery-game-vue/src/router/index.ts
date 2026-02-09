@@ -15,6 +15,11 @@ const router = createRouter({
       component: MenuView,
     },
     {
+      path: '/setup',
+      name: 'setup',
+      component: () => import('@/views/SetupPhase.vue'),
+    },
+    {
       path: '/buying',
       name: 'buying',
       component: BuyingPhase,

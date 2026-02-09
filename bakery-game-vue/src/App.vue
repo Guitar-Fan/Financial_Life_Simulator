@@ -17,6 +17,7 @@ watch(() => gameStore.currentPhase, (newPhase) => {
 
 const phaseConfig = [
   { id: 'menu', label: 'Menu', icon: '🏠', color: 'bg-bakery-brown-600' },
+  { id: 'setup', label: 'Setup', icon: '🏗️', color: 'bg-emerald-600' },
   { id: 'buying', label: 'Shop', icon: '🛒', color: 'bg-blue-600' },
   { id: 'baking', label: 'Bake', icon: '🥐', color: 'bg-bakery-gold-600' },
   { id: 'selling', label: 'Sell', icon: '💰', color: 'bg-profit' },

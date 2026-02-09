@@ -72,7 +72,7 @@ onMounted(() => {
             <div class="text-5xl mb-4">🆕</div>
             <h3 class="text-2xl font-display font-bold mb-3">New Game</h3>
             <p class="text-bakery-brown-600 mb-6">
-              Start fresh with $50,000 and build your bakery from scratch
+              Establish your business strategy, choose your location, and secure financing.
             </p>
             <BakeryButton
               variant="primary"

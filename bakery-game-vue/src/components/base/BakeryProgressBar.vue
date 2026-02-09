@@ -7,7 +7,7 @@ export interface BakeryProgressBarProps {
   showLabel?: boolean;
   labelFormat?: 'percent' | 'fraction' | 'custom';
   customLabel?: string;
-  variant?: 'default' | 'success' | 'warning' | 'danger';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'gold' | 'blue';
   size?: 'sm' | 'md' | 'lg';
   striped?: boolean;
   animated?: boolean;
@@ -43,7 +43,7 @@ const label = computed(() => {
 const barClasses = computed(() => {
   const classes = ['progress-bar'];
   
-  const sizes = {
+  const sizes: Record<string, string> = {
     sm: 'h-1',
     md: 'h-2',
     lg: 'h-3',
@@ -57,11 +57,13 @@ const fillClasses = computed(() => {
   const classes = ['progress-bar-fill'];
   
   // Variant colors
-  const variants = {
+  const variants: Record<string, string> = {
     default: 'bg-gradient-to-r from-bakery-gold-400 to-bakery-gold-600',
     success: 'bg-gradient-to-r from-green-400 to-green-600',
     warning: 'bg-gradient-to-r from-yellow-400 to-yellow-600',
     danger: 'bg-gradient-to-r from-red-400 to-red-600',
+    gold: 'bg-gradient-to-r from-bakery-gold-400 to-bakery-gold-600',
+    blue: 'bg-gradient-to-r from-blue-400 to-blue-600',
   };
   classes.push(variants[props.variant]);
   

@@ -6,6 +6,7 @@ import { ref, computed } from 'vue';
 import type { ProductionQueueItem, Recipe } from '../types/bakery-game-types';
 import { useBakeryInventoryStore } from './bakery-inventory-store';
 import { useBakeryStaffStore } from './bakery-staff-store';
+import { useBakeryGameStore } from './bakery-game-store';
 
 export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   // ============ State ============
@@ -14,6 +15,8 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   const bakingSpeedMultiplier = ref<number>(1.0);
   const automationEnabled = ref<boolean>(false);
   const productionTargets = ref<{ [recipeKey: string]: number }>({});
+
+  const gameStore = useBakeryGameStore();
 
   // ============ Getters ============
   const queueByStage = computed(() => {
@@ -27,7 +30,7 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   });
 
   const itemsInOven = computed(() => {
-    return queue.value.filter(item => 
+    return queue.value.filter(item =>
       item.currentStage === 'baking' && item.hasOvenSlot
     ).length;
   });
@@ -37,7 +40,7 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   });
 
   const itemsWaitingForOven = computed(() => {
-    return queue.value.filter(item => 
+    return queue.value.filter(item =>
       item.currentStage === 'baking' && item.waitingForOven && !item.hasOvenSlot
     ).length;
   });
@@ -62,23 +65,23 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   // ============ Actions ============
   function startBaking(recipe: Recipe, quantity: number) {
     const inventoryStore = useBakeryInventoryStore();
-    
+
     // Calculate ingredients needed
     const ingredientsNeeded: { [key: string]: number } = {};
     for (const [ingredient, amount] of Object.entries(recipe.ingredients)) {
       ingredientsNeeded[ingredient] = amount * quantity;
     }
-    
+
     // Check if we have enough ingredients
     for (const [ingredient, amount] of Object.entries(ingredientsNeeded)) {
       if (inventoryStore.getIngredientStock(ingredient) < amount) {
         throw new Error(`Not enough ${ingredient}`);
       }
     }
-    
+
     // Consume ingredients and get average quality
     const ingredientQuality = inventoryStore.consumeIngredients(ingredientsNeeded);
-    
+
     // Create production item
     const stages = recipe.stages || [
       { name: 'prep' as const, duration: 10, skillImpact: 0.3, requiresOven: false },
@@ -86,7 +89,7 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
       { name: 'baking' as const, duration: recipe.bakeTime, skillImpact: 0.5, requiresOven: true },
       { name: 'cooling' as const, duration: 20, skillImpact: 0.1, requiresOven: false },
     ];
-    
+
     const item: ProductionQueueItem = {
       id: `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       recipeKey: recipe.key,
@@ -103,17 +106,17 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
       waitingForOven: false,
       hasOvenSlot: false,
     };
-    
+
     queue.value.push(item);
     return item.id;
   }
 
   function updateProduction(deltaMinutes: number) {
     const staffStore = useBakeryStaffStore();
-    
+
     queue.value.forEach(item => {
       const stage = item.stages[item.stageIndex];
-      
+
       // Check if waiting for oven
       if (stage.requiresOven && !item.hasOvenSlot) {
         if (ovenSlotsAvailable.value > 0) {
@@ -124,9 +127,9 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
           return; // Skip this item for now
         }
       }
-      
+
       // Apply employee skill impact
-      let effectiveSpeed = bakingSpeedMultiplier.value;
+      let effectiveSpeed = bakingSpeedMultiplier.value * gameStore.efficiencyMultiplier;
       if (item.assignedEmployee) {
         const employee = staffStore.getEmployeeById(item.assignedEmployee);
         if (employee) {
@@ -134,11 +137,11 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
           effectiveSpeed *= (1 + skillBonus);
         }
       }
-      
+
       // Update progress
       const progressDelta = (deltaMinutes / stage.duration) * effectiveSpeed;
       item.progress += progressDelta;
-      
+
       // Check if stage complete
       if (item.progress >= 1.0) {
         completeStage(item.id);
@@ -149,9 +152,9 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   function completeStage(itemId: string) {
     const item = queue.value.find(i => i.id === itemId);
     if (!item) return;
-    
+
     const currentStage = item.stages[item.stageIndex];
-    
+
     // Apply quality based on employee skill
     if (item.assignedEmployee) {
       const staffStore = useBakeryStaffStore();
@@ -161,12 +164,12 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
         item.prepQuality *= (0.8 + skillFactor * 0.4); // 0.8 to 1.2 range
       }
     }
-    
+
     // Release oven slot if needed
     if (currentStage.requiresOven) {
       item.hasOvenSlot = false;
     }
-    
+
     // Move to next stage or complete
     if (item.stageIndex < item.stages.length - 1) {
       item.stageIndex++;
@@ -181,18 +184,19 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
   function finishProduction(itemId: string) {
     const itemIndex = queue.value.findIndex(i => i.id === itemId);
     if (itemIndex === -1) return;
-    
+
     const item = queue.value[itemIndex];
     const inventoryStore = useBakeryInventoryStore();
-    
+
     // Calculate final quality
-    const finalQuality = (item.ingredientQuality + item.prepQuality) / 2;
-    
+    const baseQuality = (item.ingredientQuality + item.prepQuality) / 2;
+    const finalQuality = baseQuality * gameStore.qualityMultiplier;
+
     // Calculate unit cost (ingredients + labor estimate)
     const laborCostPerUnit = 2.5; // Rough estimate
     const ingredientCostPerUnit = 5.0; // Would calculate from actual ingredients
     const unitCost = ingredientCostPerUnit + laborCostPerUnit;
-    
+
     // Add to inventory
     inventoryStore.addProduct(
       item.recipeKey,
@@ -201,7 +205,7 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
       item.ingredientQuality,
       unitCost
     );
-    
+
     // Remove from queue
     queue.value.splice(itemIndex, 1);
   }
@@ -238,18 +242,18 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
 
   function maintainProductionTargets() {
     if (!automationEnabled.value) return;
-    
+
     const inventoryStore = useBakeryInventoryStore();
-    
+
     // Check each target and auto-start production if below target
     for (const [recipeKey, target] of Object.entries(productionTargets.value)) {
       const currentStock = inventoryStore.getProductStock(recipeKey);
       const inProduction = queue.value
         .filter(item => item.recipeKey === recipeKey)
         .reduce((sum, item) => sum + item.quantity, 0);
-      
+
       const total = currentStock + inProduction;
-      
+
       if (total < target) {
         // Auto-start production (would need recipe data)
         console.log(`Auto-producing ${recipeKey} to maintain target ${target}`);
@@ -271,14 +275,14 @@ export const useBakeryProductionStore = defineStore('bakeryProduction', () => {
     bakingSpeedMultiplier,
     automationEnabled,
     productionTargets,
-    
+
     // Getters
     queueByStage,
     itemsInOven,
     ovenSlotsAvailable,
     itemsWaitingForOven,
     estimatedCompletionTimes,
-    
+
     // Actions
     startBaking,
     updateProduction,
