@@ -6,33 +6,3 @@
 *.MD
 !README.md
 !README.MD
-
-Made improvements to: Sweet Success Bakery
--Dramatically modified how customers behave
-+Customers now have satisfaction levels, derived from the randomness of their behavior, how well your store looks, and how you small talk to customers
--Developed a more complex selling workflow
-+Players can select dialogue to talk with customers
-+Specifically assign a customer to one of your staff
--Fixed notification system
-+Notifications for items baked appear on side of screen without impeding with gameplay
-*These features have bugs and don’t completely work, but are somewhat functional
-
-Started creating: Market Terminal - a hyper-realistic stock market simulation/game
--Coded beautiful Candlestick chart, the standardized chart for visualizing stock prices and transactions
-+Used Tradingview Lightweight-Charts js library
--Imported samples past stock exchange data from actual companies
-+Used Alpha Vantage API
--Used React to design UX and workflow to be indistinguishable to actual professional online stock trading services, such as Tradestation
-+Has multiple windows; Chart, Watchlist, Order Entry, Order Book, Personal Stats
-+Windows are resizeable and can be positioned in different areas
-+Text, font, symbols are all custom and feel more immersive than a normal website
--Able to buy and sell stocks of 5 big companies
-+Orders show up in game logs
-+Your portfolio (the money you have) is affected by the virtual stock market movement
--PLAY SIMULATION
-+Synthesizes data from a coded algorithm that mimics basic real-life stock patterns
-+The stocks you possess will affect your portfolio
-+This virtual stock market has realistic financial factors, such as inflation, slippage, etc…
-*Next devlog, Market Terminal will have more complete functionality.
-
- using 
