@@ -501,35 +501,50 @@ function WelcomeModal({ onStartTutorial, onDismiss }) {
       <div className="bg-terminal-surface border border-terminal-border rounded-lg shadow-xl max-w-lg mx-4 overflow-hidden">
         {/* Header */}
         <div className="p-6 text-center border-b border-terminal-border">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-terminal-accent/20 flex items-center justify-center">
-            <TrendingUp className="w-8 h-8 text-terminal-accent" />
-          </div>
-          <h2 className="text-xl font-bold text-terminal-text">Welcome to Market Terminal</h2>
+          <div className="text-5xl mb-3">🎮📈</div>
+          <h2 className="text-xl font-bold text-terminal-text">
+            Welcome to Market Terminal!
+          </h2>
           <p className="text-sm text-terminal-muted mt-2">
-            A professional-grade stock market simulator
+            Learn how the stock market works — with zero risk
           </p>
         </div>
         
         {/* Content */}
         <div className="p-6">
-          <p className="text-sm text-terminal-text mb-4">
-            This simulator teaches real investing skills through hands-on experience. 
-            You'll learn to navigate complex trading interfaces, analyze IPO prospectuses, 
-            and understand the hidden costs that erode returns.
+          <p className="text-sm text-terminal-text mb-2">
+            Ever wondered how people buy and sell stocks? This is your chance to try it out! 
+            You get <span className="text-gain font-bold">$25,000 in virtual cash</span> to practice with — no real money involved.
+          </p>
+          <p className="text-sm text-terminal-muted mb-4">
+            Don't worry if you don't know any finance words yet. 
+            <span className="text-yellow-400"> Beginner Mode is ON</span> — 
+            every tricky term has a plain-English explanation when you hover over it. 📖
           </p>
           
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="p-3 bg-terminal-bg rounded text-center">
-              <TrendingUp className="w-6 h-6 mx-auto mb-1 text-terminal-accent" />
-              <div className="text-xs text-terminal-muted">Secondary Market</div>
+              <div className="text-2xl mb-1">📈</div>
+              <div className="text-xs text-terminal-text font-medium">Buy & Sell</div>
+              <div className="text-xxs text-terminal-muted">Trade stocks</div>
             </div>
             <div className="p-3 bg-terminal-bg rounded text-center">
-              <Landmark className="w-6 h-6 mx-auto mb-1 text-purple-400" />
-              <div className="text-xs text-terminal-muted">IPO Market</div>
+              <div className="text-2xl mb-1">🎉</div>
+              <div className="text-xs text-terminal-text font-medium">IPOs</div>
+              <div className="text-xxs text-terminal-muted">New company launches</div>
             </div>
             <div className="p-3 bg-terminal-bg rounded text-center">
-              <Receipt className="w-6 h-6 mx-auto mb-1 text-yellow-500" />
-              <div className="text-xs text-terminal-muted">Tax Strategy</div>
+              <div className="text-2xl mb-1">💸</div>
+              <div className="text-xs text-terminal-text font-medium">Taxes</div>
+              <div className="text-xxs text-terminal-muted">The hidden cost</div>
+            </div>
+          </div>
+
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded mb-2">
+            <div className="text-xs text-yellow-300 font-medium mb-1">🎓 Beginner Mode is ON</div>
+            <div className="text-xs text-yellow-100/70">
+              You'll see helpful hints, a Finance Dictionary, and guided missions to teach you step by step. 
+              You can switch to Pro Mode anytime from the header.
             </div>
           </div>
         </div>
@@ -538,16 +553,16 @@ function WelcomeModal({ onStartTutorial, onDismiss }) {
         <div className="p-4 border-t border-terminal-border bg-terminal-bg flex gap-3">
           <button
             onClick={onDismiss}
-            className="flex-1 py-2 border border-terminal-border text-terminal-muted font-medium rounded hover:bg-terminal-border transition-colors"
+            className="flex-1 py-2.5 border border-terminal-border text-terminal-muted font-medium rounded hover:bg-terminal-border transition-colors text-sm"
           >
-            Skip Tutorial
+            I know what I'm doing
           </button>
           <button
             onClick={onStartTutorial}
-            className="flex-1 py-2 bg-terminal-accent text-white font-medium rounded hover:bg-terminal-accent/90 transition-colors flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 bg-terminal-accent text-white font-medium rounded hover:bg-terminal-accent/90 transition-colors flex items-center justify-center gap-2 text-sm"
           >
             <Play className="w-4 h-4" />
-            Start Tutorial
+            Show me around! 🚀
           </button>
         </div>
       </div>

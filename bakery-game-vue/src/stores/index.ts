@@ -8,3 +8,4 @@ export { useBakeryProductionStore } from './bakery-production-store';
 export { useBakeryStaffStore } from './bakery-staff-store';
 export { useBakeryCustomerStore } from './bakery-customer-store';
 export { useBakeryEconomyStore } from './bakery-economy-store';
+export { useBakeryStartupStore } from './bakery-startup-store';

@@ -14,10 +14,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Star, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function WatchlistPanel() {
   const { tickerIndex, tickers, selectedTicker, selectTicker } = useMarketStore();
   const { unlockedTickers } = usePlayerStore();
+  const { isBeginnerMode, label } = useBeginnerMode();
   
   // Track previous prices for flash animation
   const prevPrices = useRef({});
@@ -56,19 +59,24 @@ export function WatchlistPanel() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <Star className="w-3 h-3" />
-          <span>Watchlist</span>
+          <span>{label('Watchlist', '🎯 My Stocks')}</span>
         </div>
-        <span className="text-xxs">{availableTickers.length} symbols</span>
+        <span className="text-xxs">{availableTickers.length} {label('symbols', 'stocks')}</span>
       </div>
+      
+      <PanelHelp icon="🎯" title="Your Watchlist">
+        These are the stocks you can trade. Click any row to select it — the chart
+        and order panel will update. Green = price going up, Red = going down.
+      </PanelHelp>
       
       {/* Watchlist Table */}
       <div className="flex-1 overflow-auto">
         <table className="data-table">
           <thead className="sticky top-0 bg-terminal-surface">
             <tr>
-              <th>Symbol</th>
-              <th className="text-right">Last</th>
-              <th className="text-right">Chg</th>
+              <th><Term k="ticker">{label('Symbol', 'Stock')}</Term></th>
+              <th className="text-right">{label('Last', 'Price')}</th>
+              <th className="text-right">{label('Chg', '+/-')}</th>
               <th className="text-right">%</th>
             </tr>
           </thead>
@@ -134,7 +142,9 @@ export function WatchlistPanel() {
       {unlockedTickers.length < tickerIndex.length && (
         <div className="p-2 border-t border-terminal-border">
           <div className="text-xxs text-terminal-muted text-center">
-            🔒 {tickerIndex.length - unlockedTickers.length} more symbols unlock with progress
+            {isBeginnerMode
+              ? `🔒 ${tickerIndex.length - unlockedTickers.length} more stocks unlock as you play! Keep trading to discover them.`
+              : `🔒 ${tickerIndex.length - unlockedTickers.length} more symbols unlock with progress`}
           </div>
         </div>
       )}

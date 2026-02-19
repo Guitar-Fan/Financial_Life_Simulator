@@ -28,6 +28,8 @@ import {
 import { usePlayerStore } from '../../stores/playerStore';
 import { useMarketStore } from '../../stores/marketStore';
 import { calculateTaxLiability, TAX_RATES } from '../../utils/taxCalculator';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function TaxDashboard() {
   const [activeTab, setActiveTab] = useState('summary');
@@ -104,9 +106,9 @@ export function TaxDashboard() {
   }, [orderHistory, taxLots]);
 
   const tabs = [
-    { id: 'summary', label: 'Tax Summary', icon: PieChart },
-    { id: '1099b', label: '1099-B Report', icon: FileText },
-    { id: 'analysis', label: 'Cost Analysis', icon: BarChart3 }
+    { id: 'summary', label: '📊 Tax Summary', icon: PieChart },
+    { id: '1099b', label: '📄 Tax Report', icon: FileText },
+    { id: 'analysis', label: '🔍 Cost Breakdown', icon: BarChart3 }
   ];
 
   return (
@@ -115,10 +117,15 @@ export function TaxDashboard() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <FileText className="w-3 h-3" />
-          <span>Tax Center</span>
+          <span>💸 Tax Center</span>
         </div>
         <span className="text-xxs text-terminal-muted">Tax Year 2024</span>
       </div>
+
+      <PanelHelp id="tax-dashboard">
+        When you make money from stocks, the government takes a cut — that's called capital gains tax.
+        Stocks held over 1 year get a lower tax rate (15%) while quick trades get taxed higher (37%). This panel tracks it all!
+      </PanelHelp>
 
       {/* Tab Navigation */}
       <div className="flex border-b border-terminal-border">
@@ -173,16 +180,16 @@ function TaxSummaryTab({ realizedGains, unrealizedGains, taxLiability }) {
       {/* Realized Gains Cards */}
       <div className="grid grid-cols-2 gap-3">
         <GainCard
-          title="Short-Term Gains"
-          subtitle="Held ≤ 1 year"
+          title="⏰ Short-Term Gains"
+          subtitle="Held ≤ 1 year — higher tax!"
           amount={realizedGains.shortTerm}
           taxRate={TAX_RATES.shortTerm.flatRate}
           icon={Clock}
           variant="warning"
         />
         <GainCard
-          title="Long-Term Gains"
-          subtitle="Held > 1 year"
+          title="🌟 Long-Term Gains"
+          subtitle="Held > 1 year — lower tax!"
           amount={realizedGains.longTerm}
           taxRate={TAX_RATES.longTerm.flatRate}
           icon={Calendar}
@@ -259,10 +266,9 @@ function TaxSummaryTab({ realizedGains, unrealizedGains, taxLiability }) {
         <div className="flex items-start gap-2">
           <Info className="w-4 h-4 text-terminal-accent flex-shrink-0 mt-0.5" />
           <div className="text-xs text-terminal-text">
-            <strong className="text-terminal-accent">Tax Tip:</strong> Long-term capital gains 
-            (assets held over 1 year) are taxed at 15%, while short-term gains are taxed as 
-            ordinary income up to 37%. Consider holding profitable positions longer to reduce 
-            your tax burden.
+            <strong className="text-terminal-accent">💡 Tax Tip:</strong> Long-term <Term k="capital_gains">capital gains</Term> 
+            (stocks held over 1 year) are taxed at just 15%, while short-term gains are taxed as 
+            ordinary income up to 37%. The longer you hold, the less you owe! Patience pays off.
           </div>
         </div>
       </div>

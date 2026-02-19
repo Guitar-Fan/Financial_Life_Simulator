@@ -1355,6 +1355,9 @@ class FinancialEngine {
         Object.entries(GAME_CONFIG.DAILY_EXPENSES).forEach(([key, expense]) => {
             let amount = expense.amount;
             if (key === 'rent') amount = this.rentAmount;
+            // Skip static fallback when player has configured a monthly cost
+            if (key === 'insurance' && this.monthlyInsurance > 0) return;
+            if (key === 'utilities' && this.monthlyUtilities > 0) return;
 
             totalExpenses += amount;
             expenses.push({ ...expense, amount, key });

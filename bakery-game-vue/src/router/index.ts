@@ -20,6 +20,11 @@ const router = createRouter({
       component: () => import('@/views/SetupPhase.vue'),
     },
     {
+      path: '/startup',
+      name: 'startup',
+      component: () => import('@/views/StartupView.vue'),
+    },
+    {
       path: '/buying',
       name: 'buying',
       component: BuyingPhase,
