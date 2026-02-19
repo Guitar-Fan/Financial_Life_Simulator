@@ -281,6 +281,7 @@ class ModeHubScene extends Phaser.Scene {
         // "Start Here" arrow for first-time players
         const isFirstTime = !localStorage.getItem('bakery_played_before');
         if (isFirstTime) {
+            localStorage.setItem('bakery_played_before', 'true');
             const arrowX = centerX - 250;
             const arrowY = centerY - 100 - 90;
             const startArrow = this.add.text(arrowX, arrowY, '\u2b07 START HERE', {

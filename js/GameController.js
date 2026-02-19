@@ -1356,8 +1356,12 @@ class GameController {
     dismissHelpBanner(phase) {
         this.helpDismissed[phase] = true;
         const el = document.getElementById(`help-banner-${phase}`);
-        if (el) {
+            if (el) {
+        if (window.gsap) {
             gsap.to(el, { height: 0, opacity: 0, padding: 0, margin: 0, duration: 0.3, onComplete: () => el.remove() });
+        } else {
+            el.remove();
+        }
         }
     }
 

@@ -183,10 +183,16 @@ export function GuidedMissionsPanel() {
   const marketState = useMarketStore();
   const [completedMissions, setCompletedMissions] = useState(() => {
     const saved = localStorage.getItem('completed-missions');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      localStorage.removeItem('completed-missions');
+      return [];
+    }
   });
   const [celebratingId, setCelebratingId] = useState(null);
   const [minimized, setMinimized] = useState(false);
+  const celebrationTimerRef = React.useRef(null);
 
   // Save progress
   useEffect(() => {
@@ -195,16 +201,26 @@ export function GuidedMissionsPanel() {
 
   // Check for newly completed missions
   useEffect(() => {
+    const newlyCompleted = [];
     for (const mission of MISSIONS) {
       if (completedMissions.includes(mission.id)) continue;
-
       const allDone = mission.steps.every((s) => s.check(playerState, marketState));
       if (allDone) {
-        setCompletedMissions((prev) => [...prev, mission.id]);
-        setCelebratingId(mission.id);
-        setTimeout(() => setCelebratingId(null), 4000);
+        newlyCompleted.push(mission.id);
       }
     }
+
+    if (newlyCompleted.length > 0) {
+      setCompletedMissions((prev) => [...prev, ...newlyCompleted]);
+      // Celebrate only the first newly completed mission to avoid React batching drops
+      setCelebratingId(newlyCompleted[0]);
+      if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = setTimeout(() => setCelebratingId(null), 4000);
+    }
+
+    return () => {
+      if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+    };
   }, [playerState, marketState, completedMissions]);
 
   // Current mission = first incomplete one
