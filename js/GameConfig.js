@@ -11,11 +11,11 @@ const GAME_CONFIG = {
         CLOSING_HOUR: 18
     },
 
-    // Daily fixed expenses
+    // Daily fixed expenses (realistic: monthly cost ÷ 30)
     DAILY_EXPENSES: {
-        rent: { name: 'Daily Rent', amount: 150, icon: '🏠' },
-        utilities: { name: 'Utilities', amount: 45, icon: '💡' },
-        insurance: { name: 'Insurance', amount: 25, icon: '🛡️' }
+        rent: { name: 'Daily Rent', amount: 50, icon: '🏠' },
+        utilities: { name: 'Utilities', amount: 12, icon: '💡' },
+        insurance: { name: 'Insurance', amount: 7, icon: '🛡️' }
     },
 
     SETUP_OPTIONS: {
@@ -24,7 +24,7 @@ const GAME_CONFIG = {
             {
                 id: 'downtown_prime',
                 name: 'Downtown Prime - Main Street',
-                rent: 450,
+                rent: 150,
                 traffic: 2.0,
                 size: 1200, // sq ft
                 parking: 'street',
@@ -42,7 +42,7 @@ const GAME_CONFIG = {
             {
                 id: 'downtown_side',
                 name: 'Downtown - Side Street',
-                rent: 280,
+                rent: 100,
                 traffic: 1.4,
                 size: 900,
                 parking: 'limited',
@@ -60,7 +60,7 @@ const GAME_CONFIG = {
             {
                 id: 'suburbs_plaza',
                 name: 'Suburban Shopping Plaza',
-                rent: 200,
+                rent: 70,
                 traffic: 1.2,
                 size: 1500,
                 parking: 'ample',
@@ -78,7 +78,7 @@ const GAME_CONFIG = {
             {
                 id: 'suburbs_residential',
                 name: 'Residential Neighborhood',
-                rent: 150,
+                rent: 50,
                 traffic: 0.9,
                 size: 800,
                 parking: 'street',
@@ -96,7 +96,7 @@ const GAME_CONFIG = {
             {
                 id: 'college_campus',
                 name: 'Near College Campus',
-                rent: 320,
+                rent: 110,
                 traffic: 1.8,
                 size: 1000,
                 parking: 'bike_racks',
@@ -114,7 +114,7 @@ const GAME_CONFIG = {
             {
                 id: 'industrial_wholesale',
                 name: 'Industrial - Wholesale District',
-                rent: 120,
+                rent: 35,
                 traffic: 0.5,
                 size: 2000,
                 parking: 'loading_dock',

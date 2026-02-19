@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { BeginnerModeToggle, useBeginnerMode } from '../education/BeginnerMode';
+import { Term } from '../education/TermHighlight';
 
 export function Header({ currentDate, currentTime, isPlaying, cash, mode, onModeChange }) {
   const { 
@@ -31,6 +33,7 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
     setPlaybackSpeed,
     reset 
   } = useMarketStore();
+  const { isBeginnerMode, label } = useBeginnerMode();
   
   const { positions } = usePlayerStore();
   const tickers = useMarketStore((s) => s.tickers);
@@ -88,10 +91,10 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
                 ? 'bg-terminal-accent text-white'
                 : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
             }`}
-            title="Secondary Market Trading"
+            title={label('Secondary Market Trading', 'Buy & Sell Stocks')}
           >
             <TrendingUp className="w-3 h-3" />
-            Trading
+            {label('Trading', '📈 Buy & Sell')}
           </button>
           <button
             onClick={() => onModeChange?.('IPO')}
@@ -100,10 +103,10 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
                 ? 'bg-terminal-accent text-white'
                 : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
             }`}
-            title="Primary Market (IPOs)"
+            title={label('Primary Market (IPOs)', 'New Companies Going Public')}
           >
             <Landmark className="w-3 h-3" />
-            IPO
+            {label('IPO', '🎉 New Stocks')}
           </button>
           <button
             onClick={() => onModeChange?.('TAX')}
@@ -112,10 +115,10 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
                 ? 'bg-terminal-accent text-white'
                 : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
             }`}
-            title="Tax Center & Reports"
+            title={label('Tax Center & Reports', 'See your taxes and fees')}
           >
             <Receipt className="w-3 h-3" />
-            Tax
+            {label('Tax', '💸 Taxes')}
           </button>
         </div>
         
@@ -124,7 +127,7 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
           <button
             onClick={togglePlayback}
             className="p-2 hover:bg-terminal-border rounded transition-colors"
-            title={isPlaying ? 'Pause' : 'Play'}
+            title={isPlaying ? 'Pause simulation' : (isBeginnerMode ? '▶️ Start — watch time pass and prices change' : 'Play')}
           >
             {isPlaying ? (
               <Pause className="w-4 h-4 text-terminal-text" />
@@ -145,6 +148,7 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
                     ? 'bg-terminal-accent text-white'
                     : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border'
                 }`}
+                title={isBeginnerMode ? `${speed}x speed — ${speed === 1 ? 'real time' : `${speed} times faster`}` : `${speed}x`}
               >
                 {speed}x
               </button>
@@ -154,7 +158,7 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
           <button
             onClick={reset}
             className="p-2 ml-2 hover:bg-terminal-border rounded transition-colors"
-            title="Reset Simulation"
+            title={label('Reset Simulation', '🔄 Start over with fresh $25,000')}
           >
             <RotateCcw className="w-4 h-4 text-terminal-muted" />
           </button>
@@ -163,31 +167,42 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
       
       {/* Right: Account Summary */}
       <div className="flex items-center gap-6">
+        {/* Beginner Mode Toggle */}
+        <BeginnerModeToggle />
+        
         {/* Account Values */}
         <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-xxs text-terminal-muted uppercase">Cash</div>
+          <div className="text-right" data-tutorial="cash-display">
+            <div className="text-xxs text-terminal-muted uppercase">
+              {label('Cash', '💵 Spending Money')}
+            </div>
             <div className="text-sm font-mono text-terminal-text">
               {formatCurrency(cash)}
             </div>
           </div>
           
           <div className="text-right">
-            <div className="text-xxs text-terminal-muted uppercase">Portfolio</div>
+            <div className="text-xxs text-terminal-muted uppercase">
+              {label('Portfolio', '📊 Stocks Owned')}
+            </div>
             <div className="text-sm font-mono text-terminal-text">
               {formatCurrency(portfolioValue)}
             </div>
           </div>
           
           <div className="text-right pl-3 border-l border-terminal-border">
-            <div className="text-xxs text-terminal-muted uppercase">Total Value</div>
+            <div className="text-xxs text-terminal-muted uppercase">
+              {label('Total Value', '🏆 Total Worth')}
+            </div>
             <div className="text-sm font-mono text-terminal-text">
               {formatCurrency(totalValue)}
             </div>
           </div>
           
           <div className="text-right">
-            <div className="text-xxs text-terminal-muted uppercase">P&L</div>
+            <div className="text-xxs text-terminal-muted uppercase">
+              {label('P&L', '💰 Profit / Loss')}
+            </div>
             <div className={`text-sm font-mono ${isPositive ? 'text-gain' : 'text-loss'}`}>
               {isPositive ? '+' : ''}{formatCurrency(totalGain)} ({isPositive ? '+' : ''}{totalGainPercent}%)
             </div>

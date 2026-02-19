@@ -69,6 +69,8 @@ class GameController {
 
         this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
         this.tutorial = new TutorialSystem(this);
+        this.isFirstTimePlayer = !localStorage.getItem('bakery_save') && !localStorage.getItem('bakery_played_before');
+        this.helpDismissed = {}; // Track which help banners user dismissed
         this.setupEventListeners();
         this.initializeStrategyLayer();
         this.updateAutomationAvailability();
@@ -996,6 +998,12 @@ class GameController {
             container.style.padding = '';
         }
 
+        // Hide floating help on menu
+        const helpBtn = document.getElementById('floating-help-btn');
+        if (helpBtn) helpBtn.style.display = 'none';
+
+        const hasSave = !!localStorage.getItem('bakery_save');
+
         container.innerHTML = `
             <div class="main-menu relative w-full h-full flex flex-col items-center justify-center overflow-hidden">
                 <!-- Animated Background Elements -->
@@ -1011,7 +1019,7 @@ class GameController {
                         Sweet Success Bakery
                     </h1>
                     <p class="menu-subtitle text-xl text-amber-100/80 font-light tracking-widest uppercase border-t border-b border-amber-500/30 py-2 inline-block">
-                        Financial Simulation & Strategy
+                        Run a Bakery &bull; Buy, Bake, Sell &bull; Make a Profit!
                     </p>
                 </div>
                 
@@ -1023,7 +1031,7 @@ class GameController {
                             <span class="text-4xl group-hover:rotate-12 transition-transform duration-300">🎮</span>
                             <div class="text-left">
                                 <div class="text-2xl font-bold text-amber-100 group-hover:text-white">New Game</div>
-                                <div class="text-xs text-amber-400/70 uppercase tracking-wider">Start Your Empire</div>
+                                <div class="text-sm text-amber-300/80">Start fresh — set up your bakery and begin selling!</div>
                             </div>
                         </div>
                     </button>
@@ -1034,7 +1042,18 @@ class GameController {
                             <span class="text-3xl group-hover:translate-x-1 transition-transform">▶️</span>
                             <div class="text-left">
                                 <div class="text-xl font-bold text-stone-200">Continue</div>
-                                <div class="text-xs text-stone-500 uppercase tracking-wider">Resume Day <span id="save-day-indicator">--</span></div>
+                                <div class="text-sm text-stone-400">Pick up where you left off — Day <span id="save-day-indicator">--</span></div>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button class="menu-btn group relative overflow-hidden bg-gradient-to-r from-blue-900 to-blue-800 hover:from-blue-800 hover:to-blue-700 text-white p-1 rounded-xl shadow-lg transform transition-all hover:scale-105"
+                            id="btn-walkthrough" role="button" tabindex="0" aria-label="Watch AI walkthrough">
+                        <div class="bg-stone-900/80 rounded-lg p-4 flex items-center gap-4 border border-blue-500/30 group-hover:border-blue-400/50 transition-colors">
+                            <span class="text-3xl group-hover:scale-110 transition-transform">🤖</span>
+                            <div class="text-left">
+                                <div class="text-xl font-bold text-blue-200">Watch & Learn</div>
+                                <div class="text-sm text-blue-300/70">An AI mentor plays the game and explains every step</div>
                             </div>
                         </div>
                     </button>
@@ -1045,17 +1064,20 @@ class GameController {
                             <span class="text-3xl group-hover:scale-110 transition-transform">📖</span>
                             <div class="text-left">
                                 <div class="text-xl font-bold text-stone-200">How to Play</div>
-                                <div class="text-xs text-stone-500 uppercase tracking-wider">Mechanics & Tips</div>
+                                <div class="text-sm text-stone-400">Step-by-step guided tutorial with Master Baker Pierre</div>
                             </div>
                         </div>
                     </button>
                 </div>
                 
-                <div class="menu-info relative z-10 mt-12 text-center opacity-60 hover:opacity-100 transition-opacity">
-                    <div class="flex gap-8 justify-center text-amber-100/40 text-sm">
+                <div class="menu-info relative z-10 mt-12 text-center">
+                    <div class="flex gap-8 justify-center text-amber-100/50 text-sm flex-wrap">
                         <span class="flex items-center gap-2"><span class="text-lg">📈</span> Real Market Dynamics</span>
                         <span class="flex items-center gap-2"><span class="text-lg">🧠</span> Strategic Decisions</span>
                         <span class="flex items-center gap-2"><span class="text-lg">🥐</span> Artisan Baking</span>
+                    </div>
+                    <div class="mt-4 text-amber-100/30 text-xs">
+                        Tip: If you're new, try "Watch & Learn" first to see how the game works!
                     </div>
                 </div>
             </div>
@@ -1160,6 +1182,7 @@ class GameController {
         const btnNew = wireButton('btn-new-game', () => this.startNewGame());
         const btnContinue = wireButton('btn-continue', () => this.loadAndStart());
         const btnTut = wireButton('btn-tutorial', () => this.showTutorial());
+        const btnWalk = wireButton('btn-walkthrough', () => this.startWalkthroughFromMenu());
 
         // Reveal continue when a save exists
         const save = localStorage.getItem('bakery_save');
@@ -1221,6 +1244,123 @@ class GameController {
         }
     }
 
+    startWalkthroughFromMenu() {
+        if (typeof WalkthroughMode !== 'undefined') {
+            this.walkthroughMode = new WalkthroughMode(this);
+            this.walkthroughMode.start();
+        } else {
+            this.showPopup({
+                icon: 'ℹ️',
+                title: 'Not Available',
+                message: 'The walkthrough mode is still loading. Please try again.',
+                type: 'info',
+                autoClose: 2000
+            });
+        }
+    }
+
+    // Show floating help button during gameplay
+    showFloatingHelp() {
+        const helpBtn = document.getElementById('floating-help-btn');
+        if (helpBtn) helpBtn.style.display = 'flex';
+    }
+
+    // Help menu when floating button is clicked
+    showHelpMenu() {
+        const phaseHelp = {
+            'hub': 'You are at the Bakery Hub. Click on one of the glowing pads (BUY, BAKE, SELL, SUMMARY, or RECIPES) to enter that area. The typical flow is: Buy ingredients → Bake products → Sell to customers → Check your Summary.',
+            'buying': 'BUYING PHASE: Pick a vendor on the left, then buy ingredients (flour, sugar, eggs, etc.) that you need for your recipes. Check the Recipe Book on the right to see what ingredients each recipe needs.',
+            'baking': 'BAKING PHASE: Click on a recipe card to start baking it. Your oven will process it over time. Use the time speed buttons to speed things up. When done, products move to "Ready Products".',
+            'selling': 'SELLING PHASE: Customers arrive automatically. They will buy your products from the display case. Set your markup % to control prices. Watch for customers who need manual service (orange border).',
+            'summary': 'SUMMARY: Review your day\'s numbers — revenue, costs, and profit. Click "Start Next Day" to continue, or go back to the Main Menu.',
+            'menu': 'MAIN MENU: Click "New Game" to start fresh, or "Watch & Learn" to see an AI play the game and explain everything.',
+            'setup': 'SETUP: Choose how to set up your bakery. The Interactive Storybook is best for first-timers. Or use "Skip" to jump right in with default settings.'
+        };
+
+        const currentHelp = phaseHelp[this.currentPhase] || 'Click around to explore! The game follows a daily cycle: Buy → Bake → Sell → Summary.';
+
+        this.showPopup({
+            icon: '💡',
+            title: 'How This Works',
+            message: currentHelp + '\n\n<strong>Daily Cycle:</strong> Each day you Buy ingredients, Bake products, Sell to customers, then see your Summary. Repeat to grow your bakery!',
+            type: 'info',
+            buttons: [
+                { text: 'Start Tutorial', action: () => this.showTutorial(), style: 'secondary' },
+                { text: 'Got It!', action: 'close' }
+            ]
+        });
+    }
+
+    // Generate contextual help banner HTML for a given phase
+    getPhaseHelpBanner(phase) {
+        if (this.helpDismissed[phase]) return '';
+
+        const banners = {
+            buying: {
+                title: '💡 How to Buy Ingredients',
+                body: 'You need ingredients to bake! Pick a vendor, then click the buy buttons next to each ingredient.',
+                steps: [
+                    { icon: '1️⃣', text: 'Choose a vendor on the left' },
+                    { icon: '2️⃣', text: 'Click + to buy ingredients' },
+                    { icon: '3️⃣', text: 'Check Recipe Book for what you need' },
+                    { icon: '4️⃣', text: 'Click "Done Shopping" when ready' }
+                ]
+            },
+            baking: {
+                title: '💡 How to Bake Products',
+                body: 'Turn your ingredients into products to sell! Click a recipe to start baking.',
+                steps: [
+                    { icon: '1️⃣', text: 'Click a recipe card (e.g. Bread)' },
+                    { icon: '2️⃣', text: 'Wait for it to finish baking' },
+                    { icon: '3️⃣', text: 'Speed up time with 2x/5x buttons' },
+                    { icon: '4️⃣', text: 'Click "Done Production" when ready' }
+                ]
+            },
+            selling: {
+                title: '💡 How to Sell Products',
+                body: 'Your shop is open! Customers will arrive and buy from your display. Watch for ones needing help.',
+                steps: [
+                    { icon: '1️⃣', text: 'Set your Markup % (price slider)' },
+                    { icon: '2️⃣', text: 'Customers arrive automatically' },
+                    { icon: '3️⃣', text: 'Help manual customers (orange glow)' },
+                    { icon: '4️⃣', text: 'Close shop when you\'re done' }
+                ]
+            },
+            summary: {
+                title: '💡 Your Day is Done!',
+                body: 'Review how your bakery performed today. Green numbers = good! Red numbers = losses.',
+                steps: [
+                    { icon: '📊', text: 'Revenue = what customers paid' },
+                    { icon: '💸', text: 'Costs = ingredients + expenses' },
+                    { icon: '💰', text: 'Net Profit = what you keep' },
+                    { icon: '☀️', text: 'Click "Start Next Day" to continue' }
+                ]
+            }
+        };
+
+        const banner = banners[phase];
+        if (!banner) return '';
+
+        return `
+            <div class="phase-help-banner" id="help-banner-${phase}">
+                <button class="help-dismiss" onclick="window.game.dismissHelpBanner('${phase}')" title="Dismiss">✕</button>
+                <div class="help-title">${banner.title}</div>
+                <div class="help-body">${banner.body}</div>
+                <div class="help-steps">
+                    ${banner.steps.map(s => `<div class="help-step-chip">${s.icon} ${s.text}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    dismissHelpBanner(phase) {
+        this.helpDismissed[phase] = true;
+        const el = document.getElementById(`help-banner-${phase}`);
+        if (el) {
+            gsap.to(el, { height: 0, opacity: 0, padding: 0, margin: 0, duration: 0.3, onComplete: () => el.remove() });
+        }
+    }
+
     cleanupPhaser() {
         if (this.phaserGame) {
             this.phaserGame.destroy(true);
@@ -1256,17 +1396,23 @@ class GameController {
                     color: #d4af37;
                     text-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
                     margin-bottom: 20px;
-                ">🥐 Start Your Bakery</h1>
+                ">🥐 Set Up Your Bakery</h1>
                 
                 <p style="
-                    font-family: 'Georgia', serif;
+                    font-family: 'Inter', sans-serif;
                     font-size: 18px;
-                    color: #a08060;
+                    color: #c9a66b;
                     text-align: center;
-                    max-width: 600px;
-                    margin-bottom: 40px;
-                    line-height: 1.6;
-                ">Choose how you'd like to begin your entrepreneurial journey</p>
+                    max-width: 650px;
+                    margin-bottom: 16px;
+                    line-height: 1.7;
+                ">Before you start selling, you need to set up your bakery!<br>Choose how much detail you want:</p>
+                
+                <p style="
+                    font-size: 14px;
+                    color: rgba(255,255,255,0.45);
+                    margin-bottom: 35px;
+                ">💡 Not sure? Choose "Skip & Start Playing" to jump right in!</p>
                 
                 <div style="
                     display: flex;
@@ -1274,10 +1420,51 @@ class GameController {
                     flex-wrap: wrap;
                     justify-content: center;
                 ">
+                    <!-- Skip & Play (BEGINNER DEFAULT) -->
+                    <div id="choice-skip-card" style="
+                        background: linear-gradient(145deg, #1a2d15, #2a3d1a);
+                        border: 3px solid #4caf50;
+                        border-radius: 20px;
+                        padding: 30px;
+                        width: 280px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        text-align: center;
+                    " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 40px rgba(76, 175, 80, 0.3)';"
+                       onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                        <div style="font-size: 60px; margin-bottom: 15px;">⚡</div>
+                        <h2 style="
+                            font-family: 'Fredoka', cursive;
+                            font-size: 24px;
+                            color: #81c784;
+                            margin-bottom: 10px;
+                        ">Skip & Start Playing</h2>
+                        <p style="
+                            font-size: 15px;
+                            color: #a5d6a7;
+                            line-height: 1.5;
+                            margin-bottom: 15px;
+                        ">Use ready-made settings and jump straight into buying, baking, and selling!</p>
+                        <div style="
+                            background: rgba(76, 175, 80, 0.25);
+                            border: 1px solid #4caf50;
+                            border-radius: 10px;
+                            padding: 10px;
+                            font-size: 13px;
+                            color: #81c784;
+                            font-weight: 600;
+                        ">⭐ Best for Beginners</div>
+                        <div style="
+                            margin-top: 15px;
+                            font-size: 12px;
+                            color: #81c784;
+                        ">⏱ Instant — start playing now!</div>
+                    </div>
+                    
                     <!-- StoryBook Mode -->
                     <div id="choice-storybook" style="
                         background: linear-gradient(145deg, #2a1f15, #3d2a1a);
-                        border: 3px solid #d4af37;
+                        border: 2px solid #d4af37;
                         border-radius: 20px;
                         padding: 30px;
                         width: 280px;
@@ -1294,20 +1481,19 @@ class GameController {
                             margin-bottom: 10px;
                         ">Interactive Storybook</h2>
                         <p style="
-                            font-family: 'Georgia', serif;
                             font-size: 14px;
                             color: #c9a66b;
                             line-height: 1.5;
                             margin-bottom: 15px;
-                        ">Learn the real steps of starting a business through an engaging story</p>
+                        ">Read a story and make choices to learn about starting a real business</p>
                         <div style="
-                            background: rgba(76, 175, 80, 0.2);
-                            border: 1px solid #4caf50;
+                            background: rgba(212, 175, 55, 0.15);
+                            border: 1px solid rgba(212, 175, 55, 0.4);
                             border-radius: 10px;
                             padding: 10px;
                             font-size: 12px;
-                            color: #81c784;
-                        ">✨ Recommended for first-time players</div>
+                            color: #d4af37;
+                        ">📖 Learn business concepts while playing</div>
                         <div style="
                             margin-top: 15px;
                             font-size: 12px;
@@ -1327,20 +1513,19 @@ class GameController {
                         text-align: center;
                     " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 40px rgba(139, 115, 85, 0.2)';"
                        onmouseout="this.style.transform=''; this.style.boxShadow='';">
-                        <div style="font-size: 60px; margin-bottom: 15px;">🏃</div>
+                        <div style="font-size: 60px; margin-bottom: 15px;">🏙️</div>
                         <h2 style="
                             font-family: 'Fredoka', cursive;
                             font-size: 24px;
                             color: #c9a66b;
                             margin-bottom: 10px;
-                        ">Quick Start</h2>
+                        ">Explore Startup City</h2>
                         <p style="
-                            font-family: 'Georgia', serif;
                             font-size: 14px;
                             color: #a08060;
                             line-height: 1.5;
                             margin-bottom: 15px;
-                        ">Explore the startup city and make decisions at your own pace</p>
+                        ">Walk around a city, visit buildings, and customize every detail of your bakery</p>
                         <div style="
                             background: rgba(139, 115, 85, 0.2);
                             border: 1px solid #8b7355;
@@ -1348,35 +1533,21 @@ class GameController {
                             padding: 10px;
                             font-size: 12px;
                             color: #a08060;
-                        ">🎮 Walk around & interact with buildings</div>
+                        ">🎮 Full control — choose everything</div>
                         <div style="
                             margin-top: 15px;
                             font-size: 12px;
                             color: #8b7355;
-                        ">⏱ ~5-10 minutes</div>
+                        ">⏱ ~5-10 minutes | WASD to move</div>
                     </div>
                 </div>
-                
-                <button id="choice-skip" style="
-                    margin-top: 40px;
-                    background: transparent;
-                    border: none;
-                    color: #666;
-                    font-family: 'Inter', sans-serif;
-                    font-size: 14px;
-                    cursor: pointer;
-                    padding: 10px 20px;
-                    transition: color 0.3s;
-                " onmouseover="this.style.color='#a08060'" onmouseout="this.style.color='#666'">
-                    Skip setup and use default settings →
-                </button>
             </div>
         `;
 
         // Wire up buttons
         document.getElementById('choice-storybook').onclick = () => this.showStoryBookSetup();
         document.getElementById('choice-quickstart').onclick = () => this.showStartupCitySetup();
-        document.getElementById('choice-skip').onclick = () => this.skipSetupWithDefaults();
+        document.getElementById('choice-skip-card').onclick = () => this.skipSetupWithDefaults();
     }
 
     showStoryBookSetup() {
@@ -1702,6 +1873,36 @@ class GameController {
 
         this.phaserGame = new Phaser.Game(config);
 
+        // Show floating help button
+        this.showFloatingHelp();
+
+        // Add Hub Quick-Reference Card for new players
+        if (!this.helpDismissed['hub']) {
+            const dayPhases = this.engine.day <= 1 ? 
+                { buy: 'current', bake: '', sell: '', summary: '' } :
+                { buy: '', bake: '', sell: '', summary: '' };
+            const quickRef = document.createElement('div');
+            quickRef.className = 'hub-quick-ref';
+            quickRef.innerHTML = `
+                <button class="ref-close" onclick="this.parentElement.remove(); window.game.helpDismissed['hub']=true;">✕</button>
+                <h4>📝 Your Daily To-Do List</h4>
+                <div class="ref-step ${dayPhases.buy}">
+                    <span class="ref-num">1</span> <span>Click <strong>BUY</strong> — Purchase ingredients</span>
+                </div>
+                <div class="ref-step ${dayPhases.bake}">
+                    <span class="ref-num">2</span> <span>Click <strong>BAKE</strong> — Make products</span>
+                </div>
+                <div class="ref-step ${dayPhases.sell}">
+                    <span class="ref-num">3</span> <span>Click <strong>SELL</strong> — Open your shop</span>
+                </div>
+                <div class="ref-step ${dayPhases.summary}">
+                    <span class="ref-num">4</span> <span>Click <strong>SUMMARY</strong> — End the day</span>
+                </div>
+                <div style="margin-top:12px; font-size:12px; color:rgba(255,255,255,0.5);">Click any glowing pad below to begin!</div>
+            `;
+            container.appendChild(quickRef);
+        }
+
         // Add Economic Dashboard Overlay
         const economyReport = this.engine.economy.getDailyReport(this.engine.day);
         const eventsHtml = economyReport.activeEvents.length > 0
@@ -1866,6 +2067,7 @@ class GameController {
 
         container.innerHTML = `
             <div style="padding: 20px; min-height: 100%;">
+            ${this.getPhaseHelpBanner('buying')}
             <div class="phase-header">
                 <h2>📦 Buy Inventory</h2>
                 <p>Purchase ingredients from vendors. Check the recipe book to see what you need!</p>
@@ -2180,9 +2382,10 @@ class GameController {
 
         container.innerHTML = `
             <div style="padding: 20px; min-height: 100%;">
+            ${this.getPhaseHelpBanner('baking')}
             <div class="phase-header">
                 <h2>🍞 Bakery Production</h2>
-                <p>Prepare and bake products. Each recipe goes through multiple stages.</p>
+                <p>Click a recipe card to start baking. Use the time speed buttons to speed things up!</p>
                 <div class="phase-tools">
                     <button class="btn btn-automation" id="btn-auto-baking">🤖 Deploy Staff Automation</button>
                 </div>
@@ -2606,9 +2809,10 @@ class GameController {
 
         container.innerHTML = `
             <div style="padding: 20px; min-height: 100%;">
+            ${this.getPhaseHelpBanner('selling')}
             <div class="phase-header">
                 <h2>💰 Open Shop - Day ${this.engine.day}</h2>
-                <p>Serve customers and make sales! Time: <span id="game-time">${this.engine.getTimeString()}</span></p>
+                <p>Customers arrive automatically and buy your products! Set your markup to control prices. Time: <span id="game-time">${this.engine.getTimeString()}</span></p>
                 <div class="time-controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center; justify-content: center;">
                     <span style="font-size: 14px; color: #7f8c8d;">Time Speed:</span>
                     <button class="btn btn-sm" onclick="window.game.setGameSpeed(1)" style="padding: 5px 10px; font-size: 12px;">1x</button>
@@ -3615,6 +3819,7 @@ class GameController {
         if (container) container.style.padding = '20px';
 
         container.innerHTML = `
+            ${this.getPhaseHelpBanner('summary')}
             <div class="summary-screen" id="summary-phase-container">
                 <h2>📊 Day ${summary.day} Summary</h2>
                 

@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { useIPOStore } from '../../stores/ipoStore';
 import { calculateRiskScore } from '../../utils/ipoAllocation';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 // Risk factor categories for the mini-game
 const RISK_CATEGORIES = {
@@ -62,13 +64,16 @@ export function S1ViewerPanel() {
         <div className="terminal-header drag-handle cursor-move">
           <div className="flex items-center gap-2">
             <FileText className="w-3 h-3" />
-            <span>S-1 Prospectus</span>
+            <span>📄 Company Info Sheet</span>
           </div>
         </div>
+        <PanelHelp id="s1-viewer-empty">
+          A prospectus (called an S-1) is like a company's resume — it tells you everything about the business before you invest. Select an IPO from the calendar to read it!
+        </PanelHelp>
         <div className="flex-1 flex items-center justify-center text-terminal-muted">
           <div className="text-center">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Select an IPO to view its prospectus</p>
+            <p className="text-sm">Select an IPO to view its info</p>
             <p className="text-xs mt-1">Click on an IPO in the calendar</p>
           </div>
         </div>
@@ -77,10 +82,10 @@ export function S1ViewerPanel() {
   }
 
   const sections = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'financials', label: 'Financials' },
-    { id: 'risks', label: 'Risk Factors' },
-    { id: 'quiz', label: 'Analysis Quiz' }
+    { id: 'overview', label: '📊 Overview' },
+    { id: 'financials', label: '💰 Numbers' },
+    { id: 'risks', label: '⚠️ Risks' },
+    { id: 'quiz', label: '🎯 Quiz' }
   ];
 
   const handleQuizAnswer = (riskIndex, category) => {
@@ -116,10 +121,14 @@ export function S1ViewerPanel() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <FileText className="w-3 h-3" />
-          <span>S-1 Prospectus</span>
+          <span>📄 Company Info Sheet</span>
         </div>
         <span className="font-mono text-terminal-text">{ipo.ticker}</span>
       </div>
+
+      <PanelHelp id="s1-viewer">
+        This is like the company's resume! Read through the overview, check the numbers, and look for risks before deciding to invest.
+      </PanelHelp>
 
       {/* Company Title Bar */}
       <div className="px-3 py-2 bg-terminal-bg border-b border-terminal-border">
@@ -271,12 +280,14 @@ function FinancialsSection({ ipo }) {
   const metrics = [
     { 
       label: 'Revenue', 
+      tip: 'Total money the company earned from sales',
       value: financials.revenue, 
       format: 'currency',
       icon: DollarSign
     },
     { 
       label: 'Revenue Growth', 
+      tip: 'How fast sales are increasing year over year',
       value: financials.revenueGrowth, 
       format: 'percent',
       icon: TrendingUp,
@@ -284,12 +295,14 @@ function FinancialsSection({ ipo }) {
     },
     { 
       label: 'Gross Margin', 
+      tip: 'What % of revenue is left after production costs',
       value: financials.grossMargin, 
       format: 'percent',
       icon: TrendingUp
     },
     { 
       label: 'Net Income', 
+      tip: 'Actual profit (or loss) after all expenses',
       value: financials.netLoss || financials.netIncome, 
       format: 'currency',
       icon: financials.netLoss < 0 ? TrendingDown : TrendingUp,
@@ -297,12 +310,14 @@ function FinancialsSection({ ipo }) {
     },
     { 
       label: 'Cash Position', 
+      tip: 'How much money the company has in the bank',
       value: financials.cashPosition, 
       format: 'currency',
       icon: DollarSign
     },
     { 
       label: 'Monthly Burn Rate', 
+      tip: 'How much cash the company spends each month',
       value: financials.burnRate, 
       format: 'currency',
       icon: TrendingDown,
@@ -325,6 +340,9 @@ function FinancialsSection({ ipo }) {
               <metric.icon className={`w-3 h-3 ${metric.negative ? 'text-loss' : 'text-terminal-muted'}`} />
               <span className="text-xs text-terminal-muted">{metric.label}</span>
             </div>
+            {metric.tip && (
+              <p className="text-xxs text-terminal-muted/60 mb-1">{metric.tip}</p>
+            )}
             <div className={`text-lg font-mono ${
               metric.negative ? 'text-loss' : 
               metric.highlight ? 'text-gain' : 'text-terminal-text'

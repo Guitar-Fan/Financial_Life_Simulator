@@ -14,12 +14,15 @@ import React, { useState } from 'react';
 import { Briefcase, History, Receipt, TrendingUp, TrendingDown } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function PositionsPanel() {
   const [activeTab, setActiveTab] = useState('positions');
   
   const { tickers, selectTicker } = useMarketStore();
   const { positions, orderHistory, realizedGains } = usePlayerStore();
+  const { isBeginnerMode, label } = useBeginnerMode();
   
   // Calculate position details with current prices
   const positionDetails = Object.entries(positions).map(([symbol, pos]) => {
@@ -50,9 +53,9 @@ export function PositionsPanel() {
   }), { marketValue: 0, costBasis: 0, unrealizedPL: 0 });
 
   const tabs = [
-    { id: 'positions', label: 'Positions', icon: Briefcase },
-    { id: 'orders', label: 'Orders', icon: History },
-    { id: 'realized', label: 'Realized P&L', icon: Receipt }
+    { id: 'positions', label: label('Positions', '📍 My Stocks'), icon: Briefcase },
+    { id: 'orders', label: label('Orders', '📝 Trade History'), icon: History },
+    { id: 'realized', label: label('Realized P&L', '✅ Actual Profit/Loss'), icon: Receipt }
   ];
 
   return (
@@ -78,6 +81,10 @@ export function PositionsPanel() {
       </div>
       
       {/* Tab Content */}
+      <PanelHelp icon="💼" title="Your Portfolio">
+        This shows stocks you own. Green P&L = you're making money. Red = losing.
+        Remember: it's only "on paper" until you sell! Click a stock to trade it.
+      </PanelHelp>
       <div className="flex-1 overflow-auto">
         {activeTab === 'positions' && (
           <PositionsTab 
@@ -118,12 +125,12 @@ function PositionsTab({ positions, totals, onSelectTicker }) {
       <table className="data-table">
         <thead className="sticky top-0 bg-terminal-surface">
           <tr>
-            <th>Symbol</th>
-            <th className="text-right">Shares</th>
-            <th className="text-right">Avg Cost</th>
+            <th><Term k="ticker">Symbol</Term></th>
+            <th className="text-right"><Term k="share">Shares</Term></th>
+            <th className="text-right"><Term k="cost_basis">Avg Cost</Term></th>
             <th className="text-right">Price</th>
-            <th className="text-right">Mkt Value</th>
-            <th className="text-right">P&L</th>
+            <th className="text-right"><Term k="market_value">Mkt Value</Term></th>
+            <th className="text-right"><Term k="unrealized_pl">P&L</Term></th>
             <th className="text-right">%</th>
           </tr>
         </thead>
@@ -250,23 +257,27 @@ function RealizedTab({ gains }) {
       <div className="grid grid-cols-2 gap-4">
         {/* Short-Term Gains */}
         <div className="p-3 bg-terminal-bg rounded border border-terminal-border">
-          <div className="text-xs text-terminal-muted mb-1">Short-Term Gains</div>
+          <div className="text-xs text-terminal-muted mb-1">
+            <Term k="short_term_gains">Short-Term Gains</Term>
+          </div>
           <div className="text-lg font-mono text-terminal-text">
             ${gains.shortTerm.toFixed(2)}
           </div>
           <div className="text-xxs text-loss mt-1">
-            Tax Rate: ~37%
+            Tax Rate: ~37% 😬
           </div>
         </div>
         
         {/* Long-Term Gains */}
         <div className="p-3 bg-terminal-bg rounded border border-terminal-border">
-          <div className="text-xs text-terminal-muted mb-1">Long-Term Gains</div>
+          <div className="text-xs text-terminal-muted mb-1">
+            <Term k="long_term_gains">Long-Term Gains</Term>
+          </div>
           <div className="text-lg font-mono text-terminal-text">
             ${gains.longTerm.toFixed(2)}
           </div>
           <div className="text-xxs text-gain mt-1">
-            Tax Rate: ~15%
+            Tax Rate: ~15% 🎉
           </div>
         </div>
       </div>
