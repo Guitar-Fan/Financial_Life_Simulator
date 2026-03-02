@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { calculateRoundTripCost } from '../../utils/slippage';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 // Current SEC and FINRA fee rates (as of 2024)
 const FEE_RATES = {
@@ -106,12 +108,18 @@ export function FeeTransparencyPanel() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <Receipt className="w-3 h-3" />
-          <span>Fee Transparency</span>
+          <span>💳 Hidden Costs</span>
         </div>
         <span className="text-xxs text-terminal-muted">
           {feeBreakdown.totalTrades} trades
         </span>
       </div>
+
+      <PanelHelp id="fee-transparency">
+        Trading isn't free! Even on "commission-free" apps, there are tiny fees from the SEC and FINRA (financial regulators),
+        plus "slippage" (the price moving slightly between when you click Buy and when it actually executes).
+        These small costs add up fast, especially if you trade a lot!
+      </PanelHelp>
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-3 space-y-4">

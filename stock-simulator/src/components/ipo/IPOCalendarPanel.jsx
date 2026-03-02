@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useIPOStore } from '../../stores/ipoStore';
 import { IPO_STATUS } from '../../utils/ipoAllocation';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function IPOCalendarPanel({ onSelectIPO }) {
   const [filter, setFilter] = useState('ALL');
@@ -61,10 +63,15 @@ export function IPOCalendarPanel({ onSelectIPO }) {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <Calendar className="w-3 h-3" />
-          <span>IPO Calendar</span>
+          <span>🎉 <Term k="ipo">IPO</Term> Calendar</span>
         </div>
         <span className="text-xxs">{ipoCalendar.length} offerings</span>
       </div>
+
+      <PanelHelp id="ipo-calendar">
+        An IPO (Initial Public Offering) is when a company sells its shares to the public for the first time.
+        Think of it like a grand opening sale — you get a chance to buy shares before they start trading on the market!
+      </PanelHelp>
 
       {/* Filter Tabs */}
       <div className="flex gap-1 p-2 border-b border-terminal-border">
@@ -112,13 +119,13 @@ export function IPOCalendarPanel({ onSelectIPO }) {
       <div className="p-2 border-t border-terminal-border">
         <div className="flex items-center justify-center gap-4 text-xxs text-terminal-muted">
           <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3 text-yellow-500" /> Upcoming
+            <Clock className="w-3 h-3 text-yellow-500" /> Coming Soon
           </span>
           <span className="flex items-center gap-1">
-            <AlertCircle className="w-3 h-3 text-terminal-accent" /> Pricing
+            <AlertCircle className="w-3 h-3 text-terminal-accent" /> Setting Price
           </span>
           <span className="flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-gain" /> Completed
+            <CheckCircle className="w-3 h-3 text-gain" /> Done
           </span>
         </div>
       </div>

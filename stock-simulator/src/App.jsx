@@ -47,6 +47,7 @@ import { WashSaleAlert } from './components/tax/WashSaleAlert';
 // Import Education components (Stage 4)
 import { AchievementPanel } from './components/education/AchievementPanel';
 import { TutorialListPanel } from './components/education/TutorialSystem';
+import { GuidedMissionsPanel } from './components/education/GuidedMissions';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -264,7 +265,9 @@ function App() {
       />
       
       {/* Main Terminal Grid */}
-      <main className="flex-1 p-2 overflow-hidden">
+      <main className="flex-1 p-2 overflow-hidden flex gap-2">
+        {/* Guided Missions Panel (Beginner Mode only — floats on the right) */}
+        <div className="flex-1 overflow-hidden">
         <ResponsiveGridLayout
           className="layout"
           layouts={currentLayouts}
@@ -323,6 +326,11 @@ function App() {
               </div>
           ]}
         </ResponsiveGridLayout>
+        </div>
+        {/* Guided Missions sidebar — visible in beginner mode */}
+        <div className="w-72 flex-shrink-0 overflow-auto hidden lg:block">
+          <GuidedMissionsPanel />
+        </div>
       </main>
       
       {/* Status Bar */}

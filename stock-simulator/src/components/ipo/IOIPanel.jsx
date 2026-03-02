@@ -27,6 +27,8 @@ import {
 import { useIPOStore } from '../../stores/ipoStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { IPO_STATUS, simulateMarketDemand, calculateAllocation, simulateOpeningTrade, compareEntryStrategies } from '../../utils/ipoAllocation';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function IOIPanel() {
   const { selectedIPO, ipoCalendar, playerIOIs, allocations, submitIOI, cancelIOI, processAllocation } = useIPOStore();
@@ -140,14 +142,17 @@ export function IOIPanel() {
         <div className="terminal-header drag-handle cursor-move">
           <div className="flex items-center gap-2">
             <Send className="w-3 h-3" />
-            <span>Submit IOI</span>
+            <span>✉️ Request Shares</span>
           </div>
         </div>
+        <PanelHelp id="ioi-empty">
+          Want to buy shares in a new company? Submit a request here! Select an IPO from the calendar first.
+        </PanelHelp>
         <div className="flex-1 flex items-center justify-center text-terminal-muted p-4">
           <div className="text-center">
             <Send className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Select an IPO to submit</p>
-            <p className="text-xs mt-1">an Indication of Interest</p>
+            <p className="text-sm">Select an IPO to request shares</p>
+            <p className="text-xs mt-1">Pick a company you're interested in!</p>
           </div>
         </div>
       </div>
@@ -162,7 +167,7 @@ export function IOIPanel() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <Send className="w-3 h-3" />
-          <span>Submit IOI</span>
+          <span>✉️ Request Shares</span>
         </div>
         <button 
           onClick={() => setShowHelp(!showHelp)}
@@ -172,15 +177,20 @@ export function IOIPanel() {
         </button>
       </div>
 
+      <PanelHelp id="ioi-request">
+        This is where you tell the company "I'd like to buy some of your new shares!" It's called an Indication of Interest (IOI).
+        You might not get all the shares you ask for if lots of people want them too.
+      </PanelHelp>
+
       {/* Help Panel */}
       {showHelp && (
         <div className="p-3 bg-terminal-accent/10 border-b border-terminal-accent/30">
-          <h4 className="text-xs font-medium text-terminal-accent mb-1">What is an IOI?</h4>
+          <h4 className="text-xs font-medium text-terminal-accent mb-1">What is an IOI? 🤔</h4>
           <p className="text-xs text-terminal-text">
-            An <strong>Indication of Interest</strong> is a non-binding expression of interest 
-            to purchase shares in an IPO. Submitting an IOI does not guarantee allocation. 
-            Hot IPOs are often oversubscribed, meaning retail investors receive fewer shares 
-            than requested—or none at all.
+            An <strong>Indication of Interest</strong> is like raising your hand to say 
+            "I want some shares!" It's not a guarantee — if the company is super popular, 
+            lots of people will want shares and you might only get a few, or none at all. 
+            Think of it like trying to get tickets to a sold-out concert.
           </p>
         </div>
       )}
@@ -220,7 +230,7 @@ export function IOIPanel() {
             <div>
               <label className="flex items-center gap-1 text-xs text-terminal-muted mb-1">
                 <Hash className="w-3 h-3" />
-                Share Quantity
+                How Many Shares?
               </label>
               <input
                 type="number"
@@ -251,7 +261,7 @@ export function IOIPanel() {
             <div>
               <label className="flex items-center gap-1 text-xs text-terminal-muted mb-1">
                 <DollarSign className="w-3 h-3" />
-                Maximum Price
+                Max Price You'll Pay
               </label>
               <input
                 type="number"
@@ -270,7 +280,7 @@ export function IOIPanel() {
             {/* Estimated Cost */}
             <div className="p-3 bg-terminal-bg rounded border border-terminal-border">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-terminal-muted">Maximum Cost:</span>
+                <span className="text-xs text-terminal-muted">Most You'd Spend:</span>
                 <span className="font-mono text-terminal-text">${estimatedCost.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between mt-1">
@@ -300,12 +310,12 @@ export function IOIPanel() {
               className="w-full py-2 bg-terminal-accent text-white font-medium rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Send className="w-4 h-4" />
-              Submit Indication of Interest
+              🚀 Request These Shares!
             </button>
 
             {/* Disclaimer */}
             <p className="text-xxs text-terminal-muted text-center">
-              This is a non-binding indication. Allocation is not guaranteed.
+              This is just a request — you might get fewer shares than you asked for, or none at all. That's normal!
             </p>
           </div>
         )}

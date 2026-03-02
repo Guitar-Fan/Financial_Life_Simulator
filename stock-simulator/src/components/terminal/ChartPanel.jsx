@@ -25,6 +25,8 @@ import {
   Maximize2
 } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function ChartPanel() {
   const chartContainerRef = useRef(null);
@@ -35,6 +37,7 @@ export function ChartPanel() {
   const [chartType, setChartType] = useState('candle'); // candle, line, area
   
   const { selectedTicker, historicalData, tickers } = useMarketStore();
+  const { isBeginnerMode, label } = useBeginnerMode();
   const tickerData = selectedTicker ? historicalData[selectedTicker] : null;
   const currentPrice = tickers[selectedTicker]?.price;
 
@@ -201,7 +204,7 @@ export function ChartPanel() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <CandlestickChart className="w-3 h-3" />
-            <span>Chart</span>
+            <span>{label('Chart', '📈 Price Chart')}</span>
           </div>
           
           {selectedTicker && (
@@ -255,6 +258,11 @@ export function ChartPanel() {
       </div>
       
       {/* Chart Container */}
+      <PanelHelp icon="📈" title="How to read this chart">
+        Each 🟩 green bar = price went UP that day. Each 🟥 red bar = price went DOWN.
+        The thin lines (wicks) show the highest and lowest price reached.
+        Hover over bars to see exact prices. Volume bars at the bottom show trading activity.
+      </PanelHelp>
       <div className="flex-1 relative">
         {selectedTicker ? (
           <div ref={chartContainerRef} className="absolute inset-0" />
@@ -271,15 +279,15 @@ export function ChartPanel() {
       {/* Price Legend / OHLC Display */}
       {selectedTicker && tickerData && tickerData.length > 0 && (
         <div className="px-3 py-2 border-t border-terminal-border flex items-center gap-4 text-xs font-mono">
-          <span className="text-terminal-muted">O:</span>
+          <span className="text-terminal-muted"><Term k="ohlc">{label('O:', 'Open:')}</Term></span>
           <span>{tickerData[tickerData.length - 1]?.open.toFixed(2)}</span>
-          <span className="text-terminal-muted">H:</span>
+          <span className="text-terminal-muted">{label('H:', 'High:')}</span>
           <span className="text-gain">{tickerData[tickerData.length - 1]?.high.toFixed(2)}</span>
-          <span className="text-terminal-muted">L:</span>
+          <span className="text-terminal-muted">{label('L:', 'Low:')}</span>
           <span className="text-loss">{tickerData[tickerData.length - 1]?.low.toFixed(2)}</span>
-          <span className="text-terminal-muted">C:</span>
+          <span className="text-terminal-muted">{label('C:', 'Close:')}</span>
           <span>{currentPrice?.toFixed(2) || tickerData[tickerData.length - 1]?.close.toFixed(2)}</span>
-          <span className="text-terminal-muted">V:</span>
+          <span className="text-terminal-muted"><Term k="volume">{label('V:', 'Vol:')}</Term></span>
           <span>{formatVolume(tickerData[tickerData.length - 1]?.volume)}</span>
         </div>
       )}

@@ -450,6 +450,24 @@ class CustomerDatabase {
         const avgSatisfaction = this.metrics.averageSatisfaction;
         traffic *= 0.5 + (avgSatisfaction / 100); // 0.5x to 1.5x based on satisfaction
 
+        // === WORLD SIMULATION: Weather & competition traffic effects ===
+        const world = window.game && window.game.world;
+        if (world && world.state) {
+            // Weather affects foot traffic (via WeatherSystem method)
+            if (world.subsystems && world.subsystems.weather && world.subsystems.weather.getTrafficMultiplier) {
+                traffic *= world.subsystems.weather.getTrafficMultiplier();
+            }
+            // Reputation from world simulation (50 = neutral)
+            if (world.state.reputation && world.state.reputation.score !== undefined) {
+                const repMult = 0.7 + (world.state.reputation.score / 100) * 0.6; // 0.7x to 1.3x
+                traffic *= repMult;
+            }
+            // Community event demand boost
+            if (world.state.demandModifiers && world.state.demandModifiers.community) {
+                traffic *= world.state.demandModifiers.community;
+            }
+        }
+
         const customerCount = Math.floor(traffic);
 
         // Generate mix of new and returning customers
@@ -687,8 +705,26 @@ class CustomerDatabase {
     calculateExternalFactors(customer) {
         let externalScore = 0.5; // Neutral base
 
-        // Weather effect (if economy has weather)
-        if (this.engine.economy && this.engine.economy.weather) {
+        // Weather effect — prefer WorldSimulation WeatherSystem if available
+        const world = window.game && window.game.world;
+        if (world && world.subsystems && world.subsystems.weather) {
+            const ws = world.subsystems.weather;
+            const weatherType = ws.currentWeather ? ws.currentWeather.type : null;
+            const sensitivity = customer.externalFactors.weatherSensitivity / 100;
+
+            if (weatherType === 'sunny' || weatherType === 'clear') {
+                externalScore += 0.2 * sensitivity;
+            } else if (weatherType === 'rainy' || weatherType === 'stormy') {
+                externalScore -= 0.3 * sensitivity;
+            } else if (weatherType === 'snowy') {
+                externalScore -= 0.1 * sensitivity;
+            } else if (weatherType === 'heatwave') {
+                externalScore -= 0.15 * sensitivity; // Too hot
+            } else if (weatherType === 'foggy') {
+                externalScore -= 0.05 * sensitivity;
+            }
+        } else if (this.engine.economy && this.engine.economy.weather) {
+            // Fallback to old economy weather
             const weather = this.engine.economy.weather;
             const sensitivity = customer.externalFactors.weatherSensitivity / 100;
 
@@ -1088,7 +1124,153 @@ class CustomerDatabase {
             }
         });
 
+        // === WORLD SIMULATION: Word-of-mouth & population evolution ===
+        this._processWordOfMouth();
+        this._evolvePopulationPreferences();
+        this._processCustomerMigration();
+
         this.updateMetrics();
+    }
+
+    // ==================== WORLD: WORD-OF-MOUTH ====================
+
+    /**
+     * Satisfied customers tell friends → new customers arrive with higher return probability.
+     * Dissatisfied customers warn others → reduces organic draw.
+     */
+    _processWordOfMouth() {
+        const activeCustomers = Array.from(this.customers.values()).filter(c => c.isActive);
+        if (activeCustomers.length === 0) return;
+
+        let positiveWord = 0;
+        let negativeWord = 0;
+
+        activeCustomers.forEach(customer => {
+            // Only customers who visited in the last 3 days spread word
+            if ((this.engine.day - customer.lastVisit) > 3) return;
+
+            if (customer.satisfaction >= 75) {
+                // Happy customers have a chance to bring a friend
+                const spreadChance = 0.03 + (customer.satisfaction - 75) / 500; // 3-8% chance
+                if (Math.random() < spreadChance) {
+                    positiveWord++;
+                }
+            } else if (customer.satisfaction < 40) {
+                // Unhappy customers may discourage potential visitors
+                const warnChance = 0.05 + (40 - customer.satisfaction) / 300;
+                if (Math.random() < warnChance) {
+                    negativeWord++;
+                }
+            }
+        });
+
+        // Create referred customers (they start with higher trust)
+        for (let i = 0; i < positiveWord; i++) {
+            const referred = this.createCustomer({ isReturning: false });
+            referred.trustScore = Math.min(1, referred.trustScore + 0.2);
+            referred.returnProbability = Math.min(0.95, referred.returnProbability + 0.15);
+            referred.referredBy = 'word_of_mouth';
+            this.customers.set(referred.id, referred);
+        }
+
+        // Track word-of-mouth effect on metrics
+        if (!this.metrics.wordOfMouth) {
+            this.metrics.wordOfMouth = { positive: 0, negative: 0 };
+        }
+        this.metrics.wordOfMouth.positive += positiveWord;
+        this.metrics.wordOfMouth.negative += negativeWord;
+
+        // Negative word-of-mouth slightly reduces organic marketing effectiveness
+        if (negativeWord > 0 && this.marketingChannels.ORGANIC) {
+            this.marketingChannels.ORGANIC.effectiveness = Math.max(
+                0.6,
+                this.marketingChannels.ORGANIC.effectiveness - negativeWord * 0.02
+            );
+        }
+        // Positive word restores it
+        if (positiveWord > 0 && this.marketingChannels.ORGANIC) {
+            this.marketingChannels.ORGANIC.effectiveness = Math.min(
+                1.5,
+                this.marketingChannels.ORGANIC.effectiveness + positiveWord * 0.01
+            );
+        }
+    }
+
+    /**
+     * Population evolves: preferences shift with seasons & trends.
+     * Reads from WorldSimulation if available.
+     */
+    _evolvePopulationPreferences() {
+        const world = window.game && window.game.world;
+        if (!world) return;
+
+        const state = world.state;
+        const season = state.weather ? state.weather.season : 'spring';
+
+        // Seasonal preference shifts
+        const seasonalPrefs = {
+            spring: { healthSeeking: 0.02, warmDrinksPref: -0.01 },
+            summer: { coldItemsPref: 0.03, lightFoodPref: 0.02, warmDrinksPref: -0.03 },
+            fall: { comfortFoodPref: 0.03, warmDrinksPref: 0.02 },
+            winter: { comfortFoodPref: 0.04, warmDrinksPref: 0.04, coldItemsPref: -0.02 }
+        };
+
+        const prefs = seasonalPrefs[season] || {};
+
+        // Apply gradual preference drift to active customers
+        this.customers.forEach(customer => {
+            if (!customer.isActive) return;
+            if (!customer.seasonalPrefs) {
+                customer.seasonalPrefs = { healthSeeking: 0, comfortFoodPref: 0, warmDrinksPref: 0, coldItemsPref: 0, lightFoodPref: 0 };
+            }
+            Object.entries(prefs).forEach(([key, drift]) => {
+                customer.seasonalPrefs[key] = Math.max(-0.5, Math.min(0.5,
+                    (customer.seasonalPrefs[key] || 0) + drift
+                ));
+            });
+        });
+
+        // Competitor promotions can shift price expectations
+        if (state.competitors && state.competitors.length > 0) {
+            const avgCompPrice = state.competitors.reduce((s, c) => s + c.priceLevel, 0) / state.competitors.length;
+            // If competitors are cheap, customers become more price sensitive over time
+            if (avgCompPrice < 0.9) {
+                this.customers.forEach(customer => {
+                    if (!customer.isActive) return;
+                    customer.priceElasticity = Math.min(2.0, customer.priceElasticity + 0.005);
+                });
+            }
+        }
+    }
+
+    /**
+     * Customers arrive and depart from the neighborhood over time.
+     * Keeps the customer pool fresh and evolving.
+     */
+    _processCustomerMigration() {
+        const activeCount = Array.from(this.customers.values()).filter(c => c.isActive).length;
+
+        // New residents arrive (1-3% of current pool, min 1 every few days)
+        if (this.engine.day % 3 === 0) {
+            const newArrivals = Math.max(1, Math.floor(activeCount * (0.01 + Math.random() * 0.02)));
+            for (let i = 0; i < newArrivals; i++) {
+                const newResident = this.createCustomer({ isReturning: false });
+                newResident.migrationSource = 'new_resident';
+                this.customers.set(newResident.id, newResident);
+            }
+        }
+
+        // Some long-inactive customers are permanently removed to prevent DB bloat
+        if (this.customers.size > 200) {
+            const toRemove = [];
+            this.customers.forEach((customer, id) => {
+                if (!customer.isActive && (this.engine.day - customer.lastVisit) > 60) {
+                    toRemove.push(id);
+                }
+            });
+            // Remove up to 10 stale entries per day
+            toRemove.slice(0, 10).forEach(id => this.customers.delete(id));
+        }
     }
 
     // ==================== SAVE/LOAD ====================

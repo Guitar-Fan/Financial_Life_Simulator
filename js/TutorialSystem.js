@@ -11,36 +11,41 @@ class TutorialSystem {
         this.steps = [
             {
                 title: "Welcome to the Bakery!",
-                dialogue: "Welcome, apprentice! I'm Master Baker Pierre. I'll show you how to run a successful bakery. Ready to make some dough?",
+                dialogue: "Hello! I'm Master Baker Pierre, and I'll teach you how to run this bakery step by step. Don't worry — it's easy once you get the hang of it!",
                 thought: "He looks serious about his bread...",
+                actionHint: "Click 'Next Step' below to continue →",
                 target: null,
                 action: () => { }
             },
             {
-                title: "The Daily Cycle",
-                dialogue: "Every day has four phases: Buying ingredients, Baking, Selling, and reviewing your Summary. But first, we need to set up your shop!",
-                thought: "Phase 0: Setup. Got it.",
+                title: "How the Game Works",
+                dialogue: "Every day in your bakery has 4 steps: ① BUY ingredients, ② BAKE products, ③ SELL to customers, and ④ check your SUMMARY to see if you made money. That's it!",
+                thought: "Buy → Bake → Sell → Summary. Repeat!",
+                actionHint: "Click 'Next Step' to continue →",
                 target: "#btn-new-game",
                 action: () => { }
             },
             {
                 title: "Bakery Setup",
-                dialogue: "Welcome to Startup City! Use WASD to walk around. Visit the Real Estate Agency first to choose a location, then City Hall for permits, and finally the Supply Store for equipment.",
+                dialogue: "This is Startup City! Use the WASD keys on your keyboard to walk around. Visit the buildings to set up your bakery — start with the Real Estate Agency!",
                 thought: "I should probably start in the Suburbs to save on rent.",
+                actionHint: "👉 Use W/A/S/D keys to walk, then press E near a building to enter it",
                 target: "#phaser-container",
                 trigger: "phase:setup"
             },
             {
-                title: "The Hub",
-                dialogue: "This is your bakery hub! Walk to the 'BUY' pad and press E to purchase ingredients.",
+                title: "The Hub — Your Home Base",
+                dialogue: "Welcome to your bakery hub! You'll see colored pads on the floor labeled BUY, BAKE, SELL, and SUMMARY. Walk to the 'BUY' pad and press E to start buying ingredients.",
                 thought: "I can choose what to do next.",
+                actionHint: "👉 Walk to the green BUY pad and press E",
                 target: "#phaser-container",
                 trigger: "phase:hub"
             },
             {
-                title: "Buying Ingredients",
-                dialogue: "In the Buying phase, you need to stock up on Flour, Sugar, and Eggs. Watch me buy some Flour to get us started!",
+                title: "Step 1: Buying Ingredients",
+                dialogue: "This is where you buy Flour, Sugar, and Eggs — the things you need to bake! Watch me buy 10 bags of Flour to show you how it works.",
                 thought: "Pay attention to the cash balance going down.",
+                actionHint: "👉 Click 'Show Me' to watch a demo purchase, then click amounts to buy yourself",
                 target: "#buy-phase-container",
                 trigger: "phase:buying",
                 demonstration: (gc) => {
@@ -62,16 +67,18 @@ class TutorialSystem {
                 requirement: 'purchase'
             },
             {
-                title: "Your Turn to Buy",
-                dialogue: "Now you try! Buy some Sugar or Eggs. We can't bake without ingredients!",
+                title: "Your Turn to Buy!",
+                dialogue: "Great! Now you try. Click on Sugar or Eggs and buy some. You can't bake without ingredients, so stock up!",
                 thought: "I need to buy something to continue.",
+                actionHint: "👉 Click on an ingredient card, then click a quantity button to buy it",
                 target: "#buy-phase-container",
                 requirement: 'purchase'
             },
             {
-                title: "Baking Time",
-                dialogue: "Now we bake! You can make Bread, Cookies, or Cakes. Watch me start a batch of Bread.",
+                title: "Step 2: Baking Time!",
+                dialogue: "Now the fun part — baking! Click on a recipe card (like Bread) to bake it. Each recipe uses ingredients you bought. Watch me bake some bread!",
                 thought: "Bread is the staple of life.",
+                actionHint: "👉 Click 'Show Me' to see how baking works, then try it yourself",
                 target: "#bake-phase-container",
                 trigger: "phase:baking",
                 demonstration: (gc) => {
@@ -96,9 +103,10 @@ class TutorialSystem {
                 requirement: 'bake'
             },
             {
-                title: "Selling Your Goods",
-                dialogue: "The customers are here! Set your prices carefully. A good player watches the demand indicator—if it's low, lower your prices! Watch me sell a croissant.",
+                title: "Step 3: Selling to Customers",
+                dialogue: "Customers are arriving! They'll buy your baked goods automatically. You can set your markup (price increase) — but be careful, if prices are too high, fewer customers will buy!",
                 thought: "I should watch the demand indicator.",
+                actionHint: "👉 Use the markup slider to set prices. Watch the demand bar — green is good!",
                 target: "#sell-phase-container",
                 trigger: "phase:selling",
                 demonstration: (gc) => {
@@ -133,9 +141,10 @@ class TutorialSystem {
                 requirement: 'sell'
             },
             {
-                title: "Daily Summary",
-                dialogue: "At the end of the day, we look at the numbers. This tells us if we're growing or going stale! Check your 'Net Profit'—that's what you actually keep.",
+                title: "Step 4: Daily Summary",
+                dialogue: "This is your daily report card! Look at 'Net Profit' — that's the money you actually earned today. If the number is green, you made money. If it's red, you lost money. Try to stay in the green!",
                 thought: "Hopefully we're rising like a good sourdough.",
+                actionHint: "👉 Review your numbers, then click 'Next Day' to start a new day!",
                 target: "#summary-phase-container",
                 trigger: "phase:summary"
             }
@@ -163,17 +172,22 @@ class TutorialSystem {
         this.thought.className = 'thought-bubble';
 
         const skipBtn = document.createElement('button');
-        skipBtn.textContent = 'Skip Tutorial';
+        skipBtn.textContent = '✕ Exit Tutorial';
         skipBtn.style.position = 'fixed';
         skipBtn.style.top = '20px';
         skipBtn.style.right = '20px';
-        skipBtn.style.padding = '10px 20px';
-        skipBtn.style.background = 'rgba(255,255,255,0.2)';
+        skipBtn.style.padding = '12px 24px';
+        skipBtn.style.background = 'rgba(200,50,50,0.3)';
         skipBtn.style.color = 'white';
-        skipBtn.style.border = '1px solid rgba(255,255,255,0.3)';
+        skipBtn.style.border = '1px solid rgba(200,50,50,0.5)';
         skipBtn.style.borderRadius = '20px';
         skipBtn.style.cursor = 'pointer';
         skipBtn.style.zIndex = '2005';
+        skipBtn.style.fontSize = '15px';
+        skipBtn.style.fontFamily = "'Inter', sans-serif";
+        skipBtn.style.transition = 'all 0.3s ease';
+        skipBtn.onmouseover = () => { skipBtn.style.background = 'rgba(200,50,50,0.6)'; };
+        skipBtn.onmouseout = () => { skipBtn.style.background = 'rgba(200,50,50,0.3)'; };
         skipBtn.onclick = () => this.end();
 
         this.overlay.appendChild(this.highlight);
@@ -206,20 +220,60 @@ class TutorialSystem {
 
     showStep() {
         const step = this.steps[this.currentStep];
+        const totalSteps = this.steps.length;
+        const progressPercent = ((this.currentStep + 1) / totalSteps * 100).toFixed(0);
 
         // Update text
         let buttonsHtml = '';
 
         if (step.demonstration) {
-            buttonsHtml += `<button class="tutorial-demo-btn">Show Me</button>`;
+            buttonsHtml += `<button class="tutorial-demo-btn" style="font-size: 16px; padding: 10px 20px;">👀 Show Me How</button>`;
         }
 
-        buttonsHtml += `<button class="tutorial-next-btn" ${step.requirement ? 'disabled' : ''}>Next Step</button>`;
+        buttonsHtml += `<button class="tutorial-next-btn" ${step.requirement ? 'disabled' : ''} style="font-size: 16px; padding: 10px 20px;">Next Step →</button>`;
+
+        // Action hint HTML
+        const actionHintHtml = step.actionHint ? `
+            <div class="action-hint" style="
+                background: rgba(76, 175, 80, 0.15);
+                border: 1px solid rgba(76, 175, 80, 0.4);
+                border-radius: 10px;
+                padding: 10px 14px;
+                margin-top: 10px;
+                font-size: 15px;
+                color: #81c784;
+                line-height: 1.4;
+            ">${step.actionHint}</div>
+        ` : '';
 
         this.dialogue.innerHTML = `
-            <div style="font-size: 12px; color: var(--primary); margin-bottom: 5px; font-weight: 700; text-transform: uppercase;">${step.title}</div>
-            <div class="dialogue-text">${step.dialogue}</div>
-            <div class="tutorial-actions">
+            <div style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 8px;
+            ">
+                <div style="font-size: 13px; color: var(--primary); font-weight: 700; text-transform: uppercase; white-space: nowrap;">${step.title}</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); white-space: nowrap;">Step ${this.currentStep + 1} of ${totalSteps}</div>
+            </div>
+            <div style="
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
+                height: 6px;
+                margin-bottom: 12px;
+                overflow: hidden;
+            ">
+                <div style="
+                    background: linear-gradient(90deg, #d4af37, #f0c040);
+                    height: 100%;
+                    width: ${progressPercent}%;
+                    border-radius: 10px;
+                    transition: width 0.5s ease;
+                "></div>
+            </div>
+            <div class="dialogue-text" style="font-size: 17px; line-height: 1.6; margin-bottom: 8px;">${step.dialogue}</div>
+            ${actionHintHtml}
+            <div class="tutorial-actions" style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
                 ${buttonsHtml}
             </div>
         `;

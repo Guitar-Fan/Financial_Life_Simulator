@@ -11,11 +11,11 @@ const GAME_CONFIG = {
         CLOSING_HOUR: 18
     },
 
-    // Daily fixed expenses
+    // Daily fixed expenses (realistic: monthly cost ÷ 30)
     DAILY_EXPENSES: {
-        rent: { name: 'Daily Rent', amount: 150, icon: '🏠' },
-        utilities: { name: 'Utilities', amount: 45, icon: '💡' },
-        insurance: { name: 'Insurance', amount: 25, icon: '🛡️' }
+        rent: { name: 'Daily Rent', amount: 50, icon: '🏠' },
+        utilities: { name: 'Utilities', amount: 12, icon: '💡' },
+        insurance: { name: 'Insurance', amount: 7, icon: '🛡️' }
     },
 
     SETUP_OPTIONS: {
@@ -24,7 +24,7 @@ const GAME_CONFIG = {
             {
                 id: 'downtown_prime',
                 name: 'Downtown Prime - Main Street',
-                rent: 450,
+                rent: 150,
                 traffic: 2.0,
                 size: 1200, // sq ft
                 parking: 'street',
@@ -42,7 +42,7 @@ const GAME_CONFIG = {
             {
                 id: 'downtown_side',
                 name: 'Downtown - Side Street',
-                rent: 280,
+                rent: 100,
                 traffic: 1.4,
                 size: 900,
                 parking: 'limited',
@@ -60,7 +60,7 @@ const GAME_CONFIG = {
             {
                 id: 'suburbs_plaza',
                 name: 'Suburban Shopping Plaza',
-                rent: 200,
+                rent: 70,
                 traffic: 1.2,
                 size: 1500,
                 parking: 'ample',
@@ -78,7 +78,7 @@ const GAME_CONFIG = {
             {
                 id: 'suburbs_residential',
                 name: 'Residential Neighborhood',
-                rent: 150,
+                rent: 50,
                 traffic: 0.9,
                 size: 800,
                 parking: 'street',
@@ -96,7 +96,7 @@ const GAME_CONFIG = {
             {
                 id: 'college_campus',
                 name: 'Near College Campus',
-                rent: 320,
+                rent: 110,
                 traffic: 1.8,
                 size: 1000,
                 parking: 'bike_racks',
@@ -114,7 +114,7 @@ const GAME_CONFIG = {
             {
                 id: 'industrial_wholesale',
                 name: 'Industrial - Wholesale District',
-                rent: 120,
+                rent: 35,
                 traffic: 0.5,
                 size: 2000,
                 parking: 'loading_dock',
@@ -1256,6 +1256,100 @@ const GAME_CONFIG = {
             }
         },
         INVENTORY_BOUNDS: { minDays: 0.5, maxDays: 3 }
+    },
+
+    // ==================== WORLD SIMULATION CONFIG ====================
+    WORLD: {
+        // Equipment lifecycle
+        EQUIPMENT: {
+            TYPES: {
+                oven:        { name: 'Oven',         icon: '🔥', baseCost: 2000, maxCondition: 100, degradePerUse: 0.4, maintenanceCost: 80,  upgradeCost: 3500, capacityBonus: 4,  qualityBonus: 0.05 },
+                mixer:       { name: 'Stand Mixer',  icon: '🌀', baseCost: 800,  maxCondition: 100, degradePerUse: 0.3, maintenanceCost: 40,  upgradeCost: 1500, capacityBonus: 2,  qualityBonus: 0.03 },
+                display:     { name: 'Display Case',  icon: '🪟', baseCost: 1200, maxCondition: 100, degradePerUse: 0.1, maintenanceCost: 30,  upgradeCost: 2000, capacityBonus: 0,  qualityBonus: 0.02 },
+                refrigerator:{ name: 'Refrigerator',  icon: '❄️', baseCost: 1500, maxCondition: 100, degradePerUse: 0.15,maintenanceCost: 50,  upgradeCost: 2500, capacityBonus: 0,  qualityBonus: 0.04 },
+            },
+            BREAKDOWN_THRESHOLD: 20,  // below this %, risk of breakdown
+            BREAKDOWN_BASE_CHANCE: 0.08,
+            REPAIR_COST_MULTIPLIER: 2.5, // emergency repair = 2.5× maintenance cost
+        },
+
+        // Vendor relationships
+        VENDORS: [
+            { id: 'metro',   name: 'Metro Wholesale',     icon: '🏬', priceMultiplier: 1.0,  qualityMultiplier: 0.95, reliability: 0.9, description: 'Reliable bulk supplier. Good prices, average quality.' },
+            { id: 'farmers', name: "Farmer's Market",      icon: '🌾', priceMultiplier: 1.15, qualityMultiplier: 1.15, reliability: 0.75, description: 'Premium local produce. Higher quality but less reliable.' },
+            { id: 'sysco',   name: 'Sysco Food Service',   icon: '🚛', priceMultiplier: 0.85, qualityMultiplier: 0.85, reliability: 0.95, description: 'Cheapest bulk prices. Lower quality, very reliable.' },
+            { id: 'artisan', name: 'Artisan Suppliers Co.', icon: '🎨', priceMultiplier: 1.30, qualityMultiplier: 1.25, reliability: 0.7,  description: 'Top-tier specialty ingredients. Expensive but exceptional.' },
+        ],
+
+        // Seasonal ingredient availability multipliers (1.0 = normal, 0 = unavailable)
+        SEASONAL_INGREDIENTS: {
+            SPRING: { STRAWBERRIES: 0.8, BLUEBERRIES: 0.4, CITRUS_ZEST: 1.2, FLOUR: 1.0, EGGS: 1.1, BUTTER: 1.1 },
+            SUMMER: { STRAWBERRIES: 1.4, BLUEBERRIES: 1.5, CITRUS_ZEST: 0.8, FLOUR: 1.0, EGGS: 1.0, BUTTER: 0.9 },
+            FALL:   { STRAWBERRIES: 0.5, BLUEBERRIES: 0.6, CITRUS_ZEST: 1.0, FLOUR: 1.2, EGGS: 1.0, BUTTER: 1.0 },
+            WINTER: { STRAWBERRIES: 0.2, BLUEBERRIES: 0.2, CITRUS_ZEST: 1.3, FLOUR: 1.0, EGGS: 0.9, BUTTER: 0.9 },
+        },
+
+        // Community events pool
+        COMMUNITY_EVENTS: [
+            { id: 'farmers_market',   name: "🌽 Farmer's Market Day",     demandMod: 1.25, duration: 1, probability: 0.04, description: 'Foot traffic boost from the weekly farmers market.' },
+            { id: 'school_fundraiser',name: '🎒 School Bake Sale',         demandMod: 1.15, duration: 1, probability: 0.03, description: 'Local school needs baked goods — great exposure!' },
+            { id: 'holiday_weekend',  name: '🎆 Holiday Weekend',          demandMod: 1.4,  duration: 3, probability: 0.02, description: 'Long weekend crowds flood downtown.' },
+            { id: 'street_festival',  name: '🎪 Street Festival',          demandMod: 1.6,  duration: 2, probability: 0.015, description: 'Major local event — huge opportunity!' },
+            { id: 'power_outage',     name: '⚡ Neighborhood Power Outage', demandMod: 0.3,  duration: 1, probability: 0.01, description: 'Nobody can get to your shop. Very slow day.' },
+            { id: 'road_construction',name: '🚧 Road Construction',        demandMod: 0.7,  duration: 5, probability: 0.01, description: 'Construction blocks foot traffic from the main road.' },
+            { id: 'charity_drive',    name: '❤️ Community Charity Drive',   demandMod: 1.1,  duration: 2, probability: 0.025, description: 'Donate products for reputation boost.' },
+            { id: 'food_truck_rally', name: '🚚 Food Truck Rally',         demandMod: 0.8,  duration: 2, probability: 0.02, description: 'Food trucks draw customers away from brick-and-mortar.' },
+        ],
+
+        // Minigame frequency settings
+        MINIGAMES: {
+            haggleChance: 0.25,          // % chance per purchase to trigger haggle wheel
+            qualityDiceChance: 0.20,     // % chance per bake batch to trigger quality dice
+            moodRingChance: 0.15,        // % chance per customer interaction
+            rushHourThreshold: 4,        // customers in queue to trigger rush hour
+            forecastEnabled: true,       // show morning forecast bet
+            inspectionChance: 0.02,      // daily chance of health inspection
+        },
+
+        // Reputation thresholds
+        REPUTATION: {
+            excellentThreshold: 80,
+            goodThreshold: 60,
+            averageThreshold: 40,
+            poorThreshold: 20,
+            reviewImpact: 0.5,          // how much one review nudges score
+            decayRate: 0.1,             // daily drift toward 50 when no activity
+        },
+
+        // Health & Safety (Step 11)
+        HEALTH_SAFETY: {
+            inspectionChance: 0.03,     // daily chance once window opens
+            baseComplianceDecay: 0.1,   // per day without upgrades
+            upgrades: [
+                { id: 'fire_extinguisher', name: '🧯 Fire Extinguisher', cost: 200,  complianceBoost: 5 },
+                { id: 'hand_wash',         name: '🧼 Hand-Wash Station', cost: 150,  complianceBoost: 4 },
+                { id: 'pest_control',      name: '🐛 Pest Control Plan', cost: 300,  complianceBoost: 6 },
+                { id: 'food_thermometer',  name: '🌡️ Food Thermometers', cost: 80,   complianceBoost: 3 },
+                { id: 'ventilation',       name: '🌬️ Ventilation System', cost: 1000, complianceBoost: 8 },
+            ]
+        },
+
+        // Advertising (Step 11)
+        ADVERTISING: {
+            maxActiveCampaigns: 3,
+        },
+
+        // Loan system (Step 11)
+        LOANS: {
+            maxActiveLoans: 3,
+            minCreditScore: 400,         // below this, no loans available
+        },
+
+        // Expansion milestones (Step 11)
+        EXPANSION: {
+            revenueForSecondLocation: 100000,
+            pointsPerLocation: 5,
+        }
     }
 };
 

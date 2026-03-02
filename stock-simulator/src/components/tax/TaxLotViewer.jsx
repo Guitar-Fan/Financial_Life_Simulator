@@ -25,11 +25,13 @@ import {
 } from 'lucide-react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useMarketStore } from '../../stores/marketStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 const COST_BASIS_METHODS = {
-  FIFO: { label: 'FIFO', description: 'First In, First Out - Sell oldest shares first' },
-  LIFO: { label: 'LIFO', description: 'Last In, First Out - Sell newest shares first' },
-  HIFO: { label: 'HIFO', description: 'Highest In, First Out - Sell highest cost first (tax efficient)' }
+  FIFO: { label: 'FIFO', description: 'First In, First Out — Sell your oldest shares first (like eating the oldest fruit)' },
+  LIFO: { label: 'LIFO', description: 'Last In, First Out — Sell your newest shares first' },
+  HIFO: { label: 'HIFO', description: 'Highest In, First Out — Sell the most expensive shares first (saves on taxes!)' }
 };
 
 export function TaxLotViewer() {
@@ -106,18 +108,23 @@ export function TaxLotViewer() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <Layers className="w-3 h-3" />
-          <span>Tax Lots</span>
+          <span>📦 <Term k="tax_lot">Tax Lots</Term></span>
         </div>
         <span className="text-xxs text-terminal-muted">
           {Object.values(lotsByTicker).flat().length} lots
         </span>
       </div>
 
+      <PanelHelp id="tax-lots">
+        Each time you buy shares, it creates a "tax lot" — like a receipt that tracks when you bought and for how much.
+        When you sell, the order you sell these lots matters for taxes! That's what FIFO/LIFO/HIFO means.
+      </PanelHelp>
+
       {/* Controls */}
       <div className="p-2 border-b border-terminal-border space-y-2">
         {/* Cost Basis Method Selector */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-terminal-muted">Cost Basis:</span>
+          <span className="text-xs text-terminal-muted"><Term k="cost_basis">Cost Basis</Term> Method:</span>
           <div className="flex gap-1">
             {Object.entries(COST_BASIS_METHODS).map(([key, { label }]) => (
               <button

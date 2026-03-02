@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useMarketStore } from '../../stores/marketStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function WashSaleAlert() {
   const [showDetails, setShowDetails] = useState(false);
@@ -131,7 +133,7 @@ export function WashSaleAlert() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <Shield className="w-3 h-3" />
-          <span>Wash Sale Monitor</span>
+          <span>🛡️ <Term k="wash_sale">Wash Sale</Term> Monitor</span>
         </div>
         {hasIssues ? (
           <span className="flex items-center gap-1 text-xxs text-yellow-500">
@@ -148,6 +150,12 @@ export function WashSaleAlert() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-3 space-y-4">
+        <PanelHelp id="wash-sale">
+          A "wash sale" is a tax rule that says: if you sell a stock at a loss, you can't claim that loss on your taxes
+          if you buy the same stock again within 30 days. It's to prevent people from selling just to get a tax break
+          and immediately buying back. This monitor watches for that!
+        </PanelHelp>
+
         {/* Status Banner */}
         <div className={`p-4 rounded border ${
           hasIssues 

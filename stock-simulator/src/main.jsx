@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import App from './App';
 import { TutorialProvider } from './components/education/TutorialSystem';
+import { BeginnerModeProvider } from './components/education/BeginnerMode';
 import './index.css';
 
 // Initialize eruda first for debugging, then render app
@@ -22,9 +23,11 @@ async function initApp() {
   root.render(
     <React.StrictMode>
       <Tooltip.Provider delayDuration={300}>
-        <TutorialProvider>
-          <App />
-        </TutorialProvider>
+        <BeginnerModeProvider>
+          <TutorialProvider>
+            <App />
+          </TutorialProvider>
+        </BeginnerModeProvider>
       </Tooltip.Provider>
     </React.StrictMode>
   );

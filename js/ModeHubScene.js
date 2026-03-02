@@ -267,32 +267,61 @@ class ModeHubScene extends Phaser.Scene {
             interact: Phaser.Input.Keyboard.KeyCodes.E
         });
 
-        // Pads data - relative to center
+        // Pads data - friendly labels, no forced sequence
         const padData = [
-            { key: 'pad_buy', label: 'BUY', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Stock inventory' },
-            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Produce goods' },
-            { key: 'pad_sell', label: 'SELL', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Open shop' },
-            { key: 'pad_summary', label: 'SUMMARY', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'Review stats' },
-            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Design custom bakes' }
+            { key: 'pad_buy', label: 'SHOP', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Buy flour, sugar & eggs' },
+            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Bake bread, cookies & cakes' },
+            { key: 'pad_sell', label: 'OPEN SHOP', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Sell products to customers' },
+            { key: 'pad_summary', label: 'DAY REVIEW', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'See how much money you made' },
+            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Create new recipes (optional)' }
         ];
 
         padData.forEach(data => this.createPad(data));
 
+        // === WORLD CONDITIONS OVERLAY ===
+        this._createWorldConditionsHUD(centerX, height);
+
+        // "Start Here" arrow for first-time players
+        const isFirstTime = !localStorage.getItem('bakery_played_before');
+        if (isFirstTime) {
+            localStorage.setItem('bakery_played_before', 'true');
+            const arrowX = centerX - 250;
+            const arrowY = centerY - 100 - 90;
+            const startArrow = this.add.text(arrowX, arrowY, '\u2b07 START HERE', {
+                fontFamily: 'Fredoka, sans-serif',
+                fontSize: '20px',
+                fontStyle: '700',
+                color: '#4caf50',
+                stroke: '#000000',
+                strokeThickness: 4
+            }).setOrigin(0.5).setDepth(10);
+            this.tweens.add({
+                targets: startArrow,
+                y: arrowY + 10,
+                duration: 600,
+                yoyo: true,
+                repeat: -1,
+                ease: 'sine.inOut'
+            });
+        }
+
         // Interaction hint
         this.interactionText = this.add.text(centerX, height - 40, '', {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '18px',
+            fontSize: '20px',
             color: '#ffffff',
-            backgroundColor: '#000000aa',
-            padding: { x: 12, y: 6 }
+            backgroundColor: '#000000cc',
+            padding: { x: 16, y: 8 }
         }).setOrigin(0.5).setVisible(false).setDepth(10);
 
-        // HUD text
-        this.add.text(20, 20, 'Click a pad to enter a mode (or walk up and press E)', {
+        // HUD text - larger, clearer instruction
+        this.add.rectangle(centerX, 28, 700, 44, 0x000000, 0.6).setDepth(9).setOrigin(0.5);
+        this.add.text(centerX, 28, '\ud83c\udfea Choose what to do  |  Walk with WASD + press E  |  Go at your own pace', {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '18px',
-            color: '#dfe6e9'
-        }).setDepth(10);
+            fontSize: '16px',
+            fontStyle: '600',
+            color: '#f0e6d3'
+        }).setOrigin(0.5).setDepth(10);
         
         // Listen for resize events
         this.scale.on('resize', this.handleResize, this);
@@ -345,13 +374,13 @@ class ModeHubScene extends Phaser.Scene {
             this.player.setDepth(5);
         }
 
-        // Pads data - relative to center
+        // Pads data - friendly labels, no forced sequence
         const padData = [
-            { key: 'pad_buy', label: 'BUY', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Stock inventory' },
-            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Produce goods' },
-            { key: 'pad_sell', label: 'SELL', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Open shop' },
-            { key: 'pad_summary', label: 'SUMMARY', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'Review stats' },
-            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Design custom bakes' }
+            { key: 'pad_buy', label: 'SHOP', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Buy flour, sugar & eggs' },
+            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Bake bread, cookies & cakes' },
+            { key: 'pad_sell', label: 'OPEN SHOP', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Sell products to customers' },
+            { key: 'pad_summary', label: 'DAY REVIEW', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'See how much money you made' },
+            { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Create new recipes (optional)' }
         ];
 
         padData.forEach(data => this.createPad(data));
@@ -359,18 +388,20 @@ class ModeHubScene extends Phaser.Scene {
         // Interaction hint
         this.interactionText = this.add.text(centerX, height - 40, '', {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '18px',
+            fontSize: '20px',
             color: '#ffffff',
-            backgroundColor: '#000000aa',
-            padding: { x: 12, y: 6 }
+            backgroundColor: '#000000cc',
+            padding: { x: 16, y: 8 }
         }).setOrigin(0.5).setVisible(false).setDepth(10);
 
-        // HUD text
-        this.add.text(20, 20, 'Click a pad to enter a mode (or walk up and press E)', {
+        // HUD text - larger, clearer instruction
+        this.add.rectangle(centerX, 28, 700, 44, 0x000000, 0.6).setDepth(9).setOrigin(0.5);
+        this.add.text(centerX, 28, '\ud83c\udfea Choose what to do  |  Walk with WASD + press E  |  Go at your own pace', {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '18px',
-            color: '#dfe6e9'
-        }).setDepth(10);
+            fontSize: '16px',
+            fontStyle: '600',
+            color: '#f0e6d3'
+        }).setOrigin(0.5).setDepth(10);
     }
 
     createPad({ key, label, mode, x, y, desc }) {
@@ -392,24 +423,24 @@ class ModeHubScene extends Phaser.Scene {
         glow.baseScale = glow.scaleX;
         glow.baseAlpha = glow.alpha;
 
-        // Floating label
+        // Floating label (larger for readability)
         const text = this.add.text(x, y, label, {
             fontFamily: 'Fredoka, sans-serif',
-            fontSize: '22px',
+            fontSize: '24px',
             fontStyle: '700',
             color: '#ffffff',
             stroke: '#000000',
-            strokeThickness: 4
+            strokeThickness: 5
         }).setOrigin(0.5).setDepth(2);
         text.baseY = y;
 
-        // Description
-        const sub = this.add.text(x, y + 26, desc, {
+        // Description (larger for readability)
+        const sub = this.add.text(x, y + 28, desc, {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '14px',
+            fontSize: '15px',
             color: '#ecf0f1'
-        }).setOrigin(0.5).setAlpha(0.8).setDepth(2);
-        sub.baseY = y + 26;
+        }).setOrigin(0.5).setAlpha(0.85).setDepth(2);
+        sub.baseY = y + 28;
 
         // Glow tween
         this.tweens.add({
@@ -448,6 +479,57 @@ class ModeHubScene extends Phaser.Scene {
         });
 
         this.pads.push({ pad, text, sub, zone, glow, shadow });
+    }
+
+    /**
+     * World Conditions HUD — shows weather, day, reputation, and active events at bottom of hub.
+     */
+    _createWorldConditionsHUD(centerX, height) {
+        const world = window.game && window.game.world;
+        const engine = window.game && window.game.engine;
+        if (!engine) return;
+
+        const day = engine.day || 1;
+        const cash = engine.cash ? `$${engine.cash.toFixed(0)}` : '$???';
+
+        // Build conditions string
+        let conditions = `Day ${day}  |  ${cash}`;
+
+        if (world && world.state) {
+            // Weather
+            if (world.subsystems && world.subsystems.weather && world.subsystems.weather.currentWeather) {
+                const w = world.subsystems.weather.currentWeather;
+                const weatherIcons = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️', foggy: '🌫️', heatwave: '🔥', clear: '🌤️' };
+                conditions += `  |  ${weatherIcons[w.type] || '🌤️'} ${w.type}`;
+                if (w.temperature) conditions += ` ${w.temperature}°`;
+            }
+
+            // Reputation
+            if (world.state.reputation && world.state.reputation.score !== undefined) {
+                const rep = Math.round(world.state.reputation.score);
+                const repIcon = rep >= 70 ? '⭐' : rep >= 40 ? '👍' : '👎';
+                conditions += `  |  ${repIcon} Rep: ${rep}`;
+            }
+
+            // Active community event (filter by current day)
+            if (world.state.communityEvents && world.state.communityEvents.length > 0) {
+                const day = world.state.day || 0;
+                const activeComm = world.state.communityEvents.filter(e => day >= e.startDay && day <= e.endDay);
+                if (activeComm.length > 0) {
+                    conditions += `  |  🎉 ${activeComm[0].name || 'Event'}`;
+                }
+            }
+        }
+
+        // Bottom HUD bar
+        const barY = height - 30;
+        this.add.rectangle(centerX, barY, 800, 36, 0x000000, 0.65).setDepth(9).setOrigin(0.5);
+        this.add.text(centerX, barY, conditions, {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            fontStyle: '600',
+            color: '#a8d8ea'
+        }).setOrigin(0.5).setDepth(10);
     }
 
     update() {

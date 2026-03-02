@@ -15,6 +15,8 @@ import React, { useState, useMemo } from 'react';
 import { ShoppingCart, AlertTriangle, Calculator, Lock } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function OrderPanel() {
   const { selectedTicker, tickers } = useMarketStore();
@@ -25,6 +27,7 @@ export function OrderPanel() {
     placeOrder, 
     fillOrder 
   } = usePlayerStore();
+  const { isBeginnerMode, label } = useBeginnerMode();
   
   const [side, setSide] = useState('BUY');
   const [orderType, setOrderType] = useState('MARKET');
@@ -150,10 +153,10 @@ const handleSubmit = () => {
   };
 
   const orderTypes = [
-    { value: 'MARKET', label: 'Market', locked: false },
-    { value: 'LIMIT', label: 'Limit', locked: !unlockedOrderTypes.includes('LIMIT') },
-    { value: 'STOP', label: 'Stop', locked: !unlockedOrderTypes.includes('STOP') },
-    { value: 'STOP_LIMIT', label: 'Stop-Limit', locked: !unlockedOrderTypes.includes('STOP_LIMIT') }
+    { value: 'MARKET', label: label('Market', '⚡ Instant'), desc: 'Buy/sell right now', locked: false },
+    { value: 'LIMIT', label: label('Limit', '🎯 Set Price'), desc: 'Buy/sell at your price', locked: !unlockedOrderTypes.includes('LIMIT') },
+    { value: 'STOP', label: label('Stop', '🛑 Safety Net'), desc: 'Auto-sell if price drops', locked: !unlockedOrderTypes.includes('STOP') },
+    { value: 'STOP_LIMIT', label: label('Stop-Limit', '🛑🎯 Combo'), desc: 'Safety net + price floor', locked: !unlockedOrderTypes.includes('STOP_LIMIT') }
   ];
 
   return (
@@ -162,12 +165,17 @@ const handleSubmit = () => {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <ShoppingCart className="w-3 h-3" />
-          <span>Order Entry</span>
+          <span>{label('Order Entry', '🛒 Place a Trade')}</span>
         </div>
         {selectedTicker && (
           <span className="text-terminal-text font-medium">{selectedTicker}</span>
         )}
       </div>
+      
+      <PanelHelp icon="🛒" title="What is this?">
+        This is where you buy or sell stocks. Pick BUY (green) to purchase shares,
+        or SELL (red) to sell shares you own. Start with a small number of shares!
+      </PanelHelp>
       
       {/* Order Form */}
       <div className="flex-1 p-3 overflow-auto">
@@ -183,7 +191,7 @@ const handleSubmit = () => {
                     : 'bg-terminal-border text-terminal-muted hover:text-terminal-text'
                 }`}
               >
-                BUY
+                {label('BUY', '🟢 BUY')}
               </button>
               <button
                 onClick={() => setSide('SELL')}
@@ -193,13 +201,15 @@ const handleSubmit = () => {
                     : 'bg-terminal-border text-terminal-muted hover:text-terminal-text'
                 }`}
               >
-                SELL
+                {label('SELL', '🔴 SELL')}
               </button>
             </div>
             
             {/* Order Type */}
             <div>
-              <label className="block text-xs text-terminal-muted mb-1">Order Type</label>
+              <label className="block text-xs text-terminal-muted mb-1">
+                <Term k="market_order">{label('Order Type', 'How do you want to trade?')}</Term>
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 {orderTypes.map((type) => (
                   <button
@@ -213,51 +223,71 @@ const handleSubmit = () => {
                         ? 'bg-terminal-border text-terminal-muted/50 cursor-not-allowed'
                         : 'bg-terminal-border text-terminal-muted hover:text-terminal-text'
                     }`}
+                    title={isBeginnerMode ? type.desc : ''}
                   >
                     {type.locked && <Lock className="w-3 h-3" />}
                     {type.label}
                   </button>
                 ))}
               </div>
+              {isBeginnerMode && (
+                <div className="text-xxs text-terminal-muted mt-1">
+                  {orderType === 'MARKET' && '⚡ Instant: Buys/sells right now at current price'}
+                  {orderType === 'LIMIT' && '🎯 Set Price: Only trades if the stock hits YOUR price'}
+                  {orderType === 'STOP' && '🛑 Safety Net: Auto-sells if price drops too low'}
+                  {orderType === 'STOP_LIMIT' && '🛑🎯 Combo: Safety net with a minimum price'}
+                </div>
+              )}
             </div>
             
             {/* Quantity */}
             <div>
-              <label className="block text-xs text-terminal-muted mb-1">Quantity</label>
+              <label className="block text-xs text-terminal-muted mb-1">
+                {label('Quantity', '📦 How many shares?')}
+              </label>
               <input
                 type="number"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="input-field"
-                placeholder="0"
+                placeholder={isBeginnerMode ? 'e.g. 10' : '0'}
                 min="1"
               />
               <div className="flex gap-1 mt-1">
                 <button
                   onClick={() => setQuickQuantity(0.25)}
                   className="flex-1 py-1 text-xxs bg-terminal-border rounded hover:bg-terminal-muted/20"
+                  title={isBeginnerMode ? 'Spend 25% of your available cash' : ''}
                 >
                   25%
                 </button>
                 <button
                   onClick={() => setQuickQuantity(0.5)}
                   className="flex-1 py-1 text-xxs bg-terminal-border rounded hover:bg-terminal-muted/20"
+                  title={isBeginnerMode ? 'Spend 50% of your available cash' : ''}
                 >
                   50%
                 </button>
                 <button
                   onClick={() => setQuickQuantity(0.75)}
                   className="flex-1 py-1 text-xxs bg-terminal-border rounded hover:bg-terminal-muted/20"
+                  title={isBeginnerMode ? 'Spend 75% of your available cash' : ''}
                 >
                   75%
                 </button>
                 <button
                   onClick={() => setQuickQuantity(1)}
                   className="flex-1 py-1 text-xxs bg-terminal-border rounded hover:bg-terminal-muted/20"
+                  title={isBeginnerMode ? 'Use ALL your available cash (not recommended for beginners!)' : ''}
                 >
                   100%
                 </button>
               </div>
+              {isBeginnerMode && (
+                <div className="text-xxs text-yellow-400/70 mt-1">
+                  💡 Tip: Start small! Try buying just 5-10 shares to practice.
+                </div>
+              )}
             </div>
             
             {/* Limit Price (conditional) */}
@@ -293,21 +323,27 @@ const handleSubmit = () => {
             {/* Order Preview */}
             {orderPreview && (
               <div className="p-2 bg-terminal-bg rounded border border-terminal-border">
-                <div className="text-xs text-terminal-muted mb-2">Order Preview</div>
+                <div className="text-xs text-terminal-muted mb-2">
+                  {label('Order Preview', '🔍 What will happen')}
+                </div>
                 <div className="space-y-1 text-sm font-mono">
                   <div className="flex justify-between">
-                    <span className="text-terminal-muted">Est. Price:</span>
+                    <span className="text-terminal-muted">
+                      <Term k="slippage">{label('Est. Price:', 'Estimated price per share:')}</Term>
+                    </span>
                     <span>${orderPreview.executionPrice.toFixed(2)}</span>
                   </div>
                   {orderPreview.slippageBps > 0 && (
                     <div className="flex justify-between text-yellow-500">
-                      <span>Slippage:</span>
-                      <span>~{orderPreview.slippageBps} bps</span>
+                      <span><Term k="slippage">{label('Slippage:', 'Price slip:')}</Term></span>
+                      <span>~{orderPreview.slippageBps} {label('bps', 'basis pts (0.01% each)')}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-terminal-border pt-1 mt-1">
                     <span className="text-terminal-muted">
-                      {side === 'BUY' ? 'Total Cost:' : 'Proceeds:'}
+                      {side === 'BUY'
+                        ? label('Total Cost:', '💳 You\'ll spend:')
+                        : label('Proceeds:', '💰 You\'ll receive:')}
                     </span>
                     <span className={side === 'BUY' ? 'text-loss' : 'text-gain'}>
                       ${orderPreview.totalCost.toFixed(2)}
@@ -337,7 +373,9 @@ const handleSubmit = () => {
                 side === 'BUY' ? 'btn-buy' : 'btn-sell'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {side === 'BUY' ? 'Buy' : 'Sell'} {selectedTicker}
+              {side === 'BUY'
+                ? label(`Buy ${selectedTicker}`, `🟢 Buy ${selectedTicker} Shares`)
+                : label(`Sell ${selectedTicker}`, `🔴 Sell ${selectedTicker} Shares`)}
             </button>
           </div>
         ) : (

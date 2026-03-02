@@ -13,9 +13,12 @@
 import React, { useMemo } from 'react';
 import { BookOpen, ArrowUp, ArrowDown } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
+import { useBeginnerMode } from '../education/BeginnerMode';
+import { Term, PanelHelp } from '../education/TermHighlight';
 
 export function OrderBookPanel() {
   const { selectedTicker, tickers } = useMarketStore();
+  const { isBeginnerMode, label } = useBeginnerMode();
   
   const tickerData = tickers[selectedTicker];
   const currentPrice = tickerData?.price || 0;
@@ -82,20 +85,26 @@ export function OrderBookPanel() {
       <div className="terminal-header drag-handle cursor-move">
         <div className="flex items-center gap-2">
           <BookOpen className="w-3 h-3" />
-          <span>Order Book</span>
+          <span>{label('Order Book', '📖 Buy & Sell Orders')}</span>
         </div>
         {selectedTicker && (
           <span className="text-terminal-text font-medium">{selectedTicker}</span>
         )}
       </div>
+
+      <PanelHelp icon="📖" title="What is this?">
+        The Order Book shows people waiting to buy (green, bottom) and sell (red, top).
+        The gap between them is called the "spread" — a smaller gap means
+        easier, cheaper trading!
+      </PanelHelp>
       
       {selectedTicker && currentPrice ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Column Headers */}
           <div className="grid grid-cols-3 text-xxs text-terminal-muted px-2 py-1 border-b border-terminal-border">
-            <span>Price</span>
-            <span className="text-right">Size</span>
-            <span className="text-right">Total</span>
+            <span>{label('Price', 'Price')}</span>
+            <span className="text-right"><Term k="volume">{label('Size', 'Shares')}</Term></span>
+            <span className="text-right">{label('Total', 'Cumulative')}</span>
           </div>
           
           {/* Asks (sells) - Reversed so lowest ask is at bottom */}
@@ -127,7 +136,9 @@ export function OrderBookPanel() {
           <div className="px-2 py-2 bg-terminal-bg border-y border-terminal-border">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-terminal-muted">Spread:</span>
+                <span className="text-terminal-muted">
+                  <Term k="spread">{label('Spread:', 'Gap:')}</Term>
+                </span>
                 <span className="font-mono text-terminal-text">
                   ${spread.toFixed(2)}
                 </span>
@@ -138,14 +149,23 @@ export function OrderBookPanel() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <ArrowUp className="w-3 h-3 text-gain" />
-                  <span className="font-mono text-gain">{ask.toFixed(2)}</span>
+                  <span className="font-mono text-gain" title={isBeginnerMode ? 'Ask price: lowest someone will sell for' : ''}>
+                    {ask.toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <ArrowDown className="w-3 h-3 text-loss" />
-                  <span className="font-mono text-loss">{bid.toFixed(2)}</span>
+                  <span className="font-mono text-loss" title={isBeginnerMode ? 'Bid price: highest someone will pay' : ''}>
+                    {bid.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
+            {isBeginnerMode && (
+              <div className="text-xxs text-yellow-400/70 mt-1">
+                🟢 Bid = buyers offering | 🔴 Ask = sellers asking | Gap = your trading cost
+              </div>
+            )}
           </div>
           
           {/* Bids (buys) */}
