@@ -12,6 +12,15 @@ class StaffManager {
         this.taskHistory = []; // Completed tasks for analytics
         this.nextTaskId = 1;
 
+        // === WORLD SIMULATION: Staff morale & events ===
+        this.moraleSystem = {
+            teamMorale: 70,          // 0-100, overall team morale
+            consecutiveWorkDays: {},  // staffId -> count of consecutive days
+            lastPayDay: 0,
+            recentEvents: [],         // Staff events that occurred
+            pendingRequests: []       // Raise requests, time-off, etc.
+        };
+
         console.log('👔 StaffManager initialized');
     }
 
@@ -578,6 +587,272 @@ class StaffManager {
         return score;
     }
 
+    // ==================== WORLD: MORALE & DAILY TICK ====================
+
+    /**
+     * Called at end of day by WorldSimulation or GameController.
+     * Updates morale, triggers staff events, grows skills.
+     */
+    endDay(dayNumber) {
+        this.staff.forEach(staff => {
+            this._updateStaffMorale(staff, dayNumber);
+            this._growStaffSkills(staff);
+            this._checkStaffEvents(staff, dayNumber);
+        });
+        this._updateTeamMorale();
+        this._cleanupOldEvents();
+    }
+
+    /**
+     * Update individual staff morale based on workload, pay, weather, etc.
+     */
+    _updateStaffMorale(staff, dayNumber) {
+        if (!staff.morale) staff.morale = 70;
+        if (!staff.consecutiveWorkDays) staff.consecutiveWorkDays = 0;
+
+        let moraleChange = 0;
+
+        // 1. Workload: tasksCompleted today vs reasonable threshold
+        const todayTasks = this.taskHistory.filter(t =>
+            t.assignedStaff && t.assignedStaff.id === staff.id &&
+            t.status === 'completed' &&
+            (Date.now() - (t.completionTime || 0)) < 86400000
+        ).length;
+
+        if (todayTasks > 8) moraleChange -= 5;
+        else if (todayTasks > 5) moraleChange -= 2;
+        else if (todayTasks >= 2) moraleChange += 1;
+
+        // 2. Energy / fatigue impact
+        if (staff.energy < 30) moraleChange -= 3;
+        else if (staff.energy > 80) moraleChange += 1;
+
+        // 3. Consecutive work days (burnout)
+        staff.consecutiveWorkDays = (staff.consecutiveWorkDays || 0) + 1;
+        if (staff.consecutiveWorkDays > 6) moraleChange -= 4;
+        else if (staff.consecutiveWorkDays > 4) moraleChange -= 1;
+
+        // 4. Pay satisfaction
+        const expectedPay = (staff.skill || 50) * 8;
+        const actualPay = staff.baseSalary || 0;
+        if (actualPay < expectedPay * 0.7) moraleChange -= 3;
+        else if (actualPay >= expectedPay) moraleChange += 1;
+
+        // 5. Weather effect
+        const world = window.game && window.game.world;
+        if (world && world.subsystems && world.subsystems.weather) {
+            const wType = world.subsystems.weather.currentWeather?.type;
+            if (wType === 'stormy' || wType === 'heatwave') moraleChange -= 2;
+            else if (wType === 'sunny' || wType === 'clear') moraleChange += 1;
+        }
+
+        // 6. Team camaraderie
+        if (this.staff.length >= 3) moraleChange += 1;
+
+        // Apply with dampening
+        staff.morale = Math.max(5, Math.min(100, staff.morale + moraleChange * 0.5));
+    }
+
+    /**
+     * Staff gradually improve at tasks they do repeatedly (specialization).
+     */
+    _growStaffSkills(staff) {
+        if (!staff.experienceWith) staff.experienceWith = {};
+        if (!staff.specializations) staff.specializations = {};
+
+        Object.entries(staff.experienceWith).forEach(([taskType, count]) => {
+            if (!staff.specializations[taskType]) {
+                staff.specializations[taskType] = 0;
+            }
+            const newLevel = Math.min(5, Math.floor(count / 10));
+            if (newLevel > staff.specializations[taskType]) {
+                staff.specializations[taskType] = newLevel;
+                if (this.game.engine && this.game.engine.emit) {
+                    this.game.engine.emit('staff_skill_up', {
+                        staff: staff,
+                        taskType: taskType,
+                        newLevel: newLevel
+                    });
+                }
+            }
+        });
+
+        // Passive skill growth
+        if (staff.tasksCompleted > 0 && Math.random() < 0.03) {
+            staff.skill = Math.min(100, (staff.skill || 50) + 0.5);
+        }
+    }
+
+    /**
+     * Random staff events: sick days, raise requests, training ideas.
+     */
+    _checkStaffEvents(staff, dayNumber) {
+        if (!staff.morale) staff.morale = 70;
+
+        // Sick day
+        const sickChance = staff.energy < 30 ? 0.08 : (staff.morale < 40 ? 0.05 : 0.01);
+        if (Math.random() < sickChance) {
+            const event = {
+                type: 'sick_day',
+                staffId: staff.id,
+                staffName: staff.name,
+                day: dayNumber,
+                message: `${staff.name} called in sick today.`,
+                effect: 'unavailable_today'
+            };
+            this.moraleSystem.recentEvents.push(event);
+            staff.status = 'sick';
+            if (this.game.engine && this.game.engine.emit) {
+                this.game.engine.emit('staff_event', event);
+            }
+            return;
+        }
+
+        // Reset sick status
+        if (staff.status === 'sick') {
+            staff.status = 'available';
+            staff.energy = Math.min(100, (staff.energy || 50) + 20);
+        }
+
+        // Raise request
+        if (staff.morale < 45 && (staff.tasksCompleted || 0) > 20 && Math.random() < 0.06) {
+            const requestedRaise = Math.round((staff.baseSalary || 400) * 0.15);
+            const event = {
+                type: 'raise_request',
+                staffId: staff.id,
+                staffName: staff.name,
+                day: dayNumber,
+                message: `${staff.name} is requesting a raise of $${requestedRaise}/month.`,
+                requestedAmount: requestedRaise,
+                resolved: false
+            };
+            this.moraleSystem.pendingRequests.push(event);
+            if (this.game.engine && this.game.engine.emit) {
+                this.game.engine.emit('staff_event', event);
+            }
+        }
+
+        // Training opportunity
+        if (staff.morale > 70 && Math.random() < 0.03) {
+            const event = {
+                type: 'training_opportunity',
+                staffId: staff.id,
+                staffName: staff.name,
+                day: dayNumber,
+                message: `${staff.name} found a weekend baking workshop. Cost: $150, +5 skill.`,
+                cost: 150,
+                skillBonus: 5,
+                resolved: false
+            };
+            this.moraleSystem.pendingRequests.push(event);
+            if (this.game.engine && this.game.engine.emit) {
+                this.game.engine.emit('staff_event', event);
+            }
+        }
+
+        // Quit threat
+        if (staff.morale <= 15 && Math.random() < 0.15) {
+            const event = {
+                type: 'quit_threat',
+                staffId: staff.id,
+                staffName: staff.name,
+                day: dayNumber,
+                message: `${staff.name} is threatening to quit! Morale is critically low.`,
+                resolved: false
+            };
+            this.moraleSystem.pendingRequests.push(event);
+            if (this.game.engine && this.game.engine.emit) {
+                this.game.engine.emit('staff_event', event);
+            }
+        }
+    }
+
+    _updateTeamMorale() {
+        if (this.staff.length === 0) {
+            this.moraleSystem.teamMorale = 70;
+            return;
+        }
+        const total = this.staff.reduce((sum, s) => sum + (s.morale || 70), 0);
+        this.moraleSystem.teamMorale = Math.round(total / this.staff.length);
+    }
+
+    _cleanupOldEvents() {
+        if (this.moraleSystem.recentEvents.length > 20) {
+            this.moraleSystem.recentEvents = this.moraleSystem.recentEvents.slice(-20);
+        }
+        this.moraleSystem.pendingRequests = this.moraleSystem.pendingRequests
+            .filter(r => !r.resolved)
+            .slice(-10);
+    }
+
+    /**
+     * Resolve a pending staff request (raise, training, etc.)
+     */
+    resolveStaffRequest(requestIndex, approved) {
+        const request = this.moraleSystem.pendingRequests[requestIndex];
+        if (!request) return { success: false };
+
+        request.resolved = true;
+        const staff = this.getStaff(request.staffId);
+        if (!staff) return { success: false };
+
+        if (request.type === 'raise_request') {
+            if (approved) {
+                staff.baseSalary = (staff.baseSalary || 400) + request.requestedAmount;
+                staff.morale = Math.min(100, (staff.morale || 50) + 15);
+                return { success: true, message: `Granted raise to ${staff.name}. New salary: $${staff.baseSalary}/mo` };
+            } else {
+                staff.morale = Math.max(5, (staff.morale || 50) - 10);
+                return { success: true, message: `Denied raise for ${staff.name}. Morale dropped.` };
+            }
+        }
+
+        if (request.type === 'training_opportunity') {
+            if (approved && this.game.engine && this.game.engine.cash >= request.cost) {
+                this.game.engine.cash -= request.cost;
+                staff.skill = Math.min(100, (staff.skill || 50) + request.skillBonus);
+                staff.morale = Math.min(100, (staff.morale || 50) + 5);
+                return { success: true, message: `${staff.name} attended training! Skill +${request.skillBonus}` };
+            } else {
+                return { success: true, message: approved ? 'Not enough cash for training.' : `Training declined for ${staff.name}.` };
+            }
+        }
+
+        if (request.type === 'quit_threat') {
+            if (approved) {
+                const retentionBonus = Math.round((staff.baseSalary || 400) * 0.25);
+                if (this.game.engine && this.game.engine.cash >= retentionBonus) {
+                    this.game.engine.cash -= retentionBonus;
+                    staff.morale = Math.min(100, (staff.morale || 15) + 25);
+                    return { success: true, message: `Paid $${retentionBonus} retention bonus to ${staff.name}.` };
+                }
+            }
+            if (!approved && Math.random() < 0.5) {
+                this.removeStaff(staff.id);
+                return { success: true, message: `${staff.name} has quit!` };
+            }
+            return { success: true, message: `${staff.name} decided to stay... for now.` };
+        }
+
+        return { success: true };
+    }
+
+    /**
+     * Get morale-based quality modifier for WorldSimulation cross-system effects.
+     */
+    getMoraleQualityModifier() {
+        const morale = this.moraleSystem.teamMorale;
+        return 0.7 + (morale / 100) * 0.4;
+    }
+
+    /**
+     * Get average staff skill for WorldSimulation.
+     */
+    getAverageSkill() {
+        if (this.staff.length === 0) return 50;
+        return this.staff.reduce((sum, s) => sum + (s.skill || 50), 0) / this.staff.length;
+    }
+
     // ==================== STATE MANAGEMENT ====================
 
     /**
@@ -589,7 +864,8 @@ class StaffManager {
             tasks: Array.from(this.tasks.entries()),
             assignments: Array.from(this.assignments.entries()),
             taskHistory: this.taskHistory.slice(-50), // Last 50
-            nextTaskId: this.nextTaskId
+            nextTaskId: this.nextTaskId,
+            moraleSystem: this.moraleSystem
         };
     }
 
@@ -604,6 +880,9 @@ class StaffManager {
         this.assignments = new Map(state.assignments || []);
         this.taskHistory = state.taskHistory || [];
         this.nextTaskId = state.nextTaskId || 1;
+        if (state.moraleSystem) {
+            this.moraleSystem = state.moraleSystem;
+        }
     }
 
     /**

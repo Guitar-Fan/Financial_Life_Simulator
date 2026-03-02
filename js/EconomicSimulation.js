@@ -160,10 +160,25 @@ class EconomicSimulation {
                 priceMultiplier *= (1 + demandEffect);
             }
             
-            // Seasonal effects
+            // Seasonal effects (category level)
             const seasonal = GAME_CONFIG.ECONOMY.SEASONS[this.season];
             const seasonalMod = seasonal.supplyMod[category] || 1.0;
             priceMultiplier *= (2 - seasonalMod); // Inverse (low supply = high price)
+
+            // Per-ingredient seasonal availability (from WORLD config)
+            if (GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.SEASONAL_INGREDIENTS) {
+                const seasonAvail = GAME_CONFIG.WORLD.SEASONAL_INGREDIENTS[this.season];
+                if (seasonAvail && seasonAvail[key] !== undefined) {
+                    const avail = seasonAvail[key];
+                    // Low availability → higher price
+                    priceMultiplier *= Math.max(0.8, 2 - avail);
+                }
+            }
+
+            // Weather impact on delivery (if world simulation provides weather)
+            if (this._weatherDeliveryDelay) {
+                priceMultiplier *= 1.08; // 8% surcharge on delayed delivery days
+            }
             
             // Day of week (delivery days)
             const weekly = GAME_CONFIG.ECONOMY.WEEKLY_PATTERNS;
@@ -194,6 +209,28 @@ class EconomicSimulation {
                 Math.min(config.TRENDS.maxMultiplier, this.ingredientPrices[key])
             );
         });
+    }
+
+    /**
+     * Set whether weather is causing delivery delays today.
+     * Called by WorldSimulation cross-system pass.
+     */
+    setWeatherDeliveryDelay(isDelayed) {
+        this._weatherDeliveryDelay = !!isDelayed;
+    }
+
+    /**
+     * Get seasonal availability multiplier for a specific ingredient.
+     * Returns 1.0 if no seasonal data exists.
+     */
+    getSeasonalAvailability(ingredientKey) {
+        if (GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.SEASONAL_INGREDIENTS) {
+            const seasonAvail = GAME_CONFIG.WORLD.SEASONAL_INGREDIENTS[this.season];
+            if (seasonAvail && seasonAvail[ingredientKey] !== undefined) {
+                return seasonAvail[ingredientKey];
+            }
+        }
+        return 1.0;
     }
     
     recordHistory() {

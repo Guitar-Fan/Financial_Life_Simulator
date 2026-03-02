@@ -267,16 +267,19 @@ class ModeHubScene extends Phaser.Scene {
             interact: Phaser.Input.Keyboard.KeyCodes.E
         });
 
-        // Pads data - relative to center, with step numbers for beginners
+        // Pads data - friendly labels, no forced sequence
         const padData = [
-            { key: 'pad_buy', label: '\u2460 BUY', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Buy flour, sugar & eggs' },
-            { key: 'pad_bake', label: '\u2461 BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Bake bread, cookies & cakes' },
-            { key: 'pad_sell', label: '\u2462 SELL', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Sell products to customers' },
-            { key: 'pad_summary', label: '\u2463 SUMMARY', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'See how much money you made' },
+            { key: 'pad_buy', label: 'SHOP', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Buy flour, sugar & eggs' },
+            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Bake bread, cookies & cakes' },
+            { key: 'pad_sell', label: 'OPEN SHOP', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Sell products to customers' },
+            { key: 'pad_summary', label: 'DAY REVIEW', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'See how much money you made' },
             { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Create new recipes (optional)' }
         ];
 
         padData.forEach(data => this.createPad(data));
+
+        // === WORLD CONDITIONS OVERLAY ===
+        this._createWorldConditionsHUD(centerX, height);
 
         // "Start Here" arrow for first-time players
         const isFirstTime = !localStorage.getItem('bakery_played_before');
@@ -312,10 +315,10 @@ class ModeHubScene extends Phaser.Scene {
         }).setOrigin(0.5).setVisible(false).setDepth(10);
 
         // HUD text - larger, clearer instruction
-        this.add.rectangle(centerX, 28, 620, 44, 0x000000, 0.6).setDepth(9).setOrigin(0.5);
-        this.add.text(centerX, 28, '\ud83d\udc46 Click any pad to enter that step  |  Walk with WASD + press E', {
+        this.add.rectangle(centerX, 28, 700, 44, 0x000000, 0.6).setDepth(9).setOrigin(0.5);
+        this.add.text(centerX, 28, '\ud83c\udfea Choose what to do  |  Walk with WASD + press E  |  Go at your own pace', {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '18px',
+            fontSize: '16px',
             fontStyle: '600',
             color: '#f0e6d3'
         }).setOrigin(0.5).setDepth(10);
@@ -371,12 +374,12 @@ class ModeHubScene extends Phaser.Scene {
             this.player.setDepth(5);
         }
 
-        // Pads data - relative to center, with step numbers for beginners
+        // Pads data - friendly labels, no forced sequence
         const padData = [
-            { key: 'pad_buy', label: '\u2460 BUY', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Buy flour, sugar & eggs' },
-            { key: 'pad_bake', label: '\u2461 BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Bake bread, cookies & cakes' },
-            { key: 'pad_sell', label: '\u2462 SELL', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Sell products to customers' },
-            { key: 'pad_summary', label: '\u2463 SUMMARY', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'See how much money you made' },
+            { key: 'pad_buy', label: 'SHOP', mode: 'buying', x: centerX - 250, y: centerY - 100, desc: 'Buy flour, sugar & eggs' },
+            { key: 'pad_bake', label: 'BAKE', mode: 'baking', x: centerX + 250, y: centerY - 100, desc: 'Bake bread, cookies & cakes' },
+            { key: 'pad_sell', label: 'OPEN SHOP', mode: 'selling', x: centerX - 250, y: centerY + 160, desc: 'Sell products to customers' },
+            { key: 'pad_summary', label: 'DAY REVIEW', mode: 'summary', x: centerX + 250, y: centerY + 160, desc: 'See how much money you made' },
             { key: 'pad_recipe', label: 'RECIPES', mode: 'recipes', x: centerX, y: centerY - 240, desc: 'Create new recipes (optional)' }
         ];
 
@@ -392,10 +395,10 @@ class ModeHubScene extends Phaser.Scene {
         }).setOrigin(0.5).setVisible(false).setDepth(10);
 
         // HUD text - larger, clearer instruction
-        this.add.rectangle(centerX, 28, 620, 44, 0x000000, 0.6).setDepth(9).setOrigin(0.5);
-        this.add.text(centerX, 28, '\ud83d\udc46 Click any pad to enter that step  |  Walk with WASD + press E', {
+        this.add.rectangle(centerX, 28, 700, 44, 0x000000, 0.6).setDepth(9).setOrigin(0.5);
+        this.add.text(centerX, 28, '\ud83c\udfea Choose what to do  |  Walk with WASD + press E  |  Go at your own pace', {
             fontFamily: 'Inter, sans-serif',
-            fontSize: '18px',
+            fontSize: '16px',
             fontStyle: '600',
             color: '#f0e6d3'
         }).setOrigin(0.5).setDepth(10);
@@ -476,6 +479,57 @@ class ModeHubScene extends Phaser.Scene {
         });
 
         this.pads.push({ pad, text, sub, zone, glow, shadow });
+    }
+
+    /**
+     * World Conditions HUD — shows weather, day, reputation, and active events at bottom of hub.
+     */
+    _createWorldConditionsHUD(centerX, height) {
+        const world = window.game && window.game.world;
+        const engine = window.game && window.game.engine;
+        if (!engine) return;
+
+        const day = engine.day || 1;
+        const cash = engine.cash ? `$${engine.cash.toFixed(0)}` : '$???';
+
+        // Build conditions string
+        let conditions = `Day ${day}  |  ${cash}`;
+
+        if (world && world.state) {
+            // Weather
+            if (world.subsystems && world.subsystems.weather && world.subsystems.weather.currentWeather) {
+                const w = world.subsystems.weather.currentWeather;
+                const weatherIcons = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️', foggy: '🌫️', heatwave: '🔥', clear: '🌤️' };
+                conditions += `  |  ${weatherIcons[w.type] || '🌤️'} ${w.type}`;
+                if (w.temperature) conditions += ` ${w.temperature}°`;
+            }
+
+            // Reputation
+            if (world.state.reputation && world.state.reputation.score !== undefined) {
+                const rep = Math.round(world.state.reputation.score);
+                const repIcon = rep >= 70 ? '⭐' : rep >= 40 ? '👍' : '👎';
+                conditions += `  |  ${repIcon} Rep: ${rep}`;
+            }
+
+            // Active community event (filter by current day)
+            if (world.state.communityEvents && world.state.communityEvents.length > 0) {
+                const day = world.state.day || 0;
+                const activeComm = world.state.communityEvents.filter(e => day >= e.startDay && day <= e.endDay);
+                if (activeComm.length > 0) {
+                    conditions += `  |  🎉 ${activeComm[0].name || 'Event'}`;
+                }
+            }
+        }
+
+        // Bottom HUD bar
+        const barY = height - 30;
+        this.add.rectangle(centerX, barY, 800, 36, 0x000000, 0.65).setDepth(9).setOrigin(0.5);
+        this.add.text(centerX, barY, conditions, {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            fontStyle: '600',
+            color: '#a8d8ea'
+        }).setOrigin(0.5).setDepth(10);
     }
 
     update() {
