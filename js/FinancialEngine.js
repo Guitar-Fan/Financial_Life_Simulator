@@ -1636,7 +1636,7 @@ class FinancialEngine {
 
     // ==================== SAVE/LOAD ====================
     save() {
-        return {
+        const data = {
             cash: this.cash,
             day: this.day,
             ingredients: this.ingredients,
@@ -1644,8 +1644,33 @@ class FinancialEngine {
             allTimeStats: this.allTimeStats,
             economy: this.economy && typeof this.economy.save === 'function'
                 ? this.economy.save()
-                : null
+                : null,
+            // === WORLD SIMULATION: persist world state, journal, minigame history ===
+            staff: this.staff,
+            equipment: this.equipment,
+            strategySettings: this.strategySettings,
+            monthlyInsurance: this.monthlyInsurance,
+            monthlyUtilities: this.monthlyUtilities
         };
+
+        // Save world simulation state if available
+        if (window.game && window.game.world && typeof window.game.world.save === 'function') {
+            data.worldState = window.game.world.save();
+        }
+        // Save journal state if available
+        if (window.game && window.game.journal && typeof window.game.journal.save === 'function') {
+            data.journalState = window.game.journal.save();
+        }
+        // Save staff manager state if available
+        if (window.game && window.game.staffManager && typeof window.game.staffManager.getState === 'function') {
+            data.staffManagerState = window.game.staffManager.getState();
+        }
+        // Save customer DB state if available
+        if (window.game && window.game.customerDB && typeof window.game.customerDB.save === 'function') {
+            data.customerDBState = window.game.customerDB.save();
+        }
+
+        return data;
     }
 
     load(data) {
@@ -1657,6 +1682,100 @@ class FinancialEngine {
         if (data.economy && this.economy && typeof this.economy.load === 'function') {
             this.economy.load(data.economy);
         }
+        if (data.staff) this.staff = data.staff;
+        if (data.equipment) this.equipment = data.equipment;
+        if (data.strategySettings) this.strategySettings = data.strategySettings;
+        if (data.monthlyInsurance !== undefined) this.monthlyInsurance = data.monthlyInsurance;
+        if (data.monthlyUtilities !== undefined) this.monthlyUtilities = data.monthlyUtilities;
+
+        // Restore world simulation state (deferred — done in GameController after init)
+        this._pendingWorldState = data.worldState || null;
+        this._pendingJournalState = data.journalState || null;
+        this._pendingStaffManagerState = data.staffManagerState || null;
+        this._pendingCustomerDBState = data.customerDBState || null;
+    }
+
+    /**
+     * Called by GameController after all systems are initialized, to restore deferred state.
+     */
+    restoreDeferredState() {
+        if (this._pendingWorldState && window.game && window.game.world) {
+            window.game.world.load(this._pendingWorldState);
+            this._pendingWorldState = null;
+        }
+        if (this._pendingJournalState && window.game && window.game.journal) {
+            window.game.journal.load(this._pendingJournalState);
+            this._pendingJournalState = null;
+        }
+        if (this._pendingStaffManagerState && window.game && window.game.staffManager) {
+            window.game.staffManager.setState(this._pendingStaffManagerState);
+            this._pendingStaffManagerState = null;
+        }
+        if (this._pendingCustomerDBState && window.game && window.game.customerDB) {
+            window.game.customerDB.load(this._pendingCustomerDBState);
+            this._pendingCustomerDBState = null;
+        }
+    }
+
+    // ==================== WORLD: EQUIPMENT LIFECYCLE ====================
+
+    /**
+     * Advanced equipment degradation using GAME_CONFIG.WORLD.EQUIPMENT settings.
+     * Called by WorldSimulation cross-system pass or during baking.
+     */
+    degradeEquipmentOnUse(equipmentType) {
+        const worldConfig = typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.EQUIPMENT;
+        if (!worldConfig) return;
+
+        const typeConfig = worldConfig.TYPES[equipmentType.toUpperCase()];
+        if (!typeConfig) return;
+
+        const typeKey = equipmentType + 's';
+        if (!this.equipment[typeKey]) return;
+
+        this.equipment[typeKey].forEach(item => {
+            // Degrade by configured amount per use
+            item.condition = Math.max(0, item.condition - typeConfig.degradePerUse);
+
+            // Breakdown check when below threshold
+            if (item.condition < (worldConfig.BREAKDOWN_THRESHOLD || 20)) {
+                const breakdownChance = worldConfig.BREAKDOWN_BASE_CHANCE || 0.08;
+                if (Math.random() < breakdownChance) {
+                    item.condition = 0;
+                    item.isBroken = true;
+                    this.emit('equipment_breakdown', {
+                        equipment: item,
+                        type: equipmentType,
+                        repairCost: typeConfig.maintenanceCost * 2
+                    });
+                }
+            }
+        });
+    }
+
+    /**
+     * Get overall equipment quality modifier (affects product quality).
+     * Used by WorldSimulation cross-system effects.
+     */
+    getEquipmentQualityModifier() {
+        let totalCondition = 0;
+        let count = 0;
+
+        ['ovens', 'mixers', 'displays'].forEach(type => {
+            if (this.equipment[type]) {
+                this.equipment[type].forEach(item => {
+                    if (!item.isBroken) {
+                        totalCondition += item.condition;
+                        count++;
+                    }
+                });
+            }
+        });
+
+        if (count === 0) return 0.8; // No equipment = basic quality
+        const avgCondition = totalCondition / count;
+        // 100 condition = 1.1x, 50 = 1.0x, 0 = 0.7x
+        return 0.7 + (avgCondition / 100) * 0.4;
     }
 }
 

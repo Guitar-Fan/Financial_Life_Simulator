@@ -25,7 +25,8 @@ class GameController {
         this.customRecipes = [];
         this.recipeBookState = { page: 0, perSpread: 2 };
 
-        this.activeScenarioEffects = [];
+        // Legacy fallback only — primary effects now stored in WorldSimulation.state.activeEffects
+        this._legacyScenarioEffects = [];
         this.lastScenarioRollDay = null;
 
         // Initialize new systems
@@ -65,6 +66,63 @@ class GameController {
             
             // Sync staff manager with engine staff
             this.syncStaffManager();
+        }
+
+        // === WORLD SIMULATION: Initialize living world ===
+        this.world = null;
+        this.journal = null;
+        this.miniGames = null;
+
+        if (window.WorldSimulation) {
+            this.world = new WorldSimulation();
+            
+            // Register weather subsystem
+            if (window.WeatherSystem) {
+                const weather = new WeatherSystem();
+                this.world.registerSubsystem('weather', weather);
+            }
+            
+            // Register competitor subsystem
+            if (window.CompetitorSimulation) {
+                const competitors = new CompetitorSimulation();
+                this.world.registerSubsystem('competitors', competitors);
+            }
+
+            // === Step 11: Register expanded subsystems ===
+            if (window.HealthSafetySystem) {
+                this.world.registerSubsystem('healthSafety', new HealthSafetySystem());
+            }
+            if (window.CommunityEventSystem) {
+                this.world.registerSubsystem('communityEvents', new CommunityEventSystem());
+            }
+            if (window.AdvertisingSystem) {
+                this.world.registerSubsystem('advertising', new AdvertisingSystem());
+            }
+            if (window.TechnologySystem) {
+                this.world.registerSubsystem('technology', new TechnologySystem());
+            }
+            if (window.EnvironmentalSystem) {
+                this.world.registerSubsystem('environmental', new EnvironmentalSystem());
+            }
+            if (window.GlobalEventSystem) {
+                this.world.registerSubsystem('globalEvents', new GlobalEventSystem());
+            }
+            if (window.LoanDebtSystem) {
+                this.world.registerSubsystem('loans', new LoanDebtSystem());
+            }
+            if (window.ExpansionSystem) {
+                this.world.registerSubsystem('expansion', new ExpansionSystem());
+            }
+        }
+
+        // Initialize business journal (education system)
+        if (window.BusinessJournal) {
+            this.journal = new BusinessJournal(this);
+        }
+
+        // Initialize minigame system
+        if (window.MiniGameSystem) {
+            this.miniGames = new MiniGameSystem(this);
         }
 
         this.dashboard = new FinancialDashboard(this); // Pass gameController, not economy
@@ -1234,6 +1292,27 @@ class GameController {
             this.engine.setStrategySettings(this.strategySettings);
             this.enforceInventoryPlan();
         }
+        // Restore world simulation, journal, staff manager state from save
+        if (this.engine.restoreDeferredState) {
+            this.engine.restoreDeferredState();
+        }
+        // Initial world tick so Day 1 has weather, competitors, etc.
+        if (this.world && !this.world._hasInitialTick) {
+            const day = this.engine.day || 1;
+            this.world.simulateDay(day, {
+                day,
+                cash: this.engine.cash || 500,
+                revenue: 0,
+                customersServed: 0,
+                products: this.engine.products || {},
+                staff: this.engine.staff || [],
+                equipment: this.engine.equipment || {},
+                reputation: 50,
+                staffMorale: 70,
+                equipmentQuality: 1.0
+            });
+            this.world._hasInitialTick = true;
+        }
         this.updateAutomationAvailability();
         this.startDay();
     }
@@ -1851,6 +1930,48 @@ class GameController {
             customersBtn.onclick = () => this.showCustomerDatabase();
         }
 
+        // Market Watch (competitor intel) button
+        const marketWatchBtn = document.getElementById('btn-market-watch');
+        if (marketWatchBtn && this.world && this.world.subsystems && this.world.subsystems.competitors) {
+            marketWatchBtn.style.display = 'inline-block';
+            marketWatchBtn.onclick = () => this.showMarketWatchPanel();
+        }
+
+        // Reviews (reputation dashboard) button
+        const reviewsBtn = document.getElementById('btn-reviews');
+        if (reviewsBtn && this.world && this.world.state) {
+            reviewsBtn.style.display = 'inline-block';
+            reviewsBtn.onclick = () => this.showReputationPanel();
+        }
+
+        // Advertising / Marketing button
+        const adBtn = document.getElementById('btn-advertising');
+        if (adBtn && this.world && this.world.subsystems.advertising) {
+            adBtn.style.display = 'inline-block';
+            adBtn.onclick = () => this.showAdvertisingPanel();
+        }
+
+        // Technology button
+        const techBtn = document.getElementById('btn-technology');
+        if (techBtn && this.world && this.world.subsystems.technology) {
+            techBtn.style.display = 'inline-block';
+            techBtn.onclick = () => this.showTechnologyPanel();
+        }
+
+        // Finance (loans/debt) button
+        const finBtn = document.getElementById('btn-finance');
+        if (finBtn && this.world && this.world.subsystems.loans) {
+            finBtn.style.display = 'inline-block';
+            finBtn.onclick = () => this.showFinancePanel();
+        }
+
+        // Expansion button
+        const expBtn = document.getElementById('btn-expansion');
+        if (expBtn && this.world && this.world.subsystems.expansion) {
+            expBtn.style.display = 'inline-block';
+            expBtn.onclick = () => this.showExpansionPanel();
+        }
+
         const container = document.getElementById('game-container');
         if (container) {
             container.classList.add('full-screen');
@@ -1959,18 +2080,30 @@ class GameController {
         this.engine.isPaused = true;
         this.engine.hour = GAME_CONFIG.TIME.OPENING_HOUR;
         this.engine.minute = 0;
+
+        // Reset daily encounter state & buffs
+        this._encounterFiredToday = false;
+        this._todayEncounters = [];
+        this._dayBuffs = {};
         
         // Start customer database day
         if (this.customerDB) {
             this.customerDB.startDay();
         }
 
+        // === WORLD: Build rich morning newspaper-style briefing ===
+        const briefing = this._buildMorningBriefing();
+
         this.showPopup({
-            icon: '🌅',
-            title: `Day ${this.engine.day} Begins!`,
-            message: `Good morning, baker! Time to start your day.\n\nCurrent Cash: $${this.engine.cash.toFixed(2)}`,
+            icon: '📰',
+            title: `Day ${this.engine.day} — Morning Briefing`,
+            message: briefing,
             type: 'info',
-            buttons: [{ text: 'Go to Bakery →', action: () => this.showModeHub() }]
+            buttons: [{ text: 'Open the Bakery →', action: () => {
+                this.showModeHub();
+                // Fire a random daily encounter shortly after arriving at the hub
+                setTimeout(() => this._maybeFireDailyEncounter(), 1200);
+            }}]
         });
 
         this.updateAutomationAvailability();
@@ -2205,9 +2338,33 @@ class GameController {
         const list = document.getElementById('vendor-list');
         if (!list) return;
 
-        list.innerHTML = Object.entries(GAME_CONFIG.VENDORS).map(([key, vendor]) => {
+        // Get current season for seasonal hints
+        const season = this._getCurrentSeason();
+        const seasonIcons = { SPRING: '🌸', SUMMER: '☀️', FALL: '🍂', WINTER: '❄️' };
+        const seasonLabel = season ? `${seasonIcons[season] || ''} ${season.charAt(0) + season.slice(1).toLowerCase()}` : '';
+
+        // Build vendor cards — merge GAME_CONFIG.VENDORS with WORLD vendor data
+        const worldVendors = GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.VENDORS ? GAME_CONFIG.WORLD.VENDORS : [];
+
+        list.innerHTML = `
+            ${seasonLabel ? `<div style="text-align:center; font-size:12px; color:#a5b4fc; margin-bottom:8px; padding:4px; background: rgba(99,102,241,0.15); border-radius:6px;">
+                Season: <strong>${seasonLabel}</strong> — affects prices & availability
+            </div>` : ''}
+        ` + Object.entries(GAME_CONFIG.VENDORS).map(([key, vendor]) => {
             const priceLabel = vendor.priceMultiplier < 1 ? '💚 Cheaper' : vendor.priceMultiplier > 1 ? '💛 Premium' : '⚪ Standard';
             const qualityLabel = vendor.qualityMultiplier > 1 ? '✨ High Quality' : vendor.qualityMultiplier < 1 ? '📦 Basic Quality' : '👍 Good Quality';
+
+            // Find matching WORLD vendor for extra info
+            const worldV = worldVendors.find(wv => wv.id === key.toLowerCase());
+            const reliabilityHtml = worldV ? `<div class="vendor-reliability" style="font-size:11px; color:#94a3b8;" title="How often deliveries arrive on time">📦 Reliability: ${(worldV.reliability * 100).toFixed(0)}%</div>` : '';
+
+            // Check if weather is delaying this vendor
+            let delayWarning = '';
+            if (this.world && this.world.subsystems && this.world.subsystems.weather && this.world.subsystems.weather.isDeliveryDelayed()) {
+                if (!worldV || worldV.reliability < 0.9) {
+                    delayWarning = `<div style="font-size:11px; color:#fbbf24;">⚠️ Weather delays possible</div>`;
+                }
+            }
 
             return `
                 <div class="vendor-card" data-vendor="${key}">
@@ -2217,6 +2374,8 @@ class GameController {
                         <div class="vendor-specialty">${vendor.specialty}</div>
                         <div class="vendor-price">${priceLabel}</div>
                         <div class="vendor-quality">${qualityLabel}</div>
+                        ${reliabilityHtml}
+                        ${delayWarning}
                     </div>
                 </div>
             `;
@@ -2239,6 +2398,9 @@ class GameController {
         if (!grid) return;
 
         const vendor = GAME_CONFIG.VENDORS[vendorKey];
+        const season = this._getCurrentSeason();
+        const seasonalConfig = (GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.SEASONAL_INGREDIENTS && season)
+            ? GAME_CONFIG.WORLD.SEASONAL_INGREDIENTS[season] : null;
 
         const grouped = { base: [], extra: [] };
 
@@ -2257,10 +2419,28 @@ class GameController {
                 if (comparison.status === 'low') priceClass = 'price-low';
                 if (comparison.status === 'high') priceClass = 'price-high';
 
+                // Seasonal availability tag
+                let seasonalTag = '';
+                if (seasonalConfig) {
+                    const seasonKey = key.toUpperCase();
+                    const avail = seasonalConfig[seasonKey];
+                    if (avail !== undefined && avail !== 1.0) {
+                        if (avail >= 1.2) {
+                            seasonalTag = `<span style="font-size:10px; background:#065f46; color:#6ee7b7; padding:1px 5px; border-radius:4px; margin-left:4px;" title="In season — abundant & cheaper">🌿 In Season</span>`;
+                        } else if (avail >= 0.8) {
+                            // Normal-ish, no tag needed
+                        } else if (avail >= 0.4) {
+                            seasonalTag = `<span style="font-size:10px; background:#78350f; color:#fbbf24; padding:1px 5px; border-radius:4px; margin-left:4px;" title="Limited seasonal availability — may cost more">🍂 Limited</span>`;
+                        } else if (avail > 0) {
+                            seasonalTag = `<span style="font-size:10px; background:#7f1d1d; color:#fca5a5; padding:1px 5px; border-radius:4px; margin-left:4px;" title="Out of season — scarce & expensive">⛔ Scarce</span>`;
+                        }
+                    }
+                }
+
                 const card = `
                     <div class="ingredient-card" data-ingredient="${key}" data-vendor="${vendorKey}">
                         <div class="ing-icon">${ing.icon}</div>
-                        <div class="ing-name">${ing.name}</div>
+                        <div class="ing-name">${ing.name}${seasonalTag}</div>
                         <div class="ing-price ${priceClass}">
                             $${price.toFixed(2)}/${ing.unit}
                             ${comparison.status !== 'normal' ? `<span class="price-trend" title="${comparison.percentChange}% vs base">${comparison.arrow}</span>` : ''}
@@ -2312,9 +2492,9 @@ class GameController {
             };
         });
 
-        // Handle buy buttons
+        // Handle buy buttons — with optional Haggle Wheel minigame
         grid.querySelectorAll('.btn-buy').forEach(btn => {
-            btn.onclick = (e) => {
+            btn.onclick = async (e) => {
                 e.stopPropagation();
                 const card = btn.closest('.ingredient-card');
                 const ingKey = card.dataset.ingredient;
@@ -2322,16 +2502,55 @@ class GameController {
                 const input = card.querySelector('.qty-input');
                 const qty = parseFloat(input.value) || 1;
 
+                // === MINIGAME: Haggle Wheel (random chance on larger purchases) ===
+                let haggleDiscount = 1.0;
+                if (this.miniGames && qty >= 3) {
+                    const haggleChance = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.MINIGAMES)
+                        ? GAME_CONFIG.WORLD.MINIGAMES.haggleChance || 0.25
+                        : 0.25;
+                    if (Math.random() < haggleChance) {
+                        try {
+                            const ingConfig = GAME_CONFIG.INGREDIENTS[ingKey];
+                            const basePrice = ingConfig ? ingConfig.cost : 5;
+                            const result = await this.miniGames.showHaggleWheel(
+                                ingConfig ? ingConfig.name : ingKey,
+                                basePrice * qty,
+                                vendorKey
+                            );
+                            if (result && result.multiplier) {
+                                haggleDiscount = result.multiplier;
+                            }
+                        } catch (err) { /* skip on error */ }
+                    }
+                }
+
                 const result = this.engine.purchaseIngredient(ingKey, qty, vendorKey);
 
                 if (result.success) {
-                    this.showPopup({
-                        icon: '✅',
-                        title: 'Purchased!',
-                        message: `${result.message} (Quality: ${result.quality.toFixed(0)}%)`,
-                        type: 'success',
-                        autoClose: 1000
-                    });
+                    // Apply haggle discount as a cash refund
+                    if (haggleDiscount < 1.0) {
+                        const refund = result.cost * (1 - haggleDiscount);
+                        this.engine.cash += refund;
+                        this.showPopup({
+                            icon: '🎉',
+                            title: 'Haggle Success!',
+                            message: `${result.message} (Quality: ${result.quality.toFixed(0)}%)\n💰 Haggle saved you $${refund.toFixed(2)}!`,
+                            type: 'success',
+                            autoClose: 2000
+                        });
+                    } else {
+                        this.showPopup({
+                            icon: '✅',
+                            title: 'Purchased!',
+                            message: `${result.message} (Quality: ${result.quality.toFixed(0)}%)`,
+                            type: 'success',
+                            autoClose: 1000
+                        });
+                    }
+                    // Trigger journal for first purchase
+                    if (this.journal && this.engine.day <= 3) {
+                        this.journal.onSituation('first_purchase');
+                    }
                     this.renderIngredients(vendorKey);
                     this.renderInventory();
                     this.renderRecipeReference();
@@ -2587,7 +2806,7 @@ class GameController {
         }).join('');
 
         grid.querySelectorAll('.btn-bake').forEach(btn => {
-            btn.onclick = (e) => {
+            btn.onclick = async (e) => {
                 e.stopPropagation();
                 const card = btn.closest('.recipe-card');
                 const recipeKey = card.dataset.recipe;
@@ -2595,12 +2814,49 @@ class GameController {
                 const result = this.engine.startBaking(recipeKey, 1);
 
                 if (result.success) {
+                    // === MINIGAME: Quality Dice (chance to roll for quality bonus) ===
+                    let diceBonus = '';
+                    if (this.miniGames) {
+                        const diceChance = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.MINIGAMES)
+                            ? GAME_CONFIG.WORLD.MINIGAMES.qualityDiceChance || 0.20
+                            : 0.20;
+                        if (Math.random() < diceChance) {
+                            try {
+                                const recipe = GAME_CONFIG.RECIPES[recipeKey];
+                                const avgSkill = this.staffManager ? this.staffManager.getAverageSkill() : 50;
+                                const diceResult = await this.miniGames.showQualityDice(
+                                    recipe ? recipe.name : recipeKey,
+                                    result.quality || 70,
+                                    avgSkill
+                                );
+                                if (diceResult && diceResult.bonus > 0) {
+                                    diceBonus = `\n🎲 Quality Dice: +${diceResult.bonus}% quality!`;
+                                    // Apply bonus to the latest production item
+                                    if (this.engine.productionQueue && this.engine.productionQueue.length > 0) {
+                                        const lastItem = this.engine.productionQueue[this.engine.productionQueue.length - 1];
+                                        if (lastItem) lastItem.quality = Math.min(100, (lastItem.quality || 70) + diceResult.bonus);
+                                    }
+                                }
+                            } catch (err) { /* skip on error */ }
+                        }
+                    }
+
+                    // Trigger journal for baking
+                    if (this.journal) {
+                        this.journal.onSituation('baking_started');
+                    }
+
+                    // Degrade oven on use
+                    if (this.engine.degradeEquipmentOnUse) {
+                        this.engine.degradeEquipmentOnUse('oven');
+                    }
+
                     this.showPopup({
                         icon: '🔥',
                         title: 'Baking Started!',
-                        message: result.message,
+                        message: result.message + diceBonus,
                         type: 'success',
-                        autoClose: 1000
+                        autoClose: diceBonus ? 2000 : 1000
                     });
                     this.renderRecipes();
                     this.renderOven();
@@ -2805,6 +3061,39 @@ class GameController {
         this.engine.isPaused = false;
         this.activeCustomers = [];
 
+        // === MINIGAME: Forecast Bet before opening ===
+        if (this.miniGames && this.world && this.world.subsystems && this.world.subsystems.weather) {
+            const freq = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.MINIGAMES) 
+                ? GAME_CONFIG.WORLD.MINIGAMES.forecastBetChance || 0.15 
+                : 0.15;
+            if (Math.random() < freq) {
+                const weather = this.world.subsystems.weather;
+                const forecasted = weather.currentWeather ? weather.currentWeather.type : 'clear';
+                // Estimate demand level based on weather traffic
+                const trafficMult = weather.getTrafficMultiplier ? weather.getTrafficMultiplier() : 1.0;
+                let actualLevel = 'average';
+                if (trafficMult >= 1.4) actualLevel = 'rush';
+                else if (trafficMult >= 1.2) actualLevel = 'busy';
+                else if (trafficMult <= 0.5) actualLevel = 'dead';
+                else if (trafficMult <= 0.7) actualLevel = 'quiet';
+                
+                this.miniGames.showForecastBet(actualLevel, forecasted).then(result => {
+                    if (result && result.bonus) {
+                        // Apply demand prediction accuracy bonus
+                        this.engine.trafficMultiplier = (this.engine.trafficMultiplier || 1.0) * (1 + result.bonus);
+                    }
+                    this._continueSellingPhase();
+                }).catch(() => this._continueSellingPhase());
+                return;
+            }
+        }
+        this._continueSellingPhase();
+    }
+
+    _continueSellingPhase() {
+        // Build enhanced world conditions HUD for selling phase
+        const worldConditions = this._buildSellingWorldHUD ? this._buildSellingWorldHUD() : '';
+
         const container = document.getElementById('game-container');
         if (container) {
             container.style.padding = '0';
@@ -2817,6 +3106,7 @@ class GameController {
             <div class="phase-header">
                 <h2>💰 Open Shop - Day ${this.engine.day}</h2>
                 <p>Customers arrive automatically and buy your products! Set your markup to control prices. Time: <span id="game-time">${this.engine.getTimeString()}</span></p>
+                ${worldConditions}
                 <div class="time-controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center; justify-content: center;">
                     <span style="font-size: 14px; color: #7f8c8d;">Time Speed:</span>
                     <button class="btn btn-sm" onclick="window.game.setGameSpeed(1)" style="padding: 5px 10px; font-size: 12px;">1x</button>
@@ -2827,6 +3117,7 @@ class GameController {
                 </div>
                 <div class="phase-tools">
                     <button class="btn btn-automation" id="btn-auto-selling">🤖 Deploy Staff Automation</button>
+                    ${this.journal ? '<button class="btn btn-secondary" onclick="window.game.journal.showJournal()" style="margin-left:8px;">📖 Journal</button>' : ''}
                 </div>
             </div>
             
@@ -3328,7 +3619,14 @@ class GameController {
                 const scenarioDemand = this.getScenarioModifier('demand');
                 const scenarioTraffic = this.getScenarioModifier('traffic');
                 const loyaltyBoost = 1 + this.getScenarioModifier('loyalty', { defaultValue: 0, operation: 'add' });
-                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * loyaltyBoost) / 60 / 10;
+                
+                // === WORLD SIMULATION: unified demand multiplier (all subsystems) ===
+                let worldDemandMult = 1.0;
+                if (this.world && this.world.getDemandMultiplier) {
+                    worldDemandMult = this.world.getDemandMultiplier();
+                }
+                
+                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * loyaltyBoost * worldDemandMult) / 60 / 10;
 
                 if (timeSinceLastCustomer > 2000 && Math.random() < spawnChance) {
                     this.spawnCustomer();
@@ -3777,6 +4075,70 @@ class GameController {
             this.customerDB.endDay();
         }
 
+        // === WORLD SIMULATION: tick all subsystems ===
+        if (this.world) {
+            const engineSnapshot = {
+                day: this.engine.day,
+                cash: this.engine.cash,
+                revenue: this.engine.dailyStats.revenue,
+                customersServed: this.engine.dailyStats.customersServed,
+                products: this.engine.products,
+                staff: this.engine.staff,
+                equipment: this.engine.equipment,
+                reputation: this.customerDB ? this.customerDB.metrics.averageSatisfaction : 50,
+                staffMorale: this.staffManager ? this.staffManager.moraleSystem.teamMorale : 70,
+                equipmentQuality: this.engine.getEquipmentQualityModifier ? this.engine.getEquipmentQualityModifier() : 1.0
+            };
+            this.world.simulateDay(this.engine.day, engineSnapshot);
+
+            // Push world events through notification feed (Step 4)
+            if (this.world.getRecentEvents) {
+                const recentEvents = this.world.getRecentEvents(5);
+                this._notifyWorldEvents({ events: recentEvents });
+            }
+
+            // Apply weather delivery delay to economy
+            if (this.world.subsystems && this.world.subsystems.weather && this.economy.setWeatherDeliveryDelay) {
+                this.economy.setWeatherDeliveryDelay(this.world.subsystems.weather.isDeliveryDelayed());
+            }
+
+            // Step 11: Process loan payments (deduct cash)
+            const loanSys = this.world.subsystems.loans || null;
+            if (loanSys) {
+                for (const loan of loanSys.state.loans) {
+                    if (loan._pendingPayment && loan._pendingPayment > 0) {
+                        this.engine.cash = Math.max(0, this.engine.cash - loan._pendingPayment);
+                        loan._pendingPayment = 0;
+                    }
+                }
+            }
+
+            // Step 11: Track waste % for environmental system
+            const envSys = this.world.subsystems.environmental || null;
+            if (envSys) {
+                this.world.state._envWastePct = envSys.state.wastePct;
+            }
+
+            // Step 11: Apply global cost modifier to ingredient prices
+            if (this.world.state.globalCostMod && this.world.state.globalCostMod !== 1) {
+                if (this.economy && this.economy.setGlobalCostMod) {
+                    this.economy.setGlobalCostMod(this.world.state.globalCostMod);
+                }
+            }
+        }
+
+        // End staff manager day (morale, skill growth, events)
+        if (this.staffManager && this.staffManager.endDay) {
+            this.staffManager.endDay(this.engine.day);
+            // Push staff events through notification feed (Step 4)
+            this._notifyStaffEvents();
+        }
+
+        // Trigger journal situations based on day events
+        if (this.journal) {
+            this._triggerJournalSituations();
+        }
+
         const summary = this.engine.endDay();
 
         this.purgeExpiredScenarioEffects();
@@ -3849,6 +4211,9 @@ class GameController {
                 ${spoilageHtml}
                 ${staleHtml}
                 
+                ${this._buildWorldSummaryHtml()}
+                ${this._buildDailyGazetteHtml(summary)}
+                
                 <div class="expenses-section">
                     <h3>💸 Daily Expenses</h3>
                     <div class="expense-list">
@@ -3879,6 +4244,7 @@ class GameController {
                 
                 <div class="phase-actions">
                     <button class="btn btn-secondary" id="btn-main-menu">🏠 Main Menu</button>
+                    ${this.journal ? '<button class="btn btn-secondary" id="btn-journal-summary">📖 Journal</button>' : ''}
                     <button class="btn btn-primary" id="btn-next-day">☀️ Start Day ${this.engine.day}</button>
                 </div>
             </div>
@@ -3889,6 +4255,12 @@ class GameController {
 
         document.getElementById('btn-main-menu').onclick = () => this.showMainMenu();
         document.getElementById('btn-next-day').onclick = () => this.startDay();
+        
+        // Wire journal button if present
+        const journalBtn = document.getElementById('btn-journal-summary');
+        if (journalBtn && this.journal) {
+            journalBtn.onclick = () => this.journal.showJournal();
+        }
 
         // Check for bankruptcy
         if (summary.cashEnd < 0) {
@@ -3904,6 +4276,582 @@ class GameController {
                 });
             }, 1000);
         }
+    }
+
+    // ==================== WORLD: JOURNAL & SUMMARY HELPERS ====================
+
+    /**
+     * Trigger journal educational entries based on what happened today.
+     */
+    _triggerJournalSituations() {
+        if (!this.journal) return;
+        const stats = this.engine.dailyStats;
+        const world = this.world ? this.world.state : null;
+
+        // Price-related situations
+        if (stats.revenue > 0 && stats.customersMissed > stats.customersServed * 0.3) {
+            this.journal.onSituation('pricing_too_high');
+        }
+        if (stats.grossProfit < 0) {
+            this.journal.onSituation('negative_profit');
+        }
+        if (stats.revenue > 200) {
+            this.journal.onSituation('strong_revenue');
+        }
+
+        // Supply chain
+        if (world && world.weather && world.weather.deliveryDelayed) {
+            this.journal.onSituation('supply_disruption');
+        }
+
+        // Competition
+        if (world && world.competitors && world.competitors.length > 0) {
+            const hasPromo = world.competitors.some(c => c.activePromotion);
+            if (hasPromo) {
+                this.journal.onSituation('competitor_promotion');
+            }
+        }
+
+        // Staff situations
+        if (this.staffManager) {
+            const morale = this.staffManager.moraleSystem.teamMorale;
+            if (morale < 40) this.journal.onSituation('low_staff_morale');
+            if (morale > 80) this.journal.onSituation('high_staff_morale');
+
+            const pending = this.staffManager.moraleSystem.pendingRequests.filter(r => !r.resolved);
+            if (pending.some(r => r.type === 'raise_request')) {
+                this.journal.onSituation('raise_request');
+            }
+        }
+
+        // Equipment
+        if (this.engine.getEquipmentQualityModifier && this.engine.getEquipmentQualityModifier() < 0.85) {
+            this.journal.onSituation('equipment_degraded');
+        }
+
+        // First day
+        if (this.engine.day === 1) {
+            this.journal.onSituation('first_day');
+        }
+
+        // Economic conditions
+        if (this.economy && this.economy.getDemandMultiplier && this.economy.getDemandMultiplier() < 0.8) {
+            this.journal.onSituation('economic_downturn');
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Random Daily Encounters                                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Called during startDay to maybe fire a random encounter event.
+     * These are one-off narrative moments that affect the day's gameplay
+     * through small bonuses/penalties and player choices.
+     */
+    _maybeFireDailyEncounter() {
+        // Don't fire on day 1 (let the player settle in) or if already fired today
+        if (this.engine.day <= 1 || this._encounterFiredToday) return;
+
+        // ~40% chance of an encounter each day
+        if (Math.random() > 0.4) return;
+
+        this._encounterFiredToday = true;
+
+        const encounters = this._getDailyEncounterPool();
+        if (encounters.length === 0) return;
+
+        const pick = encounters[Math.floor(Math.random() * encounters.length)];
+        this._showEncounterPopup(pick);
+    }
+
+    /**
+     * Build the pool of possible encounters filtered by the current world state.
+     */
+    _getDailyEncounterPool() {
+        const day = this.engine.day;
+        const cash = this.engine.cash;
+        const ws = this.world && this.world.subsystems ? this.world.subsystems.weather : null;
+        const weatherType = ws && ws.currentWeather ? ws.currentWeather.type : 'clear';
+        const rep = this.world && this.world.state && this.world.state.reputation ? this.world.state.reputation.score : 50;
+
+        const pool = [];
+
+        // --- FOOD CRITIC VISIT ---
+        if (day >= 3 && rep >= 30) {
+            pool.push({
+                id: 'food_critic',
+                icon: '🍽️',
+                title: 'Food Critic Spotted!',
+                message: 'A well-known food critic just walked in! They\'ll judge your products today. How do you react?',
+                choices: [
+                    { text: '🎯 Focus on Quality', desc: 'Extra care on every order (+15% quality today)', effect: () => { this._applyDayBuff('quality', 0.15); } },
+                    { text: '🎁 Offer a Free Sample', desc: 'Costs $5 but may boost reputation', effect: () => { this.engine.cash -= 5; this._boostReputation(8); } },
+                    { text: '😊 Act Natural', desc: 'No change — let your normal work speak', effect: () => {} }
+                ]
+            });
+        }
+
+        // --- INGREDIENT WINDFALL ---
+        pool.push({
+            id: 'surprise_delivery',
+            icon: '📦',
+            title: 'Surprise Delivery!',
+            message: 'A supplier sent extra flour by mistake! They say you can keep it.',
+            choices: [
+                { text: '✅ Keep It', desc: '+5 flour', effect: () => { this._addFreeIngredient('flour', 5); } },
+                { text: '🤝 Return It', desc: 'Honest move — small reputation boost', effect: () => { this._boostReputation(5); } }
+            ]
+        });
+
+        // --- RAINY DAY EVENT ---
+        if (weatherType === 'rainy' || weatherType === 'stormy') {
+            pool.push({
+                id: 'rainy_comfort',
+                icon: '☔',
+                title: 'Comfort Food Weather',
+                message: 'It\'s miserable outside. People crave warm, comforting treats. Adjust your approach?',
+                choices: [
+                    { text: '🔥 Push warm goods', desc: 'Hot items sell at +20% markup today', effect: () => { this._applyDayBuff('markup_hot', 0.20); } },
+                    { text: '📱 Social media post', desc: 'Free advertising — small traffic boost', effect: () => { this._applyDayBuff('traffic', 0.12); } },
+                    { text: '🤷 Ride it out', desc: 'No changes', effect: () => {} }
+                ]
+            });
+        }
+
+        // --- SUNNY DAY EVENT ---
+        if (weatherType === 'sunny' || weatherType === 'clear') {
+            pool.push({
+                id: 'sunny_opportunity',
+                icon: '☀️',
+                title: 'Beautiful Day Outside!',
+                message: 'The sunshine is bringing people out. A local park event asks if you want to set up a stall.',
+                choices: [
+                    { text: '🏕️ Set Up Stall ($10)', desc: 'Costs $10, but +25% traffic today', effect: () => { if (cash >= 10) { this.engine.cash -= 10; this._applyDayBuff('traffic', 0.25); } else { this._showQuickNotice('Not enough cash!'); } } },
+                    { text: '🏪 Stay in Shop', desc: 'Keep things normal', effect: () => {} }
+                ]
+            });
+        }
+
+        // --- NEIGHBOR BAKER ---
+        if (day >= 5) {
+            pool.push({
+                id: 'neighbor_baker',
+                icon: '👩‍🍳',
+                title: 'A Fellow Baker Visits',
+                message: 'A retired baker from the neighborhood offers to share a tip.',
+                choices: [
+                    { text: '📚 Listen Carefully', desc: '+3% permanent skill boost for staff', effect: () => { this._boostStaffSkills(0.03); } },
+                    { text: '🍰 Trade Recipes', desc: 'Gain some reputation from networking', effect: () => { this._boostReputation(4); } }
+                ]
+            });
+        }
+
+        // --- POWER FLICKER ---
+        if (day >= 4 && Math.random() < 0.3) {
+            pool.push({
+                id: 'power_flicker',
+                icon: '⚡',
+                title: 'Power Flicker!',
+                message: 'The lights flickered! Your oven needs a moment to stabilize. Slight efficiency loss today unless you act.',
+                choices: [
+                    { text: '🔧 Quick Fix ($8)', desc: 'Pay $8 to avoid any quality impact', effect: () => { if (cash >= 8) { this.engine.cash -= 8; } else { this._applyDayBuff('quality', -0.08); } } },
+                    { text: '⏳ Wait It Out', desc: 'Small quality dip for first few batches', effect: () => { this._applyDayBuff('quality', -0.08); } }
+                ]
+            });
+        }
+
+        // --- LOYAL CUSTOMER ---
+        if (day >= 7 && rep >= 50) {
+            pool.push({
+                id: 'loyal_fan',
+                icon: '💛',
+                title: 'A Loyal Customer Returns',
+                message: '"I bring all my friends here!" — A regular customer is raving about your bakery online.',
+                choices: [
+                    { text: '🎉 Thank Them (free pastry)', desc: 'Costs nothing, +6 reputation', effect: () => { this._boostReputation(6); } },
+                    { text: '📸 Ask for a Photo', desc: 'Social proof — +10% traffic today', effect: () => { this._applyDayBuff('traffic', 0.10); } }
+                ]
+            });
+        }
+
+        // --- HEALTH INSPECTOR HINT ---
+        if (day >= 10) {
+            pool.push({
+                id: 'inspector_rumor',
+                icon: '🔍',
+                title: 'Health Inspector Rumor',
+                message: 'Word on the street: an inspector might visit soon. Invest in cleanliness?',
+                choices: [
+                    { text: '🧹 Deep Clean ($12)', desc: 'Pay $12 — avoid any penalty if inspected', effect: () => { if (cash >= 12) { this.engine.cash -= 12; this._applyDayBuff('inspection_shield', 1); } else { this._showQuickNotice('Not enough cash!'); } } },
+                    { text: '🤞 Take the Chance', desc: 'Might be fine — or might cost reputation', effect: () => { if (Math.random() < 0.35) { this._boostReputation(-8); this._showQuickNotice('Inspector found issues! -8 reputation'); } } }
+                ]
+            });
+        }
+
+        return pool;
+    }
+
+    /**
+     * Display an encounter popup with choice buttons.
+     */
+    _showEncounterPopup(encounter) {
+        const choicesHtml = encounter.choices.map((c, i) => `
+            <button class="popup-btn primary" data-choice="${i}" style="display:block; width:100%; margin:4px 0; text-align:left; padding:8px 12px;">
+                <strong>${c.text}</strong><br/>
+                <span style="font-size:12px; color:#94a3b8;">${c.desc}</span>
+            </button>
+        `).join('');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'game-popup-overlay';
+        overlay.innerHTML = `
+            <div class="game-popup info" style="max-width:420px;">
+                <div class="popup-icon">${encounter.icon}</div>
+                <div class="popup-title">${encounter.title}</div>
+                <div class="popup-message" style="text-align:left; margin-bottom:12px;">${encounter.message}</div>
+                <div class="encounter-choices">${choicesHtml}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const popup = overlay.querySelector('.game-popup');
+        if (window.gsap) {
+            gsap.fromTo(popup,
+                { scale: 0.5, opacity: 0, y: 20 },
+                { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: 'elastic.out(1, 0.75)' }
+            );
+        }
+
+        overlay.querySelectorAll('[data-choice]').forEach(btn => {
+            btn.onclick = () => {
+                const idx = parseInt(btn.dataset.choice);
+                const choice = encounter.choices[idx];
+                if (choice && choice.effect) {
+                    try { choice.effect(); } catch (e) { console.warn('Encounter effect error', e); }
+                }
+                if (window.gsap) {
+                    gsap.to(popup, { scale: 0.8, opacity: 0, duration: 0.2, onComplete: () => overlay.remove() });
+                } else {
+                    overlay.remove();
+                }
+                // Log the encounter for the summary screen
+                if (!this._todayEncounters) this._todayEncounters = [];
+                this._todayEncounters.push({ icon: encounter.icon, title: encounter.title, choice: choice.text });
+            };
+        });
+    }
+
+    /* ---- Encounter helper effects ---- */
+
+    _applyDayBuff(type, amount) {
+        if (!this._dayBuffs) this._dayBuffs = {};
+        this._dayBuffs[type] = (this._dayBuffs[type] || 0) + amount;
+        // Traffic buffs apply immediately to engine
+        if (type === 'traffic') {
+            this.engine.trafficMultiplier = (this.engine.trafficMultiplier || 1.0) * (1 + amount);
+        }
+    }
+
+    _getDayBuff(type) {
+        return (this._dayBuffs && this._dayBuffs[type]) || 0;
+    }
+
+    _boostReputation(amount) {
+        if (this.world && this.world.adjustReputation) {
+            this.world.adjustReputation(amount, amount > 0 ? 'encounter bonus' : 'encounter penalty');
+        }
+    }
+
+    _boostStaffSkills(amount) {
+        if (this.staffManager && this.engine.staff) {
+            this.engine.staff.forEach(s => {
+                s.skill = Math.min(100, (s.skill || 50) + amount * 100);
+            });
+        }
+    }
+
+    _addFreeIngredient(key, qty) {
+        if (this.engine.inventory && this.engine.inventory[key] !== undefined) {
+            this.engine.inventory[key] += qty;
+        }
+    }
+
+    _showQuickNotice(msg) {
+        this.showPopup({ icon: 'ℹ️', title: 'Notice', message: msg, type: 'info', autoClose: 2000 });
+    }
+
+    /**
+     * Get the current game season from the world simulation.
+     * @returns {string|null} 'SPRING', 'SUMMER', 'FALL', or 'WINTER'
+     */
+    _getCurrentSeason() {
+        if (this.world && this.world.state && this.world.state.weather && this.world.state.weather.season) {
+            return this.world.state.weather.season;
+        }
+        // Fallback: compute from day number
+        const day = this.engine ? this.engine.day : 1;
+        const doy = day % 365;
+        if (doy < 90) return 'WINTER';
+        if (doy < 180) return 'SPRING';
+        if (doy < 270) return 'SUMMER';
+        return 'FALL';
+    }
+
+    /**
+     * Build a rich morning newspaper-style briefing for the start of each day.
+     * Returns HTML string rendered inside the morning popup.
+     */
+    _buildMorningBriefing() {
+        const day = this.engine.day;
+        const cash = this.engine.cash.toFixed(2);
+        const wIcons = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️', foggy: '🌫️', heatwave: '🔥', clear: '🌤️' };
+
+        // --- Flavor greeting ---
+        const greetings = [
+            'The aroma of fresh dough fills the air.',
+            'A new day of possibilities awaits your bakery.',
+            'The ovens are warming up — time to plan the day.',
+            'Your neighbours can already smell something good.',
+            'The morning light streams through the shop window.',
+            'Another day, another chance to bake something wonderful.',
+        ];
+        const greeting = greetings[day % greetings.length];
+
+        let sections = [];
+
+        // 1. Cash
+        sections.push(`<div style="text-align:center; font-size:15px; margin-bottom:6px;">
+            💰 <strong>Cash on Hand:</strong> $${cash}
+        </div>`);
+
+        // 2. Weather
+        if (this.world && this.world.subsystems && this.world.subsystems.weather) {
+            const ws = this.world.subsystems.weather;
+            if (ws.currentWeather) {
+                const w = ws.currentWeather;
+                const icon = wIcons[w.type] || '🌤️';
+                const tempStr = w.temperature ? ` ${w.temperature}°` : '';
+                const trafficHint = ws.getTrafficMultiplier ? ws.getTrafficMultiplier() : 1;
+                let outlook = 'Normal foot traffic expected.';
+                if (trafficHint >= 1.3) outlook = 'Expect lots of customers!';
+                else if (trafficHint >= 1.1) outlook = 'Slightly busier than average.';
+                else if (trafficHint <= 0.6) outlook = 'Very few people will venture out.';
+                else if (trafficHint <= 0.8) outlook = 'Foot traffic may be lighter today.';
+
+                let forecastStr = '';
+                if (ws.forecast && ws.forecast.length > 0) {
+                    const tmrw = ws.forecast[0];
+                    forecastStr = ` <span style="color:#888; font-size:12px;">Tomorrow: ${wIcons[tmrw.type] || '🌤️'} ${tmrw.type}</span>`;
+                }
+
+                sections.push(`<div style="background:rgba(255,255,255,0.06); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+                    <strong>${icon} Weather:</strong> ${w.type}${tempStr}${forecastStr}<br/>
+                    <span style="font-size:12px; color:#a0c4e8;">${outlook}</span>
+                </div>`);
+            }
+        }
+
+        // 3. Reputation snapshot
+        if (this.world && this.world.state && this.world.state.reputation) {
+            const rep = Math.round(this.world.state.reputation.score);
+            const trend = this.world.state.reputation.trend || 0;
+            const arrow = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
+            const label = rep >= 80 ? 'Excellent' : rep >= 60 ? 'Good' : rep >= 40 ? 'Fair' : rep >= 20 ? 'Poor' : 'Terrible';
+            sections.push(`<div style="font-size:13px; margin-bottom:4px;">
+                ⭐ <strong>Reputation:</strong> ${rep}/100 (${label}) ${arrow}
+            </div>`);
+        }
+
+        // 4. Team morale & staff alerts
+        if (this.staffManager && this.staffManager.moraleSystem) {
+            const ms = this.staffManager.moraleSystem;
+            const moraleIcon = ms.teamMorale >= 70 ? '😊' : ms.teamMorale >= 40 ? '😐' : '😟';
+            let staffLine = `${moraleIcon} <strong>Team Morale:</strong> ${ms.teamMorale}%`;
+            const pending = ms.pendingRequests ? ms.pendingRequests.filter(r => !r.resolved) : [];
+            if (pending.length > 0) {
+                staffLine += ` &nbsp;| &nbsp;⚠️ <span style="color:#fbbf24;">${pending.length} request${pending.length > 1 ? 's' : ''} pending</span>`;
+            }
+            sections.push(`<div style="font-size:13px; margin-bottom:4px;">${staffLine}</div>`);
+        }
+
+        // 5. Competitor intel
+        if (this.world && this.world.subsystems && this.world.subsystems.competitors) {
+            const comp = this.world.subsystems.competitors;
+            if (comp.competitors && comp.competitors.length > 0) {
+                const open = comp.competitors.filter(c => c.isOpen);
+                const promos = open.filter(c => c.currentPromotion);
+                let compLine = `🏪 <strong>${open.length}</strong> competitor${open.length !== 1 ? 's' : ''} open today`;
+                if (promos.length > 0) {
+                    compLine += ` — <span style="color:#f87171;">${promos.length} running promotions!</span>`;
+                }
+                sections.push(`<div style="font-size:13px; margin-bottom:4px;">${compLine}</div>`);
+            }
+        }
+
+        // 6. Community events
+        if (this.world && this.world.state && this.world.state.communityEvents) {
+            const dayNum = this.world.state.day || day;
+            const active = this.world.state.communityEvents.filter(e => dayNum >= e.startDay && dayNum <= e.endDay);
+            if (active.length > 0) {
+                const evtNames = active.map(e => `🎉 ${e.name || 'Community Event'}`).join(', ');
+                sections.push(`<div style="font-size:13px; color:#34d399; margin-bottom:4px;">
+                    <strong>Events today:</strong> ${evtNames}
+                </div>`);
+            }
+        }
+
+        // 7. Active world effects (e.g. food blogger boost)
+        if (this.world && this.world.state && this.world.state.activeEffects) {
+            const effects = this.world.state.activeEffects.filter(e => day <= (e.expiresOnDay || 0));
+            if (effects.length > 0) {
+                const labels = effects.map(e => `✨ ${e.name || e.type}`).join(', ');
+                sections.push(`<div style="font-size:12px; color:#c4b5fd; margin-bottom:4px;">${labels}</div>`);
+            }
+        }
+
+        return `<div style="text-align:left; max-width:380px; margin:0 auto;">
+            <div style="font-style:italic; color:#94a3b8; font-size:13px; margin-bottom:10px; text-align:center;">${greeting}</div>
+            ${sections.join('\n')}
+        </div>`;
+    }
+
+    /**
+     * Build HTML snippet showing world conditions in the day summary.
+     */
+    _buildWorldSummaryHtml() {
+        if (!this.world || !this.world.state) return '';
+
+        const parts = [];
+        const state = this.world.state;
+
+        // Weather
+        if (this.world.subsystems && this.world.subsystems.weather) {
+            const ws = this.world.subsystems.weather;
+            if (ws.currentWeather) {
+                const icons = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️', foggy: '🌫️', heatwave: '🔥', clear: '🌤️' };
+                parts.push(`${icons[ws.currentWeather.type] || '🌤️'} Weather: ${ws.currentWeather.type}`);
+            }
+        }
+
+        // Reputation
+        if (state.reputation && state.reputation.score !== undefined) {
+            const rep = Math.round(state.reputation.score);
+            parts.push(`⭐ Reputation: ${rep}/100`);
+        }
+
+        // Competition
+        if (this.world.subsystems && this.world.subsystems.competitors) {
+            const comp = this.world.subsystems.competitors;
+            if (comp.competitors && comp.competitors.length > 0) {
+                const activeComps = comp.competitors.filter(c => c.isOpen);
+                parts.push(`🏪 ${activeComps.length} competitor${activeComps.length !== 1 ? 's' : ''} nearby`);
+            }
+        }
+
+        // Staff morale
+        if (this.staffManager && this.staffManager.moraleSystem) {
+            parts.push(`😊 Team Morale: ${this.staffManager.moraleSystem.teamMorale}%`);
+        }
+
+        // Active effects
+        if (state.activeEffects && state.activeEffects.length > 0) {
+            const effectNames = state.activeEffects.slice(0, 3).map(e => e.name || e.id);
+            parts.push(`✨ Effects: ${effectNames.join(', ')}`);
+        }
+
+        if (parts.length === 0) return '';
+
+        return `
+            <div style="margin: 15px 0; padding: 12px; background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 8px; border: 1px solid #334155;">
+                <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #a8d8ea;">🌍 World Conditions</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #94a3b8;">
+                    ${parts.map(p => `<span>${p}</span>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Build a "Daily Gazette" section for the end-of-day summary.
+     * Includes encounter recaps, reputation narrative, and a random review quote.
+     */
+    _buildDailyGazetteHtml(summary) {
+        const items = [];
+
+        // Encounter recaps
+        if (this._todayEncounters && this._todayEncounters.length > 0) {
+            this._todayEncounters.forEach(enc => {
+                items.push(`<div style="margin-bottom:4px;">${enc.icon} <strong>${enc.title}</strong> — You chose: <em>${enc.choice}</em></div>`);
+            });
+        }
+
+        // Reputation change narrative
+        if (this.world && this.world.state && this.world.state.reputation) {
+            const rep = this.world.state.reputation;
+            const trend = rep.trend || 0;
+            if (trend > 3) items.push('<div>📈 Word is spreading — your bakery\'s reputation is <strong>rising</strong>!</div>');
+            else if (trend > 0) items.push('<div>📈 Your reputation improved slightly today.</div>');
+            else if (trend < -3) items.push('<div>📉 Some customers seemed unhappy — reputation is <strong>slipping</strong>.</div>');
+            else if (trend < 0) items.push('<div>📉 Reputation dipped a little today.</div>');
+        }
+
+        // Random customer review quote
+        const quotes = this._generateReviewQuotes(summary);
+        if (quotes.length > 0) {
+            const q = quotes[Math.floor(Math.random() * quotes.length)];
+            items.push(`<div style="font-style:italic; color:#94a3b8; margin-top:4px;">"${q}"</div>`);
+        }
+
+        // Day buffs that were active
+        if (this._dayBuffs && Object.keys(this._dayBuffs).length > 0) {
+            const buffLabels = [];
+            if (this._dayBuffs.quality) buffLabels.push(`Quality ${this._dayBuffs.quality > 0 ? '+' : ''}${Math.round(this._dayBuffs.quality * 100)}%`);
+            if (this._dayBuffs.traffic) buffLabels.push(`Traffic ${this._dayBuffs.traffic > 0 ? '+' : ''}${Math.round(this._dayBuffs.traffic * 100)}%`);
+            if (buffLabels.length > 0) {
+                items.push(`<div style="font-size:12px; color:#a5b4fc;">✨ Day buffs: ${buffLabels.join(', ')}</div>`);
+            }
+        }
+
+        if (items.length === 0) return '';
+
+        return `
+            <div style="margin: 12px 0; padding: 12px; background: linear-gradient(135deg, #1c1917, #292524); border-radius: 8px; border: 1px solid #44403c;">
+                <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #fbbf24;">📰 Daily Gazette</h3>
+                <div style="font-size: 13px; color: #d6d3d1;">
+                    ${items.join('\n')}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generate flavour review quotes based on today's performance.
+     */
+    _generateReviewQuotes(summary) {
+        const quotes = [];
+        const served = summary.customersServed || 0;
+        const missed = summary.customersMissed || 0;
+        const profit = summary.netProfit || 0;
+
+        if (served > 15) quotes.push('This place was buzzing today! Great energy.');
+        if (served > 8) quotes.push('Nice selection of fresh goods — I\'ll be back.');
+        if (missed > 5) quotes.push('I waited forever and nothing was left… disappointing.');
+        if (missed > served && served > 0) quotes.push('Sold out before I even got there!');
+        if (profit > 100) quotes.push('Must be doing well — the baker was smiling all day.');
+        if (profit < 0) quotes.push('Hmm, half the shelves were empty. Is this place struggling?');
+        if (served === 0) quotes.push('Walked by but the shop looked closed…');
+        if (served > 0 && missed === 0) quotes.push('Everything I wanted was in stock. Perfect visit!');
+
+        // Weather-based
+        if (this.world && this.world.subsystems && this.world.subsystems.weather) {
+            const w = this.world.subsystems.weather.currentWeather;
+            if (w && w.type === 'rainy') quotes.push('Popped in to escape the rain — glad I did!');
+            if (w && w.type === 'sunny') quotes.push('Grabbed a pastry and enjoyed it in the sunshine.');
+            if (w && w.type === 'snowy') quotes.push('Hot cocoa and fresh bread on a snowy day — heaven.');
+        }
+
+        return quotes;
     }
 
     // ==================== UI HELPERS ====================
@@ -4250,12 +5198,14 @@ class GameController {
         const panel = document.createElement('div');
         panel.className = 'modal-overlay';
         panel.innerHTML = `
-            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h2>👥 Staff & Operations</h2>
                     <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
                 </div>
                 <div class="modal-body">
+                    ${this._renderMoraleOverview()}
+                    ${this._renderPendingRequests()}
                     ${this.renderStaffList()}
                     ${this.renderHireOptions()}
                     ${this.renderShiftSchedule()}
@@ -4268,6 +5218,126 @@ class GameController {
         gsap.from(panel.querySelector('.modal-content'), {
             scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
         });
+    }
+
+    /**
+     * Team morale dashboard at top of staff panel.
+     */
+    _renderMoraleOverview() {
+        if (!this.staffManager || !this.staffManager.moraleSystem) return '';
+        const ms = this.staffManager.moraleSystem;
+        const morale = ms.teamMorale;
+        const moraleColor = morale >= 70 ? '#2ecc71' : morale >= 40 ? '#f39c12' : '#e74c3c';
+        const moraleLabel = morale >= 80 ? 'Excellent' : morale >= 60 ? 'Good' : morale >= 40 ? 'Fair' : morale >= 20 ? 'Low' : 'Critical';
+        const moraleIcon = morale >= 70 ? '😊' : morale >= 40 ? '😐' : '😟';
+        const workDays = ms.consecutiveWorkDays || 0;
+
+        const qualMod = this.staffManager.getMoraleQualityModifier ? this.staffManager.getMoraleQualityModifier() : 1.0;
+
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="margin: 0 0 4px 0; font-size: 16px; color: #e2e8f0;">${moraleIcon} Team Morale</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 160px; height: 12px; background: #1e293b; border-radius: 6px; overflow: hidden;">
+                                <div style="width: ${morale}%; height: 100%; background: ${moraleColor}; border-radius: 6px; transition: width 0.3s;"></div>
+                            </div>
+                            <span style="font-weight: bold; color: ${moraleColor};">${morale}% — ${moraleLabel}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right; font-size: 13px; color: #94a3b8;">
+                        <div>📅 Consecutive work days: <strong>${workDays}</strong></div>
+                        <div>🎯 Quality modifier: <strong>${(qualMod * 100).toFixed(0)}%</strong></div>
+                        ${ms.recentEvents && ms.recentEvents.length > 0 
+                            ? `<div style="margin-top:4px;">📋 Recent events: ${ms.recentEvents.slice(-3).map(e => e.type).join(', ')}</div>` 
+                            : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render pending staff requests with approve/deny buttons.
+     */
+    _renderPendingRequests() {
+        if (!this.staffManager || !this.staffManager.moraleSystem) return '';
+        const pending = this.staffManager.moraleSystem.pendingRequests.filter(r => !r.resolved);
+        if (pending.length === 0) return '';
+
+        const cards = pending.map((req, idx) => {
+            const staff = this.staffManager.getStaff(req.staffId);
+            const staffName = staff ? staff.name : 'Unknown';
+            const staffFace = staff ? (staff.face || '🧑') : '🧑';
+
+            let description = '';
+            let approveLabel = '✅ Approve';
+            let denyLabel = '❌ Deny';
+
+            if (req.type === 'raise_request') {
+                description = `${staffName} is requesting a raise of <strong>$${req.requestedAmount}/mo</strong>. Denying may hurt morale.`;
+                approveLabel = '💰 Grant Raise';
+                denyLabel = '🚫 Decline';
+            } else if (req.type === 'training_opportunity') {
+                description = `${staffName} found a training course. Cost: <strong>$${req.cost}</strong>, potential skill gain: <strong>+${req.skillBonus}</strong>.`;
+                approveLabel = '📚 Fund Training';
+                denyLabel = '⏭️ Skip';
+            } else if (req.type === 'quit_threat') {
+                description = `${staffName} is threatening to quit! You can offer a retention bonus (~25% of salary) to keep them.`;
+                approveLabel = '🤝 Retention Bonus';
+                denyLabel = '👋 Let Them Go';
+            } else {
+                description = `${req.type} from ${staffName}.`;
+            }
+
+            return `
+                <div style="background: #292524; border-radius: 8px; padding: 12px; border-left: 3px solid ${req.type === 'quit_threat' ? '#ef4444' : req.type === 'raise_request' ? '#f59e0b' : '#3b82f6'};">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 22px;">${staffFace}</span>
+                        <strong>${staffName}</strong>
+                        <span style="font-size: 12px; color: #94a3b8; margin-left: auto;">${req.type.replace(/_/g, ' ')}</span>
+                    </div>
+                    <div style="font-size: 13px; color: #d6d3d1; margin-bottom: 8px;">${description}</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-small btn-primary" onclick="window.game._resolveRequestFromPanel(${idx}, true)">${approveLabel}</button>
+                        <button class="btn-small btn-danger" onclick="window.game._resolveRequestFromPanel(${idx}, false)">${denyLabel}</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="margin-bottom: 16px;">
+                <h3 style="color: #fbbf24;">⚠️ Pending Staff Requests (${pending.length})</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">${cards}</div>
+            </div>
+        `;
+    }
+
+    /**
+     * Handle staff request resolution from the panel UI.
+     */
+    _resolveRequestFromPanel(requestIndex, approved) {
+        if (!this.staffManager || !this.staffManager.resolveStaffRequest) return;
+        const result = this.staffManager.resolveStaffRequest(requestIndex, approved);
+        if (result && result.message) {
+            this.showPopup({
+                icon: approved ? '✅' : '❌',
+                title: approved ? 'Request Approved' : 'Request Denied',
+                message: result.message,
+                type: approved ? 'success' : 'info',
+                autoClose: 2500
+            });
+        }
+        // Refresh panel
+        setTimeout(() => {
+            const existingPanel = document.querySelector('.modal-overlay');
+            if (existingPanel) {
+                existingPanel.remove();
+                this.showStaffPanel();
+            }
+        }, 2600);
     }
 
     renderStaffList() {
@@ -4408,13 +5478,15 @@ class GameController {
         const panel = document.createElement('div');
         panel.className = 'modal-overlay';
         panel.innerHTML = `
-            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h2>⚙️ Equipment & Maintenance</h2>
                     <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
                 </div>
                 <div class="modal-body">
+                    ${this._renderEquipmentOverview()}
                     ${this.renderEquipmentList()}
+                    ${this._renderEquipmentShop()}
                 </div>
             </div>
         `;
@@ -4423,6 +5495,46 @@ class GameController {
         gsap.from(panel.querySelector('.modal-content'), {
             scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out'
         });
+    }
+
+    /**
+     * Overall equipment health summary with world integration.
+     */
+    _renderEquipmentOverview() {
+        const qualMod = this.engine.getEquipmentQualityModifier ? this.engine.getEquipmentQualityModifier() : 1.0;
+        const effMod = this.engine.getEquipmentEfficiency ? this.engine.getEquipmentEfficiency() : 1.0;
+
+        const allEquipment = [
+            ...this.engine.equipment.ovens || [],
+            ...this.engine.equipment.mixers || [],
+            ...this.engine.equipment.displays || []
+        ];
+        const avgCondition = allEquipment.length > 0
+            ? allEquipment.reduce((sum, e) => sum + e.condition, 0) / allEquipment.length
+            : 100;
+        const condColor = avgCondition > 70 ? '#2ecc71' : avgCondition > 40 ? '#f39c12' : '#e74c3c';
+        const atRisk = allEquipment.filter(e => e.condition < 30).length;
+
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="margin: 0 0 4px 0; font-size: 16px; color: #e2e8f0;">🏭 Equipment Health</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 160px; height: 12px; background: #1e293b; border-radius: 6px; overflow: hidden;">
+                                <div style="width: ${avgCondition}%; height: 100%; background: ${condColor}; border-radius: 6px;"></div>
+                            </div>
+                            <span style="font-weight: bold; color: ${condColor};">${avgCondition.toFixed(0)}% avg</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right; font-size: 13px; color: #94a3b8;">
+                        <div>🎯 Quality bonus: <strong>${(qualMod * 100).toFixed(0)}%</strong></div>
+                        <div>⚡ Efficiency: <strong>${(effMod).toFixed(2)}x</strong></div>
+                        ${atRisk > 0 ? `<div style="color: #ef4444;">⚠️ ${atRisk} item${atRisk > 1 ? 's' : ''} at breakdown risk!</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     renderEquipmentList() {
@@ -4435,55 +5547,65 @@ class GameController {
         if (allEquipment.length === 0) {
             return `
                 <p style="opacity: 0.6; padding: 20px; text-align: center;">
-                    No equipment tracked yet. Equipment from your startup phase will appear here.
+                    No equipment tracked yet. Buy equipment below or equipment from your startup phase will appear here.
                 </p>
             `;
         }
 
-        const equipEfficiency = this.engine.getEquipmentEfficiency().toFixed(2);
-
         return `
             <div class="equipment-section">
-                <h3>All Equipment (Efficiency: ${equipEfficiency}x)</h3>
+                <h3>Current Equipment</h3>
                 <div class="equipment-grid">
                     ${allEquipment.map(equip => {
             const conditionClass = equip.condition > 70 ? 'good' : equip.condition > 40 ? 'fair' : 'poor';
             const daysSinceMaint = this.engine.day - equip.lastMaintenance;
+            const condColor = equip.condition > 70 ? '#2ecc71' : equip.condition > 40 ? '#f39c12' : '#e74c3c';
+            const statusIcon = equip.condition > 80 ? '✅' : equip.condition > 50 ? '🟡' : equip.condition > 20 ? '🟠' : '🔴';
+            const repairCost = ((equip.maintenanceCost * (100 - equip.condition)) / 10);
+
+            // Get WORLD config for upgrade info
+            const worldEquip = GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.EQUIPMENT && GAME_CONFIG.WORLD.EQUIPMENT.TYPES
+                ? GAME_CONFIG.WORLD.EQUIPMENT.TYPES[equip.type] : null;
 
             return `
-                            <div class="equipment-card ${conditionClass}">
+                            <div class="equipment-card ${conditionClass}" style="border-left: 3px solid ${condColor};">
                                 <div class="equipment-header">
-                                    <h4>${equip.name}</h4>
-                                    <span class="equipment-type">${equip.type}</span>
+                                    <h4>${statusIcon} ${equip.name}</h4>
+                                    <span class="equipment-type" style="text-transform: capitalize;">${equip.type}</span>
                                 </div>
                                 <div class="equipment-stats">
                                     <div class="stat-row">
                                         <span>Condition:</span>
-                                        <div class="condition-bar">
-                                            <div class="condition-fill" style="width: ${equip.condition}%; background: ${equip.condition > 70 ? '#2ecc71' : equip.condition > 40 ? '#f39c12' : '#e74c3c'}"></div>
+                                        <div class="condition-bar" style="flex: 1; height: 10px; background: #1e293b; border-radius: 5px; overflow: hidden; margin: 0 8px;">
+                                            <div class="condition-fill" style="width: ${equip.condition}%; height: 100%; background: ${condColor}; border-radius: 5px;"></div>
                                         </div>
                                         <strong>${equip.condition.toFixed(0)}%</strong>
                                     </div>
                                     <div class="stat-row">
                                         <span>Breakdown Risk:</span>
-                                        <strong>${(equip.breakdownProbability * 100).toFixed(1)}%</strong>
+                                        <strong style="color: ${equip.breakdownProbability > 0.05 ? '#ef4444' : '#94a3b8'};">${(equip.breakdownProbability * 100).toFixed(1)}%</strong>
                                     </div>
                                     <div class="stat-row">
                                         <span>Last Maintenance:</span>
-                                        <span>${daysSinceMaint} days ago</span>
+                                        <span>${daysSinceMaint === 0 ? 'Today' : daysSinceMaint + ' day' + (daysSinceMaint > 1 ? 's' : '') + ' ago'}</span>
                                     </div>
                                     <div class="stat-row">
-                                        <span>Total Repairs:</span>
+                                        <span>Lifetime Repairs:</span>
                                         <strong>$${equip.totalRepairCosts.toFixed(2)}</strong>
                                     </div>
                                 </div>
-                                <div class="equipment-actions">
+                                <div class="equipment-actions" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
                                     <button class="btn-small btn-primary" onclick="window.game.maintainEquipmentById(${equip.id})">
                                         🔧 Maintain ($${equip.maintenanceCost.toFixed(2)})
                                     </button>
                                     ${equip.condition < 80 ? `
                                         <button class="btn-small btn-warning" onclick="window.game.repairEquipmentById(${equip.id})">
-                                            🛠️ Repair ($${((equip.maintenanceCost * (100 - equip.condition)) / 10).toFixed(2)})
+                                            🛠️ Repair ($${repairCost.toFixed(2)})
+                                        </button>
+                                    ` : ''}
+                                    ${worldEquip ? `
+                                        <button class="btn-small" style="background:#6366f1; color:white;" onclick="window.game._upgradeEquipment('${equip.type}', ${equip.id})">
+                                            ⬆️ Upgrade ($${worldEquip.upgradeCost})
                                         </button>
                                     ` : ''}
                                 </div>
@@ -4493,6 +5615,986 @@ class GameController {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Equipment shop for buying new equipment.
+     */
+    _renderEquipmentShop() {
+        const worldConfig = GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.EQUIPMENT ? GAME_CONFIG.WORLD.EQUIPMENT.TYPES : null;
+        if (!worldConfig) return '';
+
+        const cards = Object.entries(worldConfig).map(([key, eq]) => {
+            const owned = this._countEquipment(key);
+            return `
+                <div style="background: #292524; border-radius: 8px; padding: 12px; min-width: 180px;">
+                    <div style="font-size: 24px; text-align: center;">${eq.icon}</div>
+                    <h4 style="text-align: center; margin: 4px 0;">${eq.name}</h4>
+                    <div style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 8px;">
+                        Owned: ${owned}
+                    </div>
+                    <div style="font-size: 12px; color: #d6d3d1;">
+                        <div>💰 Cost: $${eq.baseCost}</div>
+                        <div>🔧 Maint: $${eq.maintenanceCost}/use</div>
+                        ${eq.capacityBonus ? `<div>📦 Capacity: +${eq.capacityBonus}</div>` : ''}
+                        ${eq.qualityBonus ? `<div>⭐ Quality: +${(eq.qualityBonus * 100).toFixed(0)}%</div>` : ''}
+                    </div>
+                    <button class="btn-small btn-primary" style="width: 100%; margin-top: 8px;" 
+                            onclick="window.game._buyNewEquipment('${key}')">
+                        🛒 Buy ($${eq.baseCost})
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="margin-top: 16px;">
+                <h3>🛒 Equipment Shop</h3>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">${cards}</div>
+            </div>
+        `;
+    }
+
+    _countEquipment(type) {
+        const key = type + 's';
+        return (this.engine.equipment[key] || []).length;
+    }
+
+    _buyNewEquipment(type) {
+        const worldConfig = GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.EQUIPMENT ? GAME_CONFIG.WORLD.EQUIPMENT.TYPES : null;
+        if (!worldConfig || !worldConfig[type]) return;
+        const eq = worldConfig[type];
+        if (this.engine.cash < eq.baseCost) {
+            this.showPopup({ icon: '💸', title: 'Not Enough Cash', message: `You need $${eq.baseCost} to buy a ${eq.name}.`, type: 'warning', autoClose: 2000 });
+            return;
+        }
+        this.engine.cash -= eq.baseCost;
+        this.engine.addEquipment(type, { name: eq.name, capacity: eq.capacityBonus || 1, cost: eq.baseCost });
+        this.showPopup({ icon: eq.icon, title: `${eq.name} Purchased!`, message: `New ${eq.name} added to your bakery.`, type: 'success', autoClose: 2000 });
+        setTimeout(() => { document.querySelector('.modal-overlay')?.remove(); this.showEquipmentPanel(); }, 2100);
+    }
+
+    _upgradeEquipment(type, equipId) {
+        const worldConfig = GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.EQUIPMENT ? GAME_CONFIG.WORLD.EQUIPMENT.TYPES : null;
+        if (!worldConfig || !worldConfig[type]) return;
+        const cost = worldConfig[type].upgradeCost;
+        if (this.engine.cash < cost) {
+            this.showPopup({ icon: '💸', title: 'Not Enough Cash', message: `Upgrade costs $${cost}.`, type: 'warning', autoClose: 2000 });
+            return;
+        }
+        // Find equipment and boost it
+        let found = null;
+        ['ovens', 'mixers', 'displays'].forEach(t => {
+            if (!found && this.engine.equipment[t]) {
+                found = this.engine.equipment[t].find(e => e.id === equipId);
+            }
+        });
+        if (!found) return;
+        this.engine.cash -= cost;
+        found.condition = 100;
+        found.capacity = (found.capacity || 1) + (worldConfig[type].capacityBonus || 0);
+        found.maintenanceCost *= 0.75; // upgraded equipment is cheaper to maintain
+        found.name = `${found.name} ★`;
+        this.showPopup({ icon: '⬆️', title: 'Equipment Upgraded!', message: `${found.name} has been upgraded! Full repair + bonus capacity.`, type: 'success', autoClose: 2000 });
+        setTimeout(() => { document.querySelector('.modal-overlay')?.remove(); this.showEquipmentPanel(); }, 2100);
+    }
+
+    // ==================== STEP 1: COMPETITOR INTEL & MARKET WATCH ====================
+
+    showMarketWatchPanel() {
+        const compSys = this.world && this.world.subsystems ? this.world.subsystems.competitors : null;
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>🏪 Market Watch — Competitor Intelligence</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this._renderMarketOverview()}
+                    ${this._renderCompetitorCards(compSys)}
+                    ${this._renderMarketAdvice(compSys)}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        if (window.gsap) gsap.from(panel.querySelector('.modal-content'), { scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out' });
+    }
+
+    _renderMarketOverview() {
+        const ms = this.world ? this.world.state.marketShare : 1;
+        const playerPct = Math.round((ms || 1) * 100);
+        const compCount = this.world && this.world.state.competitors ? this.world.state.competitors.filter(c => !c.isClosing).length : 0;
+        const demandMult = this.world ? this.world.getDemandMultiplier() : 1;
+        const demandPct = Math.round(demandMult * 100);
+        const demandColor = demandPct >= 110 ? '#2ecc71' : demandPct >= 90 ? '#f39c12' : '#e74c3c';
+
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 16px; text-align: center;">
+                    <div>
+                        <div style="font-size: 28px; font-weight: bold; color: #3b82f6;">${playerPct}%</div>
+                        <div style="font-size: 12px; color: #94a3b8;">Your Market Share</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 28px; font-weight: bold; color: #f59e0b;">${compCount}</div>
+                        <div style="font-size: 12px; color: #94a3b8;">Active Competitors</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 28px; font-weight: bold; color: ${demandColor};">${demandPct}%</div>
+                        <div style="font-size: 12px; color: #94a3b8;">Overall Demand</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderCompetitorCards(compSys) {
+        if (!compSys || !compSys.competitors || compSys.competitors.length === 0) {
+            return `<div style="text-align: center; padding: 20px; color: #94a3b8;">
+                <p style="font-size: 16px;">🎉 No competitors yet!</p>
+                <p style="font-size: 13px;">Enjoy the monopoly while it lasts. As your bakery grows, competitors will appear.</p>
+            </div>`;
+        }
+
+        const cards = compSys.competitors.map(comp => {
+            const priceLabel = comp.currentPriceMultiplier < 0.9 ? '💚 Budget' : comp.currentPriceMultiplier > 1.1 ? '💜 Premium' : '⚪ Market Rate';
+            const priceStr = `${(comp.currentPriceMultiplier * 100).toFixed(0)}% of your prices`;
+            const threatLevel = comp.marketPower > 0.12 ? { label: 'High Threat', color: '#ef4444', icon: '⚠️' }
+                : comp.marketPower > 0.08 ? { label: 'Medium Threat', color: '#f59e0b', icon: '⚡' }
+                : { label: 'Low Threat', color: '#22c55e', icon: '✅' };
+            const promoHtml = comp.promotion
+                ? `<div style="background: #7f1d1d; border-radius: 6px; padding: 4px 8px; font-size: 12px; color: #fca5a5; margin-top: 6px;">🔔 Active: ${comp.promotion.type}</div>`
+                : '';
+
+            return `
+                <div style="background: #292524; border-radius: 8px; padding: 14px; border-left: 3px solid ${threatLevel.color};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 20px;">${comp.icon}</span>
+                            <strong style="margin-left: 6px;">${comp.name}</strong>
+                        </div>
+                        <span style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: ${threatLevel.color}22; color: ${threatLevel.color};">
+                            ${threatLevel.icon} ${threatLevel.label}
+                        </span>
+                    </div>
+                    <div style="font-size: 12px; color: #a8a29e; margin: 6px 0;">${comp.description || comp.archetype.replace(/_/g, ' ')}</div>
+                    <div style="display: flex; gap: 16px; font-size: 13px; color: #d6d3d1; flex-wrap: wrap;">
+                        <span>${priceLabel} (${priceStr})</span>
+                        <span>📈 Market power: ${(comp.marketPower * 100).toFixed(0)}%</span>
+                        <span>📅 Open for ${comp.daysActive || '?'} days</span>
+                    </div>
+                    ${promoHtml}
+                </div>
+            `;
+        }).join('');
+
+        return `<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <h3>🏪 Nearby Bakeries</h3>
+            ${cards}
+        </div>`;
+    }
+
+    _renderMarketAdvice(compSys) {
+        const tips = [];
+        if (!compSys || compSys.competitors.length === 0) {
+            tips.push('💡 With no competition, you set the standard. Focus on building reputation for when rivals appear.');
+        } else {
+            const hasPromo = compSys.competitors.some(c => c.promotion);
+            const avgPrice = compSys.getAveragePriceLevel();
+            if (hasPromo) tips.push('⚡ A competitor is running promotions. Consider matching with quality or a small discount.');
+            if (avgPrice < 0.9) tips.push('💚 Competitors averaging low prices — differentiate on quality and service.');
+            if (avgPrice > 1.1) tips.push('💜 Competitors charging premium — you could undercut for market share or match for margins.');
+            if (compSys.competitors.length >= 3) tips.push('🌐 Market is getting crowded. Reputation and loyal customers are your best defense.');
+        }
+
+        // Add weather/season intel
+        const season = this._getCurrentSeason();
+        if (season) {
+            const seasonTips = {
+                SPRING: '🌸 Spring — lighter fare sells well. Experiment with fruit-based recipes.',
+                SUMMER: '☀️ Summer — cold drinks pair well with pastries. Expect steady traffic on nice days.',
+                FALL: '🍂 Fall — comfort food season. Pumpkin and cinnamon are crowd favourites.',
+                WINTER: '❄️ Winter — hot beverages and warm bread. Bad weather may reduce foot traffic.'
+            };
+            tips.push(seasonTips[season] || '');
+        }
+
+        if (tips.length === 0) return '';
+        return `
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px; border: 1px solid #334155;">
+                <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #a5b4fc;">🧠 Strategic Insights</h3>
+                ${tips.map(t => `<div style="font-size: 13px; color: #cbd5e1; margin-bottom: 4px;">${t}</div>`).join('')}
+            </div>
+        `;
+    }
+
+    // ==================== STEP 2: REPUTATION & REVIEWS DASHBOARD ====================
+
+    showReputationPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>⭐ Reputation & Customer Reviews</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this._renderReputationScore()}
+                    ${this._renderReviewsList()}
+                    ${this._renderReputationFactors()}
+                    ${this._renderReputationTips()}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        if (window.gsap) gsap.from(panel.querySelector('.modal-content'), { scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out' });
+    }
+
+    _renderReputationScore() {
+        const rep = this.world && this.world.state ? this.world.state.reputation : null;
+        if (!rep) return '<p style="color:#94a3b8;">Reputation system not yet active.</p>';
+
+        const score = Math.round(rep.score);
+        const trend = rep.trend || 0;
+        const wom = rep.wordOfMouth || 1.0;
+        const trendIcon = trend > 2 ? '📈 Rising fast' : trend > 0 ? '📈 Improving' : trend < -2 ? '📉 Dropping fast' : trend < 0 ? '📉 Declining' : '➡️ Stable';
+        const scoreColor = score >= 70 ? '#2ecc71' : score >= 40 ? '#f39c12' : '#e74c3c';
+        const label = score >= 90 ? 'Legendary' : score >= 75 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : score >= 20 ? 'Poor' : 'Terrible';
+
+        // Star display
+        const fullStars = Math.floor(score / 20);
+        const halfStar = (score % 20) >= 10 ? 1 : 0;
+        const emptyStars = 5 - fullStars - halfStar;
+        const starsHtml = '⭐'.repeat(fullStars) + (halfStar ? '✨' : '') + '☆'.repeat(emptyStars);
+
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #334155; text-align: center;">
+                <div style="font-size: 48px; font-weight: bold; color: ${scoreColor};">${score}</div>
+                <div style="font-size: 20px; margin: 4px 0;">${starsHtml}</div>
+                <div style="font-size: 16px; color: ${scoreColor}; font-weight: bold;">${label}</div>
+                <div style="font-size: 13px; color: #94a3b8; margin-top: 8px;">${trendIcon}</div>
+                <div style="display: flex; justify-content: center; gap: 24px; margin-top: 12px; font-size: 13px; color: #94a3b8;">
+                    <div>🗣️ Word of Mouth: <strong>${(wom * 100).toFixed(0)}%</strong></div>
+                    <div>📝 Reviews: <strong>${rep.reviews ? rep.reviews.length : 0}</strong></div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderReviewsList() {
+        const rep = this.world && this.world.state ? this.world.state.reputation : null;
+        if (!rep || !rep.reviews || rep.reviews.length === 0) {
+            return `<div style="text-align:center; padding: 16px; color: #94a3b8;">
+                <p>📝 No customer reviews yet. Reviews appear as customers rate their experience.</p>
+            </div>`;
+        }
+
+        const reviews = rep.reviews.slice(0, 8).map(r => {
+            const stars = '⭐'.repeat(Math.max(1, Math.min(5, Math.round(r.score))));
+            const sentiment = r.score >= 4 ? 'positive' : r.score >= 3 ? 'neutral' : 'negative';
+            const borderColor = sentiment === 'positive' ? '#22c55e' : sentiment === 'neutral' ? '#f59e0b' : '#ef4444';
+            return `
+                <div style="background: #292524; border-radius: 8px; padding: 10px 14px; border-left: 3px solid ${borderColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${stars}</span>
+                        <span style="font-size: 11px; color: #78716c;">Day ${r.day || '?'}</span>
+                    </div>
+                    <div style="font-size: 13px; color: #d6d3d1; font-style: italic; margin-top: 4px;">"${r.text}"</div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="margin-bottom: 16px;">
+                <h3>📝 Recent Reviews</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px;">${reviews}</div>
+            </div>
+        `;
+    }
+
+    _renderReputationFactors() {
+        if (!this.world || !this.world.state) return '';
+        const dm = this.world.state.demandModifiers;
+        const factors = [
+            { label: 'Weather Impact', value: dm.weather, icon: '🌤️' },
+            { label: 'Competition Pressure', value: dm.competition, icon: '🏪' },
+            { label: 'Reputation Effect', value: dm.reputation, icon: '⭐' },
+            { label: 'Community Events', value: dm.community, icon: '🎉' },
+            { label: 'Seasonal Trend', value: dm.seasonal, icon: '📅' },
+        ];
+
+        const bars = factors.map(f => {
+            const pct = Math.round((f.value || 1) * 100);
+            const color = pct >= 110 ? '#22c55e' : pct >= 90 ? '#eab308' : '#ef4444';
+            const label = pct >= 110 ? 'Boosted' : pct >= 90 ? 'Normal' : 'Reduced';
+            return `
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                    <span style="width: 20px;">${f.icon}</span>
+                    <span style="width: 140px; color: #d6d3d1;">${f.label}</span>
+                    <div style="flex: 1; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden;">
+                        <div style="width: ${Math.min(pct, 150)}%; height: 100%; background: ${color}; border-radius: 4px;"></div>
+                    </div>
+                    <span style="width: 60px; text-align: right; color: ${color}; font-weight: bold;">${pct}%</span>
+                    <span style="width: 60px; font-size: 11px; color: #78716c;">${label}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="margin-bottom: 16px;">
+                <h3>📊 Demand Factors</h3>
+                <div style="display: flex; flex-direction: column; gap: 6px; background: #1e293b; border-radius: 8px; padding: 12px;">${bars}</div>
+            </div>
+        `;
+    }
+
+    _renderReputationTips() {
+        const rep = this.world && this.world.state ? this.world.state.reputation : null;
+        if (!rep) return '';
+        const score = rep.score;
+        const tips = [];
+
+        if (score < 30) tips.push('🔴 Reputation is critical. Focus on never missing customers and keeping quality high.');
+        if (score < 50) tips.push('🟡 Serve every customer possible — missed sales hurt your reputation.');
+        if (score >= 50 && score < 70) tips.push('🟢 Good progress! Consistent quality and variety will push you higher.');
+        if (score >= 70) tips.push('🌟 Strong reputation! Maintain quality — a few bad days can undo weeks of progress.');
+        if (score >= 85) tips.push('🏆 Near legendary status! Consider premium pricing to capitalize on your name.');
+
+        tips.push('💡 Reputation affects: customer traffic, willingness to pay, and word-of-mouth referrals.');
+
+        return `
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px; border: 1px solid #334155;">
+                <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #a5b4fc;">💡 Reputation Tips</h3>
+                ${tips.map(t => `<div style="font-size: 13px; color: #cbd5e1; margin-bottom: 4px;">${t}</div>`).join('')}
+            </div>
+        `;
+    }
+
+    // ==================== STEP 3: DYNAMIC SELLING PHASE WORLD HUD ====================
+
+    /**
+     * Build a dynamic world conditions sidebar for the selling phase.
+     * Updates in real-time as the selling loop ticks.
+     */
+    _buildSellingWorldHUD() {
+        if (!this.world || !this.world.state) return '';
+        const wIcons = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️', foggy: '🌫️', heatwave: '🔥', clear: '🌤️' };
+        const ws = this.world.subsystems ? this.world.subsystems.weather : null;
+
+        // Weather
+        let weatherHtml = '';
+        if (ws && ws.currentWeather) {
+            const w = ws.currentWeather;
+            const trafficMult = ws.getTrafficMultiplier ? ws.getTrafficMultiplier() : 1;
+            const trafficLabel = trafficMult >= 1.3 ? '🟢 High Traffic' : trafficMult >= 1.0 ? '🟡 Normal' : trafficMult >= 0.7 ? '🟠 Low Traffic' : '🔴 Very Low';
+            weatherHtml = `
+                <div style="margin-bottom: 6px;">
+                    <span>${wIcons[w.type] || '🌤️'} ${w.type} ${w.temperature || ''}°</span>
+                    <span style="margin-left: 8px; font-size: 11px; color: #94a3b8;">${trafficLabel}</span>
+                </div>
+            `;
+        }
+
+        // Competition pressure today
+        let compHtml = '';
+        const comps = this.world.state.competitors || [];
+        const activeComps = comps.filter(c => !c.isClosing);
+        const compsWithPromo = activeComps.filter(c => c.hasPromotion);
+        if (activeComps.length > 0) {
+            compHtml = `<div style="margin-bottom: 4px; font-size: 12px;">
+                🏪 ${activeComps.length} competitor${activeComps.length > 1 ? 's' : ''}
+                ${compsWithPromo.length > 0 ? `<span style="color: #fca5a5;"> — ${compsWithPromo.length} running promos!</span>` : ''}
+            </div>`;
+        }
+
+        // Reputation
+        let repHtml = '';
+        if (this.world.state.reputation) {
+            const rep = Math.round(this.world.state.reputation.score);
+            const repColor = rep >= 70 ? '#22c55e' : rep >= 40 ? '#eab308' : '#ef4444';
+            repHtml = `<div style="margin-bottom: 4px; font-size: 12px;">⭐ Reputation: <strong style="color:${repColor};">${rep}/100</strong></div>`;
+        }
+
+        // Overall demand multiplier
+        const demandMult = this.world.getDemandMultiplier ? this.world.getDemandMultiplier() : 1;
+        const demandPct = Math.round(demandMult * 100);
+        const demandColor = demandPct >= 110 ? '#22c55e' : demandPct >= 90 ? '#eab308' : '#ef4444';
+        const demandHtml = `<div style="font-size: 12px;">📊 Demand: <strong style="color:${demandColor};">${demandPct}%</strong></div>`;
+
+        // Active day buffs from encounters
+        let buffsHtml = '';
+        if (this._dayBuffs && Object.keys(this._dayBuffs).length > 0) {
+            const labels = [];
+            if (this._dayBuffs.traffic) labels.push(`Traffic +${Math.round(this._dayBuffs.traffic * 100)}%`);
+            if (this._dayBuffs.quality) labels.push(`Quality +${Math.round(this._dayBuffs.quality * 100)}%`);
+            if (labels.length > 0) {
+                buffsHtml = `<div style="font-size: 11px; color: #a5b4fc; margin-top: 4px;">✨ ${labels.join(', ')}</div>`;
+            }
+        }
+
+        return `
+            <div id="selling-world-hud" style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; border: 1px solid #334155; font-size: 13px; color: #e2e8f0;">
+                <div style="font-weight: bold; margin-bottom: 6px; color: #7dd3fc;">🌍 World Conditions</div>
+                ${weatherHtml}${compHtml}${repHtml}${demandHtml}${buffsHtml}
+            </div>
+        `;
+    }
+
+    // ==================== STEP 4: WORLD EVENT NOTIFICATION FEED ====================
+
+    /**
+     * Push world events through the notification system so the player sees them in real time.
+     * Called after world.simulateDay() in the summary phase.
+     */
+    _notifyWorldEvents(worldReport) {
+        if (!worldReport || !worldReport.events || !this.notificationSystem) return;
+
+        worldReport.events.forEach(evt => {
+            const type = evt.sentiment === 'positive' ? 'success'
+                       : evt.sentiment === 'negative' ? 'warning'
+                       : 'info';
+            this.notificationSystem.notify(evt.description, {
+                type,
+                title: this._getEventTitle(evt.category),
+                duration: 6000
+            });
+        });
+    }
+
+    _getEventTitle(category) {
+        const titles = {
+            weather: '🌤️ Weather Update',
+            competition: '🏪 Competitor News',
+            reputation: '⭐ Reputation',
+            community: '🎉 Community Event',
+            equipment: '⚙️ Equipment',
+            staff: '👥 Staff Update',
+            economy: '📊 Market Update'
+        };
+        return titles[category] || '🔔 News';
+    }
+
+    /**
+     * Push staff events through notifications (called from StaffManager hooks).
+     */
+    _notifyStaffEvents() {
+        if (!this.staffManager || !this.staffManager.moraleSystem || !this.notificationSystem) return;
+        const events = this.staffManager.moraleSystem.recentEvents;
+        if (!events || events.length === 0) return;
+
+        // Only show the latest event (to avoid notification spam)
+        const latest = events[events.length - 1];
+        if (latest && latest.day === this.engine.day && !latest._notified) {
+            latest._notified = true;
+            const typeMap = {
+                sick_day: { type: 'warning', title: '🤒 Staff Absent' },
+                raise_request: { type: 'info', title: '💰 Raise Request' },
+                training_opportunity: { type: 'info', title: '📚 Training Available' },
+                quit_threat: { type: 'warning', title: '⚠️ Staff Warning' }
+            };
+            const config = typeMap[latest.type] || { type: 'info', title: '👥 Staff Update' };
+            const staffMember = this.staffManager.getStaff(latest.staffId);
+            const name = staffMember ? staffMember.name : 'A staff member';
+            const messages = {
+                sick_day: `${name} called in sick today.`,
+                raise_request: `${name} is requesting a raise. Check the Staff panel.`,
+                training_opportunity: `A training course is available for ${name}.`,
+                quit_threat: `${name} is unhappy and considering leaving!`
+            };
+            this.notificationSystem.notify(messages[latest.type] || `${latest.type} — ${name}`, {
+                type: config.type,
+                title: config.title,
+                duration: 8000
+            });
+        }
+    }
+
+    /**
+     * Post a reputation change notification.
+     */
+    _notifyReputationChange(delta, reason) {
+        if (!this.notificationSystem || Math.abs(delta) < 2) return;
+        const icon = delta > 0 ? '📈' : '📉';
+        const type = delta > 0 ? 'success' : 'warning';
+        this.notificationSystem.notify(`${reason || 'Reputation changed'} (${delta > 0 ? '+' : ''}${delta.toFixed(1)})`, {
+            type,
+            title: `${icon} Reputation`,
+            duration: 5000
+        });
+    }
+
+    // ==================== STEP 11: ADVERTISING PANEL ====================
+
+    showAdvertisingPanel() {
+        const adSys = this.world && this.world.subsystems.advertising;
+        if (!adSys) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>📢 Advertising & Marketing</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this._renderAdOverview(adSys)}
+                    ${this._renderActiveCampaigns(adSys)}
+                    ${this._renderCampaignShop(adSys)}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        if (window.gsap) gsap.from(panel.querySelector('.modal-content'), { scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out' });
+    }
+
+    _renderAdOverview(adSys) {
+        const awareness = Math.round(adSys.state.brandAwareness);
+        const awColor = awareness >= 60 ? '#22c55e' : awareness >= 35 ? '#eab308' : '#ef4444';
+        const spent = adSys.state.totalSpent;
+        const active = adSys.state.activeCampaigns.length;
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 16px; text-align: center;">
+                    <div><div style="font-size: 28px; font-weight: bold; color: ${awColor};">${awareness}%</div><div style="font-size: 12px; color: #94a3b8;">Brand Awareness</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #f59e0b;">${active}</div><div style="font-size: 12px; color: #94a3b8;">Active Campaigns</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #a78bfa;">$${spent}</div><div style="font-size: 12px; color: #94a3b8;">Total Spent</div></div>
+                </div>
+            </div>`;
+    }
+
+    _renderActiveCampaigns(adSys) {
+        if (adSys.state.activeCampaigns.length === 0) {
+            return '<p style="color: #94a3b8; text-align: center; padding: 12px;">No active campaigns. Launch one below!</p>';
+        }
+        const cards = adSys.state.activeCampaigns.map(c => {
+            const daysLeft = c.endDay - (this.engine ? this.engine.day : 0);
+            return `<div style="background: #292524; border-radius: 8px; padding: 10px 14px; border-left: 3px solid #3b82f6;">
+                <strong>${c.name}</strong> <span style="float: right; font-size: 11px; color: #94a3b8;">${daysLeft} days left</span>
+                <div style="font-size: 12px; color: #a8a29e; margin-top: 4px;">Reach: ${c.dailyReach}/day | Cost: $${c.cost}</div>
+            </div>`;
+        }).join('');
+        return `<div style="margin-bottom: 16px;"><h3>📺 Active Campaigns</h3><div style="display: flex; flex-direction: column; gap: 8px;">${cards}</div></div>`;
+    }
+
+    _renderCampaignShop(adSys) {
+        const types = adSys.getCampaignTypes();
+        const cash = this.engine ? this.engine.cash : 0;
+        const maxActive = (GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.ADVERTISING) ? GAME_CONFIG.WORLD.ADVERTISING.maxActiveCampaigns : 3;
+        const atMax = adSys.state.activeCampaigns.length >= maxActive;
+
+        const cards = types.map(t => {
+            const canAfford = cash >= t.cost && !atMax;
+            return `<div style="background: #1e293b; border-radius: 8px; padding: 12px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${t.name}</strong>
+                    <button class="btn btn-sm" style="padding: 4px 12px;" ${canAfford ? '' : 'disabled style="opacity:0.5; padding: 4px 12px;"'}
+                        onclick="window.game._launchCampaign('${t.type}')">$${t.cost}</button>
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">${t.desc}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Duration: ${t.duration} days | Reach: ${t.reach}</div>
+            </div>`;
+        }).join('');
+        return `<div><h3>🛒 Launch a Campaign ${atMax ? '<span style="color:#ef4444; font-size:12px;">(max reached)</span>' : ''}</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px;">${cards}</div></div>`;
+    }
+
+    _launchCampaign(type) {
+        const adSys = this.world && this.world.subsystems.advertising;
+        if (!adSys) return;
+        const campaign = adSys.launchCampaign(type, this.engine.day);
+        if (campaign) {
+            this.engine.cash -= campaign.cost;
+            this.showNotification(`${campaign.name} launched for $${campaign.cost}!`, 'success');
+            if (this.journal) this.journal.onSituation('marketing_campaign');
+            document.querySelector('.modal-overlay')?.remove();
+            this.showAdvertisingPanel();
+        }
+    }
+
+    // ==================== STEP 11: TECHNOLOGY PANEL ====================
+
+    showTechnologyPanel() {
+        const techSys = this.world && this.world.subsystems.technology;
+        if (!techSys) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 850px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>💻 Technology & Upgrades</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this._renderTechOverview(techSys)}
+                    ${this._renderTechCatalog(techSys)}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        if (window.gsap) gsap.from(panel.querySelector('.modal-content'), { scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out' });
+    }
+
+    _renderTechOverview(techSys) {
+        const level = techSys.state.techLevel;
+        const monthly = techSys.state.monthlySubscriptions;
+        const owned = techSys.state.purchased.length;
+        return `
+            <div style="background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 16px; text-align: center;">
+                    <div><div style="font-size: 28px; font-weight: bold; color: #38bdf8;">${level}</div><div style="font-size: 12px; color: #94a3b8;">Tech Level</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #a78bfa;">${owned}</div><div style="font-size: 12px; color: #94a3b8;">Technologies</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #f59e0b;">$${monthly}/mo</div><div style="font-size: 12px; color: #94a3b8;">Subscriptions</div></div>
+                </div>
+            </div>`;
+    }
+
+    _renderTechCatalog(techSys) {
+        const catalog = techSys.getTechCatalog();
+        const cash = this.engine ? this.engine.cash : 0;
+        const cards = catalog.map(t => {
+            const owned = techSys.state.purchased.includes(t.id);
+            const canAfford = !owned && cash >= t.cost;
+            return `<div style="background: ${owned ? '#14532d' : '#1e293b'}; border-radius: 8px; padding: 12px; border: 1px solid ${owned ? '#22c55e' : '#334155'};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${t.name}</strong>
+                    ${owned ? '<span style="color: #22c55e; font-size: 13px;">✅ Owned</span>'
+                        : `<button class="btn btn-sm" style="padding: 4px 12px;" ${canAfford ? '' : 'disabled style="opacity:0.5; padding: 4px 12px;"'}
+                            onclick="window.game._purchaseTech('${t.id}')">$${t.cost}</button>`}
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">${t.desc}</div>
+                ${t.monthly > 0 ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Monthly: $${t.monthly}</div>` : ''}
+            </div>`;
+        }).join('');
+        return `<div><h3>🛒 Technology Shop</h3><div style="display: flex; flex-direction: column; gap: 8px;">${cards}</div></div>`;
+    }
+
+    _purchaseTech(techId) {
+        const techSys = this.world && this.world.subsystems.technology;
+        if (!techSys) return;
+        const tech = techSys.purchaseTech(techId);
+        if (tech) {
+            this.engine.cash -= tech.cost;
+            this.showNotification(`${tech.name} installed! Tech level +${tech.techPoints}.`, 'success');
+            if (this.journal) this.journal.onSituation('tech_upgrade');
+            document.querySelector('.modal-overlay')?.remove();
+            this.showTechnologyPanel();
+        }
+    }
+
+    // ==================== STEP 11: FINANCE / LOANS PANEL ====================
+
+    showFinancePanel() {
+        const loanSys = this.world && this.world.subsystems.loans;
+        if (!loanSys) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 850px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>🏦 Finance & Loans</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this._renderFinanceOverview(loanSys)}
+                    ${this._renderActiveLoans(loanSys)}
+                    ${this._renderLoanShop(loanSys)}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        if (window.gsap) gsap.from(panel.querySelector('.modal-content'), { scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out' });
+    }
+
+    _renderFinanceOverview(loanSys) {
+        const credit = Math.round(loanSys.state.creditScore);
+        const creditColor = credit >= 700 ? '#22c55e' : credit >= 550 ? '#eab308' : '#ef4444';
+        const creditLabel = credit >= 750 ? 'Excellent' : credit >= 700 ? 'Good' : credit >= 650 ? 'Fair' : credit >= 550 ? 'Below Average' : 'Poor';
+        const totalDebt = Math.round(loanSys.getTotalDebt());
+        const cash = this.engine ? Math.round(this.engine.cash) : 0;
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 16px; text-align: center;">
+                    <div><div style="font-size: 28px; font-weight: bold; color: ${creditColor};">${credit}</div><div style="font-size: 12px; color: #94a3b8;">Credit Score (${creditLabel})</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #22c55e;">$${cash.toLocaleString()}</div><div style="font-size: 12px; color: #94a3b8;">Cash on Hand</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: ${totalDebt > 0 ? '#ef4444' : '#22c55e'};">$${totalDebt.toLocaleString()}</div><div style="font-size: 12px; color: #94a3b8;">Total Debt</div></div>
+                </div>
+            </div>`;
+    }
+
+    _renderActiveLoans(loanSys) {
+        const active = loanSys.state.loans.filter(l => l.remaining > 0);
+        if (active.length === 0) return '<p style="color: #94a3b8; text-align: center; padding: 8px;">No active loans. Debt-free!</p>';
+
+        const cards = active.map(l => {
+            const remaining = Math.round(l.remaining);
+            const pct = Math.round((1 - l.remaining / l.principal) * 100);
+            return `<div style="background: #292524; border-radius: 8px; padding: 10px 14px; border-left: 3px solid #ef4444;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${l.name}</strong>
+                    <span style="font-size: 13px; color: #fca5a5;">$${remaining.toLocaleString()} remaining</span>
+                </div>
+                <div style="font-size: 12px; color: #a8a29e; margin-top: 4px;">Monthly: $${l.monthlyPayment} | Rate: ${(l.rate * 100).toFixed(1)}% | ${pct}% repaid</div>
+                <div style="height: 4px; background: #1e293b; border-radius: 2px; margin-top: 6px; overflow: hidden;">
+                    <div style="width: ${pct}%; height: 100%; background: #22c55e; border-radius: 2px;"></div>
+                </div>
+            </div>`;
+        }).join('');
+        return `<div style="margin-bottom: 16px;"><h3>📋 Active Loans</h3><div style="display: flex; flex-direction: column; gap: 8px;">${cards}</div></div>`;
+    }
+
+    _renderLoanShop(loanSys) {
+        const catalog = loanSys.getLoanCatalog();
+        const maxLoans = (GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.LOANS) ? GAME_CONFIG.WORLD.LOANS.maxActiveLoans : 3;
+        const activeCount = loanSys.state.loans.filter(l => l.remaining > 0).length;
+        const atMax = activeCount >= maxLoans;
+        const minCredit = (GAME_CONFIG.WORLD && GAME_CONFIG.WORLD.LOANS) ? GAME_CONFIG.WORLD.LOANS.minCreditScore : 400;
+        const creditOk = loanSys.state.creditScore >= minCredit;
+
+        const cards = catalog.map(t => {
+            const canTake = !atMax && creditOk;
+            return `<div style="background: #1e293b; border-radius: 8px; padding: 12px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${t.name}</strong>
+                    <button class="btn btn-sm" style="padding: 4px 12px;" ${canTake ? '' : 'disabled style="opacity:0.5; padding: 4px 12px;"'}
+                        onclick="window.game._takeLoan('${t.type}')">Borrow $${t.amount.toLocaleString()}</button>
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">${t.desc}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Base rate: ${(t.baseRate * 100).toFixed(1)}% | Term: ${t.termMonths} months</div>
+            </div>`;
+        }).join('');
+        let lockMsg = '';
+        if (!creditOk) lockMsg = `<p style="color:#ef4444; text-align:center; font-size:13px;">⚠️ Credit score too low (need ${minCredit}+).</p>`;
+        if (atMax) lockMsg = `<p style="color:#ef4444; text-align:center; font-size:13px;">⚠️ Maximum active loans reached (${maxLoans}).</p>`;
+        return `<div><h3>🏦 Available Loans</h3>${lockMsg}<div style="display: flex; flex-direction: column; gap: 8px;">${cards}</div></div>`;
+    }
+
+    _takeLoan(type) {
+        const loanSys = this.world && this.world.subsystems.loans;
+        if (!loanSys) return;
+        const loan = loanSys.takeLoan(type, this.engine.day);
+        if (loan) {
+            this.engine.cash += loan.principal;
+            this.showNotification(`Loan of $${loan.principal.toLocaleString()} approved! Monthly payment: $${loan.monthlyPayment}.`, 'info');
+            if (this.journal) this.journal.onSituation('loan_taken');
+            document.querySelector('.modal-overlay')?.remove();
+            this.showFinancePanel();
+        }
+    }
+
+    // ==================== STEP 11: EXPANSION PANEL ====================
+
+    showExpansionPanel() {
+        const expSys = this.world && this.world.subsystems.expansion;
+        if (!expSys) return;
+
+        const envSys = this.world.subsystems.environmental;
+        const hsSys = this.world.subsystems.healthSafety;
+        const globalSys = this.world.subsystems.globalEvents;
+        const commSys = this.world.subsystems.communityEvents;
+
+        const panel = document.createElement('div');
+        panel.className = 'modal-overlay';
+        panel.innerHTML = `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>🏗️ Business & Expansion</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${this._renderExpansionOverview(expSys)}
+                    ${this._renderMilestones(expSys)}
+                    ${this._renderLocations(expSys)}
+                    ${this._renderHealthSafetyCard(hsSys)}
+                    ${this._renderEnvironmentalCard(envSys)}
+                    ${this._renderGlobalEventCard(globalSys)}
+                    ${this._renderCommunityCard(commSys)}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        if (window.gsap) gsap.from(panel.querySelector('.modal-content'), { scale: 0.8, opacity: 0, duration: 0.3, ease: 'back.out' });
+    }
+
+    _renderExpansionOverview(expSys) {
+        const pts = expSys.state.expansionPoints;
+        const locs = expSys.state.locations.length;
+        const rev = Math.round(expSys.state.totalRevenue);
+        return `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 16px; text-align: center;">
+                    <div><div style="font-size: 28px; font-weight: bold; color: #f59e0b;">⭐ ${pts}</div><div style="font-size: 12px; color: #94a3b8;">Expansion Points</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #38bdf8;">${locs}</div><div style="font-size: 12px; color: #94a3b8;">Locations</div></div>
+                    <div><div style="font-size: 28px; font-weight: bold; color: #22c55e;">$${rev.toLocaleString()}</div><div style="font-size: 12px; color: #94a3b8;">Lifetime Revenue</div></div>
+                </div>
+            </div>`;
+    }
+
+    _renderMilestones(expSys) {
+        const milestoneNames = {
+            first_1k: '💰 $1K Revenue', first_10k: '💰 $10K Revenue', first_50k: '💰 $50K Revenue',
+            first_100k: '🏆 $100K Revenue', rep_80: '⭐ Excellent Rep',
+            day_30: '📅 30 Days', day_100: '📅 100 Days', day_365: '🎂 One Year',
+            staff_5: '👥 Team of 5', zero_waste: '🌿 Zero Waste'
+        };
+        const items = Object.entries(milestoneNames).map(([id, name]) => {
+            const done = expSys.state.milestones[id];
+            return `<span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin: 2px;
+                background: ${done ? '#14532d' : '#1e293b'}; color: ${done ? '#86efac' : '#64748b'}; border: 1px solid ${done ? '#22c55e' : '#334155'};">
+                ${done ? '✅' : '🔒'} ${name}</span>`;
+        }).join('');
+        return `<div style="margin-bottom: 16px;"><h3>🎯 Milestones</h3><div style="display: flex; flex-wrap: wrap; gap: 4px;">${items}</div></div>`;
+    }
+
+    _renderLocations(expSys) {
+        const canExpand = expSys.canExpand();
+        const cost = expSys.state.locations.length * 25000;
+        const cash = this.engine ? this.engine.cash : 0;
+        const canAfford = cash >= cost && canExpand;
+
+        let expandBtn = '';
+        if (expSys.state.locations.length < 4) {
+            expandBtn = `<button class="btn btn-sm" style="margin-top: 8px;" ${canAfford ? '' : 'disabled style="opacity:0.5; margin-top: 8px;"'}
+                onclick="window.game._openNewLocation()">🏗️ Open New Location ($${cost.toLocaleString()})</button>`;
+            if (!canExpand) expandBtn += `<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">Need ${expSys.state.locations.length * 5} expansion points</div>`;
+        }
+
+        const locs = expSys.state.locations.map(l => {
+            return `<span style="display: inline-block; padding: 6px 12px; border-radius: 8px; background: #14532d; color: #86efac; font-size: 13px; border: 1px solid #22c55e; margin: 2px;">
+                🏪 ${l.name}</span>`;
+        }).join('');
+        return `<div style="margin-bottom: 16px;"><h3>🏪 Locations</h3>${locs}${expandBtn}</div>`;
+    }
+
+    _openNewLocation() {
+        const expSys = this.world && this.world.subsystems.expansion;
+        if (!expSys) return;
+        const cost = expSys.state.locations.length * 25000;
+        const loc = expSys.openLocation(null, this.engine.day);
+        if (loc) {
+            this.engine.cash -= cost;
+            this.showNotification(`🏗️ ${loc.name} is now open! Cost: $${cost.toLocaleString()}.`, 'success');
+            if (this.journal) this.journal.onSituation('first_expansion');
+            document.querySelector('.modal-overlay')?.remove();
+            this.showExpansionPanel();
+        }
+    }
+
+    _renderHealthSafetyCard(hsSys) {
+        if (!hsSys) return '';
+        const status = hsSys.getComplianceStatus();
+        const violations = status.violations;
+        return `
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px; border-left: 3px solid ${status.color};">
+                <h3>🏥 Health & Safety</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>Compliance: <strong style="color: ${status.color};">${Math.round(status.score)}% — ${status.label}</strong></div>
+                    <div style="font-size: 12px; color: #94a3b8;">Inspections: ✅${hsSys.state.inspectionsPassed} ❌${hsSys.state.inspectionsFailed}</div>
+                </div>
+                ${violations.length > 0 ? `<div style="margin-top: 6px; font-size: 12px; color: #fca5a5;">⚠️ ${violations.length} unresolved violation(s)! Fix quickly to avoid fines.</div>` : ''}
+                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">💡 Keep staff morale high and equipment maintained to improve compliance.</div>
+            </div>`;
+    }
+
+    _renderEnvironmentalCard(envSys) {
+        if (!envSys) return '';
+        const s = envSys.state;
+        const susColor = s.sustainabilityScore >= 60 ? '#22c55e' : s.sustainabilityScore >= 35 ? '#eab308' : '#ef4444';
+        const initiatives = envSys.getInitiativeCatalog();
+        const cash = this.engine ? this.engine.cash : 0;
+
+        const initItems = initiatives.map(i => {
+            const owned = s.initiatives.includes(i.id);
+            const canAfford = !owned && cash >= i.cost;
+            return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
+                <span>${i.name} — <span style="color: #94a3b8;">${i.desc}</span></span>
+                ${owned ? '<span style="color: #22c55e;">✅</span>'
+                    : `<button class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;" ${canAfford ? '' : 'disabled style="opacity:0.5; padding: 2px 8px; font-size: 11px;"'}
+                        onclick="window.game._purchaseInitiative('${i.id}')">$${i.cost}</button>`}
+            </div>`;
+        }).join('');
+
+        return `
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px; border-left: 3px solid ${susColor};">
+                <h3>🌿 Sustainability</h3>
+                <div>Score: <strong style="color: ${susColor};">${Math.round(s.sustainabilityScore)}%</strong>
+                    | Waste: ${s.wastePct.toFixed(1)}% | Energy: ${s.energyEfficiency}%</div>
+                <div style="margin-top: 8px;">${initItems}</div>
+            </div>`;
+    }
+
+    _purchaseInitiative(initId) {
+        const envSys = this.world && this.world.subsystems.environmental;
+        if (!envSys) return;
+        const init = envSys.purchaseInitiative(initId);
+        if (init) {
+            this.engine.cash -= init.cost;
+            this.showNotification(`${init.name} implemented! Sustainability improved.`, 'success');
+            document.querySelector('.modal-overlay')?.remove();
+            this.showExpansionPanel();
+        }
+    }
+
+    _renderGlobalEventCard(globalSys) {
+        if (!globalSys) return '';
+        const s = globalSys.state;
+        const econColor = s.economicIndex >= 110 ? '#22c55e' : s.economicIndex >= 90 ? '#eab308' : '#ef4444';
+        let eventHtml = '<div style="font-size: 12px; color: #94a3b8;">No major global events currently affecting business.</div>';
+        if (s.currentEvent) {
+            const e = s.currentEvent;
+            const sentiment = e.effects.demandMod < 1 ? '#ef4444' : '#22c55e';
+            eventHtml = `<div style="background: ${e.effects.demandMod < 1 ? '#7f1d1d' : '#14532d'}; border-radius: 6px; padding: 8px; margin-top: 6px;">
+                <strong style="color: ${sentiment};">${e.name}</strong>
+                <div style="font-size: 12px; color: #d6d3d1; margin-top: 2px;">${e.description}</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Demand: ${(e.effects.demandMod * 100).toFixed(0)}% | Costs: ${(e.effects.costMod * 100).toFixed(0)}%</div>
+            </div>`;
+        }
+        return `
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px; border-left: 3px solid ${econColor};">
+                <h3>🌍 Global Economy</h3>
+                <div>Economic Index: <strong style="color: ${econColor};">${s.economicIndex.toFixed(0)}</strong>
+                    | Inflation: ${(s.inflationRate * 100).toFixed(1)}%</div>
+                ${eventHtml}
+            </div>`;
+    }
+
+    _renderCommunityCard(commSys) {
+        if (!commSys) return '';
+        const s = commSys.state;
+        const gwColor = s.communityGoodwill >= 70 ? '#22c55e' : s.communityGoodwill >= 40 ? '#eab308' : '#ef4444';
+        let eventsHtml = '<div style="font-size: 12px; color: #94a3b8;">No community events right now.</div>';
+        if (s.activeEvents.length > 0) {
+            eventsHtml = s.activeEvents.map(e => {
+                const impact = e.demandMod >= 1 ? `📈 +${Math.round((e.demandMod - 1) * 100)}% demand` : `📉 ${Math.round((e.demandMod - 1) * 100)}% demand`;
+                return `<div style="font-size: 12px; padding: 4px 0;">
+                    <strong>${e.name}</strong> — ${impact}
+                    ${!e.participated ? `<button class="btn btn-sm" style="padding: 2px 8px; font-size: 11px; margin-left: 6px;"
+                        onclick="window.game._participateInEvent('${e.id}')">🤝 Participate</button>` : ' <span style="color: #22c55e;">✅ Participated</span>'}
+                </div>`;
+            }).join('');
+        }
+        return `
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px; border-left: 3px solid ${gwColor};">
+                <h3>🎉 Community & Events</h3>
+                <div>Goodwill: <strong style="color: ${gwColor};">${Math.round(s.communityGoodwill)}%</strong>
+                    | Donations: $${s.donationTotal} | Events joined: ${s.participationCount}</div>
+                <div style="margin-top: 6px;">${eventsHtml}</div>
+            </div>`;
+    }
+
+    _participateInEvent(eventId) {
+        const commSys = this.world && this.world.subsystems.communityEvents;
+        if (!commSys) return;
+        commSys.participate(eventId);
+        this.showNotification(`🤝 You participated in the community event! Goodwill increased.`, 'success');
+        if (this.journal) this.journal.onSituation('community_event');
+        document.querySelector('.modal-overlay')?.remove();
+        this.showExpansionPanel();
     }
 
     // Helper methods for UI interactions
@@ -4942,32 +7044,75 @@ class GameController {
         }
     }
 
+    /**
+     * Add a scenario effect — routes to WorldSimulation.state.activeEffects (persistent)
+     * with legacy fallback if world is not initialised.
+     */
     addScenarioEffect({ key, multiplier = 1, value = 0, duration = 2, label = 'Scenario effect', operation, description }) {
         if (!this.engine) return;
         const normalized = this.normalizeScenarioDuration(duration, 2);
-        const expiresOnDay = this.engine.day + normalized - 1;
         const operationUsed = operation || (key === 'loyalty' ? 'add' : 'multiply');
-        this.activeScenarioEffects.push({ key, multiplier, value, duration: normalized, label, operation: operationUsed, description, expiresOnDay });
+
+        // Primary path — persistent in WorldState (saved/loaded automatically)
+        if (this.world && this.world.addEffect) {
+            this.world.addEffect({
+                key,
+                multiplier,
+                value,
+                duration: normalized,
+                label,
+                operation: operationUsed,
+                source: 'scenario'
+            });
+        } else {
+            // Fallback — volatile array (pre-world-init or no world)
+            const expiresOnDay = this.engine.day + normalized - 1;
+            this._legacyScenarioEffects.push({ key, multiplier, value, duration: normalized, label, operation: operationUsed, description, expiresOnDay });
+        }
+
         const plural = normalized === 1 ? 'day' : 'days';
         const isPositive = (operationUsed === 'add' && value > 0) || (operationUsed !== 'add' && multiplier > 1);
         this.showNotification(`${label} active for ${normalized} ${plural}.`, isPositive ? 'success' : 'warning');
     }
 
+    /**
+     * Read a scenario modifier — merges WorldState persistent effects with legacy fallback.
+     */
     getScenarioModifier(key, options = {}) {
         const { defaultValue, operation } = options;
-        const filtered = this.activeScenarioEffects.filter(effect => effect.key === key);
+
+        // Gather effects from both stores
+        let worldEffects = [];
+        if (this.world && this.world.state && this.world.state.activeEffects) {
+            worldEffects = this.world.state.activeEffects.filter(e => e.key === key);
+        }
+        const legacyEffects = (this._legacyScenarioEffects || []).filter(e => e.key === key);
+        const allEffects = worldEffects.concat(legacyEffects);
+
         if (operation === 'add') {
             const base = defaultValue ?? 0;
-            return filtered.reduce((sum, effect) => sum + (effect.value || 0), base);
+            return allEffects.reduce((sum, e) => sum + (e.value || 0), base);
         }
         const base = defaultValue ?? 1;
-        return filtered.reduce((acc, effect) => acc * (effect.multiplier ?? 1), base);
+        return allEffects.reduce((acc, e) => acc * (e.multiplier ?? 1), base);
     }
 
+    /**
+     * Purge expired effects — WorldSimulation handles its own purge in simulateDay().
+     * This only cleans the legacy fallback array.
+     */
     purgeExpiredScenarioEffects() {
         if (!this.engine) return;
         const day = this.engine.day;
-        this.activeScenarioEffects = this.activeScenarioEffects.filter(effect => day <= effect.expiresOnDay);
+        this._legacyScenarioEffects = (this._legacyScenarioEffects || []).filter(effect => day <= effect.expiresOnDay);
+    }
+
+    /**
+     * Backward-compat getter — returns the merged active effects from both stores.
+     */
+    get activeScenarioEffects() {
+        const world = (this.world && this.world.state && this.world.state.activeEffects) ? this.world.state.activeEffects : [];
+        return world.concat(this._legacyScenarioEffects || []);
     }
 
     normalizeScenarioDuration(duration, fallback = 2) {
