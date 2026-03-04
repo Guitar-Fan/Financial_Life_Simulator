@@ -81,9 +81,9 @@ class GameController {
         // Handle window resize and fullscreen events
         window.addEventListener('resize', () => {
             if (this.phaserGame && this.phaserGame.scale) {
-                // Phaser's RESIZE mode will automatically handle this
-                // But we can add additional logic if needed
-                this.phaserGame.scale.resize(window.innerWidth, window.innerHeight - 60);
+                const inBakery = document.body.classList.contains('in-bakery-env');
+                const h = inBakery ? window.innerHeight : window.innerHeight - 60;
+                this.phaserGame.scale.resize(window.innerWidth, h);
             }
         });
         
@@ -975,21 +975,38 @@ class GameController {
         const markup = parseInt(value) || 100;
         this.engine.markupPercentage = markup;
         
-        // Update both slider and input
+        // Update both slider and input (old phase elements)
         const slider = document.getElementById('markup-slider');
         const input = document.getElementById('markup-input');
         if (slider) slider.value = markup;
         if (input) input.value = markup;
+
+        // Update overlay elements
+        const oSlider = document.getElementById('overlay-markup-slider');
+        const oInput = document.getElementById('overlay-markup-input');
+        if (oSlider) oSlider.value = markup;
+        if (oInput) oInput.value = markup;
         
         // Refresh display products to show new prices
         this.renderDisplayProducts();
+        this.renderOverlayDisplayProducts();
     }
 
     // ==================== MAIN MENU ====================
     showMainMenu() {
         console.log('Displaying Main Menu');
         this.cleanupPhaser();
+        this.stopBakingLoop();
+        this.stopSellingLoop();
+        this.closeOverlayPanel();
         this.currentPhase = 'menu';
+
+        // Remove bakery environment mode
+        document.body.classList.remove('in-bakery-env');
+        const hud = document.getElementById('bakery-hud');
+        if (hud) hud.style.display = 'none';
+        if (this._hudInterval) { clearInterval(this._hudInterval); this._hudInterval = null; }
+
         const container = document.getElementById('game-container');
         if (container) {
             container.classList.remove('full-screen');
@@ -1646,106 +1663,850 @@ class GameController {
     }
 
     showModeHub() {
+        // If the Phaser bakery environment is already running, just close any overlay and return
+        if (this.phaserGame && this.currentPhase === 'hub') {
+            this.closeOverlayPanel();
+            this.updateBakeryHUD();
+            return;
+        }
+
         this.cleanupPhaser();
         this.currentPhase = 'hub';
         window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase: 'hub' } }));
-
         this.purgeExpiredScenarioEffects();
 
-        // Show dashboard, staff, and equipment buttons
-        const dashboardBtn = document.getElementById('btn-dashboard');
-        const staffBtn = document.getElementById('btn-staff');
-        const equipmentBtn = document.getElementById('btn-equipment');
-        const strategyBtn = document.getElementById('btn-strategy');
-        const customersBtn = document.getElementById('btn-customers');
-        if (dashboardBtn) dashboardBtn.style.display = 'inline-block';
-        if (staffBtn) {
-            staffBtn.style.display = 'inline-block';
-            staffBtn.onclick = () => this.showStaffPanel();
-        }
-        if (equipmentBtn) {
-            equipmentBtn.style.display = 'inline-block';
-            equipmentBtn.onclick = () => this.showEquipmentPanel();
-        }
-        if (strategyBtn) {
-            strategyBtn.style.display = 'inline-block';
-            strategyBtn.onclick = () => this.showStrategyPanel();
-        }
-        if (customersBtn && this.customerDB) {
-            customersBtn.style.display = 'inline-block';
-            customersBtn.onclick = () => this.showCustomerDatabase();
-        }
+        // Enter 2D bakery mode — hide old UI, show HUD
+        document.body.classList.add('in-bakery-env');
+        const hud = document.getElementById('bakery-hud');
+        if (hud) hud.style.display = '';
 
         const container = document.getElementById('game-container');
         if (container) {
             container.classList.add('full-screen');
-            container.style.padding = '';
-            container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 100%; overflow: hidden;"></div>`;
+            container.style.padding = '0';
+            container.innerHTML = `<div id="phaser-container" style="width:100%;height:100%;overflow:hidden;"></div>`;
         }
 
         const config = {
             type: Phaser.AUTO,
             width: window.innerWidth,
-            height: window.innerHeight - 60,
+            height: window.innerHeight,
             parent: 'phaser-container',
-            backgroundColor: '#11161c',
+            backgroundColor: '#0a0604',
+            pixelArt: false,
             scale: {
                 mode: Phaser.Scale.RESIZE,
-                autoCenter: Phaser.Scale.CENTER_BOTH
+                autoCenter: Phaser.Scale.CENTER_BOTH,
             },
             physics: {
                 default: 'arcade',
-                arcade: { gravity: { y: 0 }, debug: false }
+                arcade: { gravity: { y: 0 }, debug: false },
             },
-            scene: [ModeHubScene]
+            scene: [BakeryEnvironmentScene],
         };
 
         this.phaserGame = new Phaser.Game(config);
 
-        // Add Economic Dashboard Overlay
-        const economyReport = this.engine.economy.getDailyReport(this.engine.day);
-        const eventsHtml = economyReport.activeEvents.length > 0
-            ? `<div class="econ-events">
-                ${economyReport.activeEvents.map(e => `
-                    <div class="event-ticker" title="${e.daysRemaining} days left">
-                        ${e.icon || '⚠️'} ${e.name}
-                    </div>
-                `).join('')}
-               </div>`
-            : '';
+        // Bind the interaction event
+        if (!this._bakeryInteractBound) {
+            this._bakeryInteractBound = true;
+            window.addEventListener('bakery:interact', (e) => this.handleBakeryInteraction(e.detail));
+        }
 
-        const dashboard = document.createElement('div');
-        dashboard.className = 'econ-dashboard';
-        dashboard.innerHTML = `
-            <h3>📈 Market Report</h3>
-            <div class="econ-row">
-                <span class="econ-label">Season</span>
-                <span class="econ-value">${economyReport.season.icon} ${economyReport.season.name}</span>
-            </div>
-            <div class="econ-row">
-                <span class="econ-label">Inflation</span>
-                <span class="econ-value">${economyReport.inflation.rate} ${economyReport.inflation.trend}</span>
-            </div>
-            <div class="econ-row">
-                <span class="econ-label">Supply</span>
-                <span class="econ-value" title="Grains/Dairy/Produce">
-                    🌾${economyReport.supply.grains} 🥛${economyReport.supply.dairy} 🍎${economyReport.supply.produce}
-                </span>
-            </div>
-            ${eventsHtml}
-        `;
-        container.appendChild(dashboard);
+        // Bind ESC to close overlay
+        if (!this._escBound) {
+            this._escBound = true;
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') this.closeOverlayPanel();
+            });
+        }
+
+        // Close-button handler
+        const closeBtn = document.getElementById('overlay-panel-close');
+        if (closeBtn) closeBtn.onclick = () => this.closeOverlayPanel();
+
+        // Start HUD update loop
+        this.startHUDLoop();
         this.checkForScenarios();
+        this.updateBakeryHUD();
+    }
+
+    // -- HUD sync loop --
+    startHUDLoop() {
+        if (this._hudInterval) clearInterval(this._hudInterval);
+        this._hudInterval = setInterval(() => this.updateBakeryHUD(), 500);
+    }
+
+    updateBakeryHUD() {
+        const hCash = document.getElementById('hud-cash');
+        const hDay  = document.getElementById('hud-day');
+        const hTime = document.getElementById('hud-time');
+        if (hCash && this.engine) hCash.textContent = '$' + this.engine.cash.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        if (hDay && this.engine)  hDay.textContent = this.engine.day;
+        if (hTime && this.engine) hTime.textContent = this.engine.getTimeString ? this.engine.getTimeString() : `${this.engine.hour}:${String(this.engine.minute).padStart(2,'0')}`;
+        // Also keep the old nav-stats in sync (for popups that reference them)
+        const navCash = document.getElementById('nav-cash');
+        const navDay  = document.getElementById('nav-day');
+        if (navCash && this.engine) navCash.textContent = `$${this.engine.cash.toFixed(2)}`;
+        if (navDay && this.engine) navDay.textContent = `Day ${this.engine.day}`;
+    }
+
+    // -- Overlay panel helpers --
+    openOverlayPanel(title, bodyHtml) {
+        const panel = document.getElementById('overlay-panel');
+        const titleEl = document.getElementById('overlay-panel-title');
+        const bodyEl  = document.getElementById('overlay-panel-body');
+        if (!panel || !titleEl || !bodyEl) return;
+        titleEl.textContent = title;
+        bodyEl.innerHTML = bodyHtml;
+        panel.classList.add('open');
+        window.dispatchEvent(new Event('bakery:overlay-opened'));
+    }
+
+    closeOverlayPanel() {
+        const panel = document.getElementById('overlay-panel');
+        if (!panel || !panel.classList.contains('open')) return;
+        panel.classList.remove('open');
+        this.stopBakingLoop();
+        // Only stop selling if explicitly requested (Close Shop button)
+        // Don't stop when player just closes the overlay to walk around
+        if (this._stopSellingOnClose) {
+            this.stopSellingLoop();
+            this._stopSellingOnClose = false;
+        }
+        window.dispatchEvent(new Event('bakery:overlay-closed'));
+        this.updateBakeryHUD();
+    }
+
+    // -- Interaction router --
+    handleBakeryInteraction(detail) {
+        const { actionId } = detail;
+        switch (actionId) {
+            case 'computer':   this.showComputerPanel(); break;
+            case 'oven':
+            case 'prep':       this.showOvenPanel(); break;
+            case 'register':   this.showRegisterPanel(); break;
+            case 'display':
+            case 'display2':
+            case 'bread_shelf':
+            case 'product_shelf': this.showDisplayPanel(); break;
+            case 'storage':
+            case 'fridge':     this.showStoragePanel(); break;
+            case 'records':    this.showRecordsPanel(); break;
+            case 'recipes':    this.showRecipesPanel(); break;
+            default:
+                console.log('[Bakery] Unknown interaction:', actionId);
+        }
     }
 
     enterPhaseFromHub(phase) {
-        // Clean up hub
-        if (this.phaserGame) {
-            this.phaserGame.destroy(true);
-            this.phaserGame = null;
+        // Legacy — in the new 2D world we don't destroy Phaser, just open the overlay
+        switch (phase) {
+            case 'buying': this.showComputerPanel(); break;
+            case 'baking': this.showOvenPanel(); break;
+            case 'selling': this.showRegisterPanel(); break;
+            case 'summary': this.showSummaryOverlay(); break;
+            default: this.goToPhase(phase);
         }
-        // Proceed to requested phase
-        this.goToPhase(phase);
+    }
+
+    // ==================== OVERLAY PANELS (2D ENVIRONMENT) ====================
+
+    // ---- COMPUTER PANEL (Buying / Finances / Upgrades / Market / Staff / Strategy) ----
+    showComputerPanel() {
+        const tabs = [
+            { id: 'buy',       label: '📦 Buy Supplies' },
+            { id: 'finance',   label: '📊 Finances' },
+            { id: 'market',    label: '📈 Market' },
+            { id: 'staff',     label: '🧑‍🍳 Staff' },
+            { id: 'equipment', label: '⚙️ Equipment' },
+            { id: 'strategy',  label: '🎯 Strategy' },
+            { id: 'endday',    label: '🌙 End Day' },
+        ];
+        const tabsHtml = `<div class="overlay-tabs">${tabs.map((t, i) =>
+            `<button class="overlay-tab${i === 0 ? ' active' : ''}" data-tab="${t.id}">${t.label}</button>`
+        ).join('')}</div>`;
+
+        const bodyHtml = tabsHtml + tabs.map(t => `<div class="overlay-tab-content${t.id === 'buy' ? ' active' : ''}" id="computer-tab-${t.id}"></div>`).join('');
+        this.openOverlayPanel('💻 Office Computer', bodyHtml);
+
+        // Wire tabs
+        document.querySelectorAll('#overlay-panel .overlay-tab').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('#overlay-panel .overlay-tab').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#overlay-panel .overlay-tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                const target = document.getElementById(`computer-tab-${btn.dataset.tab}`);
+                if (target) target.classList.add('active');
+                this.renderComputerTab(btn.dataset.tab);
+            };
+        });
+
+        // Render first tab
+        this.renderComputerTab('buy');
+    }
+
+    renderComputerTab(tab) {
+        const el = document.getElementById(`computer-tab-${tab}`);
+        if (!el) return;
+
+        switch (tab) {
+            case 'buy': this.renderBuyingTab(el); break;
+            case 'finance': this.renderFinanceTab(el); break;
+            case 'market': this.renderMarketTab(el); break;
+            case 'staff': this.renderStaffTab(el); break;
+            case 'equipment': this.renderEquipmentTab(el); break;
+            case 'strategy': this.renderStrategyTab(el); break;
+            case 'endday': this.renderEndDayTab(el); break;
+        }
+    }
+
+    renderBuyingTab(el) {
+        // Reuse the buying phase content but render inside the overlay panel
+        const vendors = GAME_CONFIG.VENDORS || {};
+        const vendorKeys = Object.keys(vendors);
+        const currentVendor = vendorKeys[0] || 'METRO';
+
+        el.innerHTML = `
+            <div style="display:grid; grid-template-columns:220px 1fr 300px; gap:16px; max-height:60vh;">
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🏪 Vendors</h4>
+                    <div id="overlay-vendor-list">
+                        ${vendorKeys.map(vk => {
+                            const v = vendors[vk];
+                            return `<button class="overlay-vendor-btn" data-vendor="${vk}" style="
+                                display:block; width:100%; text-align:left; padding:8px 10px; margin-bottom:6px;
+                                background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1);
+                                border-radius:8px; color:white; cursor:pointer; font-size:13px;
+                            ">${v.icon || '🏬'} ${v.name}<br><span style='font-size:11px;color:rgba(255,255,255,0.5);'>${v.specialty || ''}</span></button>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div style="overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🧈 Ingredients</h4>
+                    <div id="overlay-ingredient-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px;"></div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">📦 Inventory</h4>
+                    <div style="margin-bottom:10px; font-size:14px; color:#2ecc71;">Cash: <strong>$<span id="overlay-buy-cash">${this.engine.cash.toFixed(2)}</span></strong></div>
+                    <div id="overlay-inventory-list"></div>
+                </div>
+            </div>
+        `;
+
+        // Render ingredients for first vendor
+        this.renderOverlayIngredients(currentVendor);
+        this.renderOverlayInventory();
+
+        // Vendor button handlers
+        el.querySelectorAll('.overlay-vendor-btn').forEach(btn => {
+            btn.onclick = () => {
+                el.querySelectorAll('.overlay-vendor-btn').forEach(b => b.style.borderColor = 'rgba(255,255,255,0.1)');
+                btn.style.borderColor = '#ffd700';
+                this.renderOverlayIngredients(btn.dataset.vendor);
+            };
+        });
+        // Highlight first vendor
+        const firstBtn = el.querySelector('.overlay-vendor-btn');
+        if (firstBtn) firstBtn.style.borderColor = '#ffd700';
+    }
+
+    renderOverlayIngredients(vendorKey) {
+        const grid = document.getElementById('overlay-ingredient-grid');
+        if (!grid) return;
+        const ingredients = GAME_CONFIG.INGREDIENTS || {};
+        const vendor = (GAME_CONFIG.VENDORS || {})[vendorKey] || {};
+        const vendorIngredients = vendor.ingredients || Object.keys(ingredients);
+
+        grid.innerHTML = vendorIngredients.map(ingKey => {
+            const ing = ingredients[ingKey];
+            if (!ing) return '';
+            const price = this.engine.economy ? this.engine.economy.getIngredientPrice(ingKey, vendorKey) : (ing.cost || ing.price || 1);
+            const unit = ing.unit || 'unit';
+            return `
+                <div style="background:rgba(255,255,255,0.07); border-radius:8px; padding:10px; font-size:13px;">
+                    <div style="font-weight:600; margin-bottom:4px;">${ing.icon || '🧂'} ${ing.name || ingKey}</div>
+                    <div style="color:#f39c12; font-size:12px;">$${(typeof price === 'number' ? price : 1).toFixed(2)} / ${unit}</div>
+                    <div style="display:flex; gap:6px; margin-top:8px; align-items:center;">
+                        <input type="number" min="1" value="1" style="width:50px; padding:4px; border-radius:4px; border:1px solid #555; background:#222; color:white; font-size:12px;" class="overlay-ing-qty" data-ing="${ingKey}">
+                        <button style="padding:4px 10px; background:#2ecc71; border:none; border-radius:6px; color:white; font-size:12px; cursor:pointer;" class="overlay-buy-btn" data-ing="${ingKey}" data-vendor="${vendorKey}">Buy</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        grid.querySelectorAll('.overlay-buy-btn').forEach(btn => {
+            btn.onclick = () => {
+                const ingKey = btn.dataset.ing;
+                const vendor = btn.dataset.vendor;
+                const qtyInput = grid.querySelector(`.overlay-ing-qty[data-ing="${ingKey}"]`);
+                const qty = parseInt(qtyInput?.value, 10) || 1;
+                const result = this.engine.purchaseIngredient(ingKey, qty, vendor);
+                if (result && result.success !== false) {
+                    btn.textContent = '✓';
+                    setTimeout(() => { btn.textContent = 'Buy'; }, 600);
+                } else {
+                    btn.textContent = '✗';
+                    btn.style.background = '#e74c3c';
+                    setTimeout(() => { btn.textContent = 'Buy'; btn.style.background = '#2ecc71'; }, 800);
+                }
+                this.renderOverlayInventory();
+                this.updateBakeryHUD();
+                const cashEl = document.getElementById('overlay-buy-cash');
+                if (cashEl) cashEl.textContent = this.engine.cash.toFixed(2);
+            };
+        });
+    }
+
+    renderOverlayInventory() {
+        const el = document.getElementById('overlay-inventory-list');
+        if (!el) return;
+        const ingredients = this.engine.ingredients || {};
+        const entries = Object.entries(ingredients).filter(([k, v]) => {
+            const total = v.batches ? v.batches.reduce((s, b) => s + b.quantity, 0) : (v.quantity || 0);
+            return total > 0;
+        });
+        if (entries.length === 0) {
+            el.innerHTML = '<div style="color:rgba(255,255,255,0.4); font-size:12px;">No ingredients in stock</div>';
+            return;
+        }
+        el.innerHTML = entries.map(([key, v]) => {
+            const total = v.batches ? v.batches.reduce((s, b) => s + b.quantity, 0) : (v.quantity || 0);
+            const ing = (GAME_CONFIG.INGREDIENTS || {})[key] || {};
+            return `<div style="display:flex; justify-content:space-between; padding:4px 0; font-size:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <span>${ing.icon || ''} ${ing.name || key}</span>
+                <span style="color:#f39c12;">${total.toFixed(1)}</span>
+            </div>`;
+        }).join('');
+    }
+
+    renderFinanceTab(el) {
+        const s = this.engine.dailyStats || {};
+        const a = this.engine.allTimeStats || {};
+        el.innerHTML = `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:16px;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:12px;">📊 Today (Day ${this.engine.day})</h4>
+                    <div style="font-size:13px; line-height:2;">
+                        <div>Revenue: <strong style="color:#2ecc71;">$${(s.revenue||0).toFixed(2)}</strong></div>
+                        <div>Cost of Goods: <strong style="color:#e74c3c;">-$${(s.cogs||0).toFixed(2)}</strong></div>
+                        <div>Gross Profit: <strong>$${((s.revenue||0) - (s.cogs||0)).toFixed(2)}</strong></div>
+                        <div>Customers Served: <strong>${s.customersServed||0}</strong></div>
+                        <div>Customers Missed: <strong style="color:#e74c3c;">${s.customersMissed||0}</strong></div>
+                        <div>Items Sold: <strong>${s.itemsSold||0}</strong></div>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:16px;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:12px;">📈 All Time</h4>
+                    <div style="font-size:13px; line-height:2;">
+                        <div>Total Revenue: <strong style="color:#2ecc71;">$${(a.totalRevenue||0).toFixed(2)}</strong></div>
+                        <div>Total COGS: <strong style="color:#e74c3c;">-$${(a.totalCogs||0).toFixed(2)}</strong></div>
+                        <div>Total Expenses: <strong style="color:#e74c3c;">-$${(a.totalExpenses||0).toFixed(2)}</strong></div>
+                        <div>Total Customers: <strong>${a.totalCustomers||0}</strong></div>
+                        <div>Days Operated: <strong>${a.daysOperated||0}</strong></div>
+                        <div style="margin-top:8px; font-size:16px; color:#ffd700;">Cash: <strong>$${this.engine.cash.toFixed(2)}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:16px; text-align:center;">
+                <button style="padding:8px 20px; background:rgba(255,215,0,0.2); border:1px solid rgba(255,215,0,0.4); border-radius:8px; color:#ffd700; cursor:pointer; font-size:13px;" onclick="if(window.game && window.game.dashboard) window.game.dashboard.show();">📊 Open Full Dashboard</button>
+            </div>
+        `;
+    }
+
+    renderMarketTab(el) {
+        try {
+            const report = this.engine.economy ? this.engine.economy.getDailyReport(this.engine.day) : null;
+            if (!report) { el.innerHTML = '<div style="color:rgba(255,255,255,0.5);">Market data unavailable</div>'; return; }
+            const eventsHtml = (report.activeEvents || []).length > 0
+                ? report.activeEvents.map(e => `<div style="background:rgba(231,76,60,0.15); border-left:3px solid #e74c3c; padding:8px; margin-bottom:6px; border-radius:4px; font-size:13px;">${e.icon||'⚠️'} ${e.name} (${e.daysRemaining} days left)</div>`).join('')
+                : '<div style="color:rgba(255,255,255,0.4); font-size:13px;">No active events</div>';
+            el.innerHTML = `
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:14px;">
+                        <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🌤️ Conditions</h4>
+                        <div style="font-size:13px; line-height:2;">
+                            <div>Season: ${report.season?.icon||''} ${report.season?.name||'Unknown'}</div>
+                            <div>Inflation: ${report.inflation?.rate||'N/A'} ${report.inflation?.trend||''}</div>
+                            <div>Supply — 🌾${report.supply?.grains||'N/A'} 🥛${report.supply?.dairy||'N/A'} 🍎${report.supply?.produce||'N/A'}</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:14px;">
+                        <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">⚡ Active Events</h4>
+                        ${eventsHtml}
+                    </div>
+                </div>
+            `;
+        } catch(e) { el.innerHTML = '<div style="color:#e74c3c;">Error loading market data</div>'; }
+    }
+
+    renderStaffTab(el) {
+        const staff = this.engine.staff || [];
+        el.innerHTML = `
+            <div style="margin-bottom:12px;">
+                <button style="padding:8px 16px; background:#2ecc71; border:none; border-radius:8px; color:white; cursor:pointer; font-size:13px;" onclick="window.game.showStaffPanel();">🧑‍🍳 Open Full Staff Panel</button>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px;">
+                ${staff.length === 0 ? '<div style="color:rgba(255,255,255,0.4);">No staff hired yet. Use the Staff Panel to hire.</div>' :
+                staff.map(s => `
+                    <div style="background:rgba(255,255,255,0.06); border-radius:8px; padding:12px;">
+                        <div style="font-size:18px;">${s.face||'👤'} <strong>${s.name}</strong></div>
+                        <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:4px;">⭐ Skill: ${(s.skillLevel||1).toFixed(1)} | 😊 ${(s.happiness||100).toFixed(0)}% | 😴 ${(s.fatigue||0).toFixed(0)}%</div>
+                        <div style="font-size:12px; color:#f39c12; margin-top:2px;">$${(s.salary||0).toFixed(0)}/day</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderEquipmentTab(el) {
+        el.innerHTML = `
+            <div style="margin-bottom:12px;">
+                <button style="padding:8px 16px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; cursor:pointer; font-size:13px;" onclick="window.game.showEquipmentPanel();">⚙️ Open Full Equipment Panel</button>
+            </div>
+            <div style="font-size:13px; line-height:2; color:rgba(255,255,255,0.7);">
+                <div>Ovens: <strong>${this.engine.equipment?.ovens || 1}</strong> (Capacity: ${this.engine.ovenCapacity || 8})</div>
+                <div>Mixers: <strong>${this.engine.equipment?.mixers || 1}</strong></div>
+                <div>Display Cases: <strong>${this.engine.equipment?.displays || 1}</strong></div>
+            </div>
+        `;
+    }
+
+    renderStrategyTab(el) {
+        el.innerHTML = `
+            <div style="margin-bottom:12px;">
+                <button style="padding:8px 16px; background:rgba(255,215,0,0.2); border:1px solid rgba(255,215,0,0.4); border-radius:8px; color:#ffd700; cursor:pointer; font-size:13px;" onclick="window.game.showStrategyPanel();">🎯 Open Full Strategy Panel</button>
+            </div>
+            <div style="font-size:13px; color:rgba(255,255,255,0.6);">
+                <div>Markup: <strong style="color:#f39c12;">${this.engine.markupPercentage || 100}%</strong></div>
+                <div>Automation: <strong>${this.automationEnabled ? '✅ Active' : '❌ Off'}</strong></div>
+            </div>
+        `;
+    }
+
+    renderEndDayTab(el) {
+        el.innerHTML = `
+            <div style="text-align:center; padding:30px 20px;">
+                <div style="font-size:48px; margin-bottom:16px;">🌙</div>
+                <h3 style="font-family:'Fredoka',cursive; color:#ffd700; margin-bottom:12px;">End Day ${this.engine.day}?</h3>
+                <p style="color:rgba(255,255,255,0.6); margin-bottom:20px; font-size:14px;">
+                    This will close the shop, calculate profits, expenses, and spoilage, then start a new day.
+                </p>
+                <div style="display:flex; gap:12px; justify-content:center;">
+                    <button style="padding:10px 24px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; cursor:pointer; font-size:14px;" onclick="window.game.closeOverlayPanel();">Cancel</button>
+                    <button style="padding:10px 24px; background:#e67e22; border:none; border-radius:8px; color:white; cursor:pointer; font-size:14px; font-weight:600;" onclick="window.game.showSummaryOverlay();">🌙 End Day</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // ---- OVEN / BAKING PANEL ----
+    showOvenPanel() {
+        const bodyHtml = `
+            <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <span style="color:rgba(255,255,255,0.6); font-size:13px;">Time Speed:</span>
+                <button class="overlay-speed-btn" data-speed="1" style="padding:4px 10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:white; cursor:pointer; font-size:12px;">1x</button>
+                <button class="overlay-speed-btn" data-speed="2" style="padding:4px 10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:white; cursor:pointer; font-size:12px;">2x</button>
+                <button class="overlay-speed-btn" data-speed="5" style="padding:4px 10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:white; cursor:pointer; font-size:12px;">5x</button>
+                <button class="overlay-speed-btn" data-speed="10" style="padding:4px 10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:white; cursor:pointer; font-size:12px;">10x</button>
+                <span id="overlay-speed-val" style="font-size:13px; font-weight:bold; color:#2ecc71;">1x</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 300px; gap:16px; max-height:58vh;">
+                <div style="overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">📋 Recipes</h4>
+                    <div id="overlay-recipe-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px;"></div>
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin:16px 0 10px;">🔄 Production Queue</h4>
+                    <div id="overlay-production-slots"></div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">📦 Ready Products</h4>
+                    <div id="overlay-ready-products"></div>
+                </div>
+            </div>
+        `;
+        this.openOverlayPanel('🍞 Oven & Bakery Production', bodyHtml);
+
+        // Speed buttons
+        document.querySelectorAll('.overlay-speed-btn').forEach(btn => {
+            btn.onclick = () => {
+                this.setGameSpeed(parseInt(btn.dataset.speed, 10));
+                const val = document.getElementById('overlay-speed-val');
+                if (val) val.textContent = btn.dataset.speed + 'x';
+            };
+        });
+
+        this.renderOverlayRecipes();
+        this.renderOverlayProductionQueue();
+        this.renderOverlayReadyProducts();
+        this.startBakingLoop();
+    }
+
+    renderOverlayRecipes() {
+        const grid = document.getElementById('overlay-recipe-grid');
+        if (!grid) return;
+        const recipes = GAME_CONFIG.RECIPES || {};
+
+        grid.innerHTML = Object.entries(recipes).map(([key, recipe]) => {
+            const { canBake, missing } = this.engine.canBakeRecipe(key);
+            const cost = this.engine.calculateProductCost(key);
+            const price = this.engine.getRecipeBasePrice(key);
+            const profit = price - cost;
+
+            return `
+                <div style="background:rgba(255,255,255,${canBake ? '0.07' : '0.03'}); border-radius:8px; padding:10px; font-size:12px; ${!canBake ? 'opacity:0.5;' : ''}" data-recipe="${key}">
+                    <div style="font-size:18px; float:left; margin-right:8px;">${recipe.icon}</div>
+                    <div style="font-weight:600;">${recipe.name}</div>
+                    <div style="color:rgba(255,255,255,0.5); font-size:11px;">Cost: $${cost.toFixed(2)} → Sell: $${price.toFixed(2)} <span style="color:#2ecc71;">(+$${profit.toFixed(2)})</span></div>
+                    <div style="color:rgba(255,255,255,0.4); font-size:11px;">⏱️ ${recipe.bakeTime}min | Fresh ${recipe.shelfLife}d</div>
+                    ${canBake
+                        ? `<button style="margin-top:6px; padding:4px 12px; background:#e67e22; border:none; border-radius:6px; color:white; font-size:12px; cursor:pointer;" class="overlay-bake-btn" data-recipe="${key}">🔥 Bake</button>`
+                        : `<div style="margin-top:4px; color:#e74c3c; font-size:11px;">Missing: ${missing.map(m => m.ingredient).join(', ')}</div>`
+                    }
+                </div>
+            `;
+        }).join('');
+
+        grid.querySelectorAll('.overlay-bake-btn').forEach(btn => {
+            btn.onclick = () => {
+                const result = this.engine.startBaking(btn.dataset.recipe, 1);
+                if (result.success) {
+                    btn.textContent = '✓ Started';
+                    setTimeout(() => { btn.textContent = '🔥 Bake'; }, 600);
+                    this.renderOverlayRecipes();
+                    this.renderOverlayProductionQueue();
+                } else {
+                    btn.textContent = '✗ ' + (result.message || 'Failed');
+                    setTimeout(() => { btn.textContent = '🔥 Bake'; }, 1000);
+                }
+            };
+        });
+    }
+
+    renderOverlayProductionQueue() {
+        const el = document.getElementById('overlay-production-slots');
+        if (!el) return;
+        const queue = this.engine.productionQueue || [];
+        if (queue.length === 0) {
+            el.innerHTML = '<div style="color:rgba(255,255,255,0.4); font-size:13px;">No items in production. Select a recipe above!</div>';
+            return;
+        }
+        el.innerHTML = queue.map(item => {
+            const progress = Math.min(100, (item.progress / item.totalTime) * 100);
+            const stage = item.stages[item.stageIndex];
+            const employee = item.assignedEmployee;
+            return `
+                <div style="background:rgba(255,255,255,0.06); border-radius:8px; padding:10px; margin-bottom:8px; font-size:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>${item.recipeIcon} ${item.recipeName} x${item.quantity}</span>
+                        <span style="color:${item.prepQuality > 90 ? '#2ecc71' : item.prepQuality > 70 ? '#f39c12' : '#e74c3c'};">Q:${item.prepQuality.toFixed(0)}%</span>
+                    </div>
+                    ${employee ? `<div style="color:rgba(255,255,255,0.5); font-size:11px;">👨‍🍳 ${employee.name}</div>` : ''}
+                    <div style="margin-top:6px; font-size:11px; color:rgba(255,255,255,0.6);">${stage.name}</div>
+                    <div style="background:rgba(255,255,255,0.1); border-radius:4px; height:6px; margin-top:4px; overflow:hidden;">
+                        <div style="width:${progress}%; height:100%; background:#e67e22; border-radius:4px; transition:width 0.3s;"></div>
+                    </div>
+                    <div style="text-align:right; font-size:10px; color:rgba(255,255,255,0.4); margin-top:2px;">${Math.ceil((item.totalTime - item.progress) / 1000)}s left</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderOverlayReadyProducts() {
+        const el = document.getElementById('overlay-ready-products');
+        if (!el) return;
+        const products = Object.entries(this.engine.products || {})
+            .filter(([key]) => this.engine.getProductStock(key) > 0);
+
+        if (products.length === 0) {
+            el.innerHTML = '<div style="color:rgba(255,255,255,0.4); font-size:12px;">No products ready yet</div>';
+            return;
+        }
+        el.innerHTML = products.map(([key]) => {
+            const recipe = (GAME_CONFIG.RECIPES || {})[key] || {};
+            const stock = this.engine.getProductStock(key);
+            const quality = this.engine.getProductQuality(key);
+            const ql = this.engine.getQualityLabel(quality);
+            const pm = this.engine.getQualityPriceMultiplier(quality);
+            const ep = this.engine.getRecipeBasePrice(key) * pm;
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <span>${recipe.icon} ${recipe.name}</span>
+                    <span>${stock}x</span>
+                    <span style="color:${ql.color};">${ql.emoji} ${quality.toFixed(0)}%</span>
+                    <span style="color:#2ecc71;">$${ep.toFixed(2)}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ---- REGISTER / SELLING PANEL ----
+    showRegisterPanel() {
+        this.engine.isPaused = false;
+        this.activeCustomers = [];
+
+        const bodyHtml = `
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+                <label style="font-size:13px; color:rgba(255,255,255,0.7);">Markup %:</label>
+                <input type="range" id="overlay-markup-slider" min="0" max="500" value="${this.engine.markupPercentage || 100}" style="flex:1; max-width:200px;" oninput="window.game.updateMarkup(this.value)">
+                <input type="number" id="overlay-markup-input" min="0" max="500" value="${this.engine.markupPercentage || 100}" style="width:60px; padding:4px; border-radius:4px; border:1px solid #555; background:#222; color:white; font-size:12px;" oninput="window.game.updateMarkup(this.value)">
+                <span style="font-size:12px; color:rgba(255,255,255,0.5);">(×${(1 + (this.engine.markupPercentage || 100) / 100).toFixed(2)})</span>
+                <span style="margin-left:auto; font-size:13px;">Time: <strong id="overlay-sell-time">${this.engine.getTimeString ? this.engine.getTimeString() : ''}</strong></span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 250px; gap:16px; max-height:56vh;">
+                <div style="overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🏪 Display Case</h4>
+                    <div id="overlay-display-products"></div>
+                </div>
+                <div style="overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">👥 Customer Queue</h4>
+                    <div id="overlay-customer-area"><div style="color:rgba(255,255,255,0.4); font-size:13px;">Waiting for customers...</div></div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; overflow-y:auto;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">📊 Sales Stats</h4>
+                    <div style="font-size:13px; line-height:2;">
+                        <div>Revenue: <strong style="color:#2ecc71;" id="overlay-stat-revenue">$${(this.engine.dailyStats?.revenue||0).toFixed(2)}</strong></div>
+                        <div>Customers: <strong id="overlay-stat-customers">${this.engine.dailyStats?.customersServed||0}</strong></div>
+                        <div>Missed: <strong style="color:#e74c3c;" id="overlay-stat-missed">${this.engine.dailyStats?.customersMissed||0}</strong></div>
+                    </div>
+                    <div style="margin-top:16px;">
+                        <button style="padding:8px 16px; background:#e74c3c; border:none; border-radius:8px; color:white; cursor:pointer; font-size:13px; width:100%;" onclick="window.game._stopSellingOnClose=true; window.game.closeOverlayPanel();">🚪 Close Shop</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        this.openOverlayPanel('💰 Cash Register — Open Shop', bodyHtml);
+
+        this.renderOverlayDisplayProducts();
+        this.startSellingLoop();
+    }
+
+    renderOverlayDisplayProducts() {
+        const el = document.getElementById('overlay-display-products');
+        if (!el) return;
+        const products = Object.entries(this.engine.products || {}).map(([key]) => {
+            const recipe = (GAME_CONFIG.RECIPES || {})[key] || {};
+            const stock = this.engine.getProductStock(key);
+            const quality = this.engine.getProductQuality(key);
+            const ql = this.engine.getQualityLabel(quality);
+            const pm = this.engine.getQualityPriceMultiplier(quality);
+            const bp = this.engine.getRecipeBasePrice(key);
+            const ep = bp * pm;
+            const cost = this.engine.calculateRecipeCost ? this.engine.calculateRecipeCost(key) : 0;
+            return `
+                <div style="display:flex; align-items:center; gap:8px; padding:8px; margin-bottom:6px; background:rgba(255,255,255,${stock > 0 ? '0.06' : '0.02'}); border-radius:8px; font-size:12px; ${stock === 0 ? 'opacity:0.4;' : ''}">
+                    <span style="font-size:18px;">${recipe.icon}</span>
+                    <div style="flex:1;">
+                        <div>${recipe.name}</div>
+                        <div style="font-size:11px; color:rgba(255,255,255,0.5);">cost $${cost.toFixed(2)}</div>
+                    </div>
+                    <span style="color:#2ecc71; font-weight:600;">$${ep.toFixed(2)}</span>
+                    <span style="color:${ql.color};">${ql.emoji}</span>
+                    <span style="color:#f39c12;">${stock}x</span>
+                </div>
+            `;
+        });
+        el.innerHTML = products.join('') || '<div style="color:rgba(255,255,255,0.4); font-size:12px;">No products to display</div>';
+    }
+
+    // ---- DISPLAY MANAGEMENT PANEL ----
+    showDisplayPanel() {
+        this.openOverlayPanel('🍰 Display Management', `
+            <p style="color:rgba(255,255,255,0.6); font-size:13px; margin-bottom:12px;">Your products currently on display:</p>
+            <div id="overlay-display-mgmt"></div>
+        `);
+        const el = document.getElementById('overlay-display-mgmt');
+        if (!el) return;
+        const products = Object.entries(this.engine.products || {}).filter(([k]) => this.engine.getProductStock(k) > 0);
+        if (products.length === 0) {
+            el.innerHTML = '<div style="color:rgba(255,255,255,0.4);">No products available. Bake something first!</div>';
+            return;
+        }
+        el.innerHTML = products.map(([key]) => {
+            const recipe = (GAME_CONFIG.RECIPES || {})[key] || {};
+            const stock = this.engine.getProductStock(key);
+            const quality = this.engine.getProductQuality(key);
+            const ql = this.engine.getQualityLabel(quality);
+            return `<div style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(255,255,255,0.06); border-radius:8px; margin-bottom:6px; font-size:13px;">
+                <span style="font-size:20px;">${recipe.icon}</span>
+                <span style="flex:1;">${recipe.name}</span>
+                <span style="color:${ql.color};">${ql.emoji} ${quality.toFixed(0)}%</span>
+                <span style="color:#f39c12; font-weight:600;">${stock}x</span>
+            </div>`;
+        }).join('');
+    }
+
+    // ---- STORAGE PANEL ----
+    showStoragePanel() {
+        this.openOverlayPanel('📦 Storage & Inventory', `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div>
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🧈 Ingredients</h4>
+                    <div id="overlay-storage-ingredients"></div>
+                </div>
+                <div>
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🍞 Products</h4>
+                    <div id="overlay-storage-products"></div>
+                </div>
+            </div>
+        `);
+
+        // Ingredients
+        const ingEl = document.getElementById('overlay-storage-ingredients');
+        if (ingEl) {
+            const entries = Object.entries(this.engine.ingredients || {}).filter(([k, v]) => {
+                const total = v.batches ? v.batches.reduce((s, b) => s + b.quantity, 0) : (v.quantity || 0);
+                return total > 0;
+            });
+            ingEl.innerHTML = entries.length === 0 ? '<div style="color:rgba(255,255,255,0.4); font-size:12px;">Empty</div>' :
+                entries.map(([key, v]) => {
+                    const total = v.batches ? v.batches.reduce((s, b) => s + b.quantity, 0) : (v.quantity || 0);
+                    const ing = (GAME_CONFIG.INGREDIENTS || {})[key] || {};
+                    return `<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                        <span>${ing.icon||'🧂'} ${ing.name||key}</span><span style="color:#f39c12;">${total.toFixed(1)} ${ing.unit||''}</span>
+                    </div>`;
+                }).join('');
+        }
+
+        // Products
+        const prodEl = document.getElementById('overlay-storage-products');
+        if (prodEl) {
+            const products = Object.entries(this.engine.products || {}).filter(([k]) => this.engine.getProductStock(k) > 0);
+            prodEl.innerHTML = products.length === 0 ? '<div style="color:rgba(255,255,255,0.4); font-size:12px;">No products</div>' :
+                products.map(([key]) => {
+                    const recipe = (GAME_CONFIG.RECIPES || {})[key] || {};
+                    const stock = this.engine.getProductStock(key);
+                    return `<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                        <span>${recipe.icon} ${recipe.name}</span><span style="color:#2ecc71;">${stock}x</span>
+                    </div>`;
+                }).join('');
+        }
+    }
+
+    // ---- RECORDS PANEL ----
+    showRecordsPanel() {
+        if (this.customerDB) {
+            this.showCustomerDatabase();
+        } else {
+            this.openOverlayPanel('📋 Customer Records', '<div style="color:rgba(255,255,255,0.5);">Customer database not available.</div>');
+        }
+    }
+
+    // ---- RECIPES PANEL ----
+    showRecipesPanel() {
+        const recipes = GAME_CONFIG.RECIPES || {};
+        let html = '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px;">';
+        html += Object.entries(recipes).map(([key, r]) => {
+            const cost = this.engine.calculateProductCost(key);
+            const price = this.engine.getRecipeBasePrice(key);
+            const ings = r.ingredients ? Object.entries(r.ingredients).map(([ik, amt]) => {
+                const ing = (GAME_CONFIG.INGREDIENTS || {})[ik] || {};
+                return `${ing.icon||''} ${ing.name||ik}: ${amt}`;
+            }).join(', ') : '';
+            return `
+                <div style="background:rgba(255,255,255,0.06); border-radius:10px; padding:12px;">
+                    <div style="font-size:24px; float:left; margin-right:10px;">${r.icon}</div>
+                    <div style="font-weight:600; font-size:14px;">${r.name}</div>
+                    <div style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:4px;">${ings}</div>
+                    <div style="font-size:12px; margin-top:6px;">
+                        Cost: <strong style="color:#f39c12;">$${cost.toFixed(2)}</strong>
+                        → Sells: <strong style="color:#2ecc71;">$${price.toFixed(2)}</strong>
+                    </div>
+                    <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-top:2px;">
+                        ⏱️ ${r.bakeTime}min | 📅 Fresh ${r.shelfLife}d | Cap: ${r.batchSize||1}/batch
+                    </div>
+                </div>
+            `;
+        }).join('');
+        html += '</div>';
+        this.openOverlayPanel('📖 Recipe Book', html);
+    }
+
+    // ---- SUMMARY OVERLAY (End of Day) ----
+    showSummaryOverlay() {
+        this.stopBakingLoop();
+        this.stopSellingLoop();
+
+        this.economy.simulateDay(this.engine.day);
+        if (this.customerDB) this.customerDB.endDay();
+        const summary = this.engine.endDay();
+        this.purgeExpiredScenarioEffects();
+
+        this.economy.recordBusinessMetrics({
+            revenue: summary.revenue,
+            costs: summary.cogs + summary.expenses,
+            profit: summary.netProfit,
+            cash: summary.cashEnd
+        });
+
+        // Spoilage
+        let spoilageHtml = '';
+        if (summary.spoiledIngredients && summary.spoiledIngredients.length > 0) {
+            spoilageHtml = `<div style="background:rgba(231,76,60,0.1); border-radius:8px; padding:10px; margin-bottom:12px;">
+                <strong style="color:#e74c3c;">🦠 Spoiled Overnight</strong><br>
+                ${summary.spoiledIngredients.map(s => `<span style="font-size:12px;">❌ ${s.quantity.toFixed(1)} ${s.name}</span>`).join('<br>')}
+            </div>`;
+        }
+        let staleHtml = '';
+        if (summary.staleProducts && summary.staleProducts.length > 0) {
+            staleHtml = `<div style="background:rgba(243,156,18,0.1); border-radius:8px; padding:10px; margin-bottom:12px;">
+                <strong style="color:#f39c12;">📉 Products Losing Freshness</strong><br>
+                ${summary.staleProducts.map(s => `<span style="font-size:12px;">⚠️ ${s.quantity}x ${s.name} → ${s.quality.toFixed(0)}% quality</span>`).join('<br>')}
+            </div>`;
+        }
+
+        const bodyHtml = `
+            <div style="text-align:center; margin-bottom:16px;">
+                <div style="font-size:36px;">📊</div>
+                <h3 style="font-family:'Fredoka',cursive; color:#ffd700;">Day ${summary.day} Summary</h3>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+                <div style="background:rgba(46,204,113,0.12); border-radius:10px; padding:14px; text-align:center;">
+                    <div style="font-size:11px; color:rgba(255,255,255,0.5);">Revenue</div>
+                    <div style="font-size:20px; font-weight:700; color:#2ecc71;">$${summary.revenue.toFixed(2)}</div>
+                </div>
+                <div style="background:rgba(231,76,60,0.12); border-radius:10px; padding:14px; text-align:center;">
+                    <div style="font-size:11px; color:rgba(255,255,255,0.5);">Cost of Goods</div>
+                    <div style="font-size:20px; font-weight:700; color:#e74c3c;">-$${summary.cogs.toFixed(2)}</div>
+                </div>
+                <div style="background:rgba(255,215,0,0.12); border-radius:10px; padding:14px; text-align:center;">
+                    <div style="font-size:11px; color:rgba(255,255,255,0.5);">Gross Profit</div>
+                    <div style="font-size:20px; font-weight:700; color:${summary.grossProfit >= 0 ? '#2ecc71' : '#e74c3c'};">$${summary.grossProfit.toFixed(2)}</div>
+                </div>
+            </div>
+            ${spoilageHtml}${staleHtml}
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; margin-bottom:12px;">
+                <h4 style="color:#ffd700; margin-bottom:8px;">💸 Expenses</h4>
+                ${summary.expenseDetails.map(e => `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;">${e.icon} ${e.name}<span>-$${e.amount.toFixed(2)}</span></div>`).join('')}
+                <div style="display:flex; justify-content:space-between; font-weight:700; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.1);">Total<span>-$${summary.expenses.toFixed(2)}</span></div>
+            </div>
+            <div style="text-align:center; padding:14px; border-radius:10px; background:${summary.netProfit >= 0 ? 'rgba(46,204,113,0.15)' : 'rgba(231,76,60,0.15)'}; margin-bottom:12px;">
+                <div style="font-size:12px; color:rgba(255,255,255,0.5);">NET PROFIT</div>
+                <div style="font-size:28px; font-weight:700; color:${summary.netProfit >= 0 ? '#2ecc71' : '#e74c3c'};">$${summary.netProfit.toFixed(2)}</div>
+            </div>
+            <div style="text-align:center; font-size:13px; color:rgba(255,255,255,0.6); margin-bottom:16px;">
+                Cash: <strong>$${summary.cashEnd.toFixed(2)}</strong> | Customers: ${summary.customersServed} served, ${summary.customersMissed} missed
+            </div>
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <button style="padding:10px 20px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; cursor:pointer; font-size:14px;" onclick="window.game.closeOverlayPanel(); window.game.showMainMenu();">🏠 Main Menu</button>
+                <button style="padding:10px 24px; background:#e67e22; border:none; border-radius:8px; color:white; cursor:pointer; font-size:14px; font-weight:600;" onclick="window.game.closeOverlayPanel(); window.game.startDay();">☀️ Start Day ${this.engine.day}</button>
+            </div>
+        `;
+        this.openOverlayPanel('📊 End of Day', bodyHtml);
+
+        // Save
+        localStorage.setItem('bakery_save', JSON.stringify(this.engine.save()));
+
+        // Bankruptcy check
+        if (summary.cashEnd < 0) {
+            setTimeout(() => {
+                this.showPopup({
+                    icon: '💸', title: 'Bankruptcy!',
+                    message: 'You have run out of money. Game Over!',
+                    type: 'danger',
+                    buttons: [{ text: 'Try Again', action: () => { this.closeOverlayPanel(); this.startNewGame(); } }]
+                });
+            }, 1000);
+        }
     }
 
     // ==================== DAY FLOW ====================
@@ -1776,6 +2537,15 @@ class GameController {
     goToPhase(phase) {
         this.currentPhase = phase;
         this.updatePhaseIndicator();
+
+        // Clean up bakery environment if leaving it
+        if (phase !== 'hub') {
+            document.body.classList.remove('in-bakery-env');
+            const hud = document.getElementById('bakery-hud');
+            if (hud) hud.style.display = 'none';
+            if (this._hudInterval) { clearInterval(this._hudInterval); this._hudInterval = null; }
+            this.cleanupPhaser();
+        }
 
         // Dispatch event for tutorial system
         window.dispatchEvent(new CustomEvent('gamePhaseChanged', { detail: { phase } }));
@@ -2563,6 +3333,7 @@ class GameController {
     bakingLoopId = null;
 
     startBakingLoop() {
+        if (this.bakingLoopId) return; // prevent double loops
         let lastTime = performance.now();
 
         const loop = () => {
@@ -2576,8 +3347,13 @@ class GameController {
                 this.renderProductionQueue();
                 this.renderReadyProducts();
                 this.renderRecipes();
+                // Also update overlay-specific elements if present
+                this.renderOverlayProductionQueue();
+                this.renderOverlayReadyProducts();
+                this.renderOverlayRecipes();
             } else if (this.engine.productionQueue.length > 0) {
                 this.renderProductionQueue();
+                this.renderOverlayProductionQueue();
             }
 
             this.bakingLoopId = requestAnimationFrame(loop);
@@ -2973,14 +3749,14 @@ class GameController {
 
     renderCustomerArea() {
         const container = document.getElementById('customer-area');
-        if (!container) return;
+        const overlayContainer = document.getElementById('overlay-customer-area');
 
-        if (!this.activeCustomers || this.activeCustomers.length === 0) {
-            container.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
-            return;
-        }
+        const html = (!this.activeCustomers || this.activeCustomers.length === 0)
+            ? '<div class="waiting-message">Waiting for customers...</div>'
+            : this.activeCustomers.map(customer => this.renderCustomerCard(customer)).join('');
 
-        container.innerHTML = this.activeCustomers.map(customer => this.renderCustomerCard(customer)).join('');
+        if (container) container.innerHTML = html;
+        if (overlayContainer) overlayContainer.innerHTML = html;
     }
 
     renderCustomerCard(customer) {
@@ -3077,10 +3853,8 @@ class GameController {
         waiting.forEach(customer => this.planCustomerService(customer, { silent: true }));
     }
 
-    sellingLoopId = null;
-    lastCustomerTime = 0;
-
     startSellingLoop() {
+        if (this.sellingLoopId) return; // prevent double loops
         let lastTime = performance.now();
         this.lastCustomerTime = lastTime;
 
@@ -3095,20 +3869,33 @@ class GameController {
             // Update time
             this.engine.update(delta);
 
-            // Update time display
+            // Update time display (both old and overlay)
             const timeEl = document.getElementById('game-time');
             if (timeEl) timeEl.textContent = this.engine.getTimeString();
+            const oTimeEl = document.getElementById('overlay-sell-time');
+            if (oTimeEl) oTimeEl.textContent = this.engine.getTimeString();
+
+            // Also update HUD time
+            const hudTime = document.getElementById('hud-time');
+            if (hudTime) hudTime.textContent = this.engine.getTimeString();
 
             // Check closing time
             if (this.engine.isClosingTime()) {
                 this.stopSellingLoop();
-                this.showPopup({
-                    icon: '🌙',
-                    title: 'Closing Time!',
-                    message: 'The shop is now closed for the day.',
-                    type: 'info',
-                    buttons: [{ text: 'Return to Hub', action: () => this.showModeHub() }]
-                });
+                // If overlay panel is open, close it first
+                this.closeOverlayPanel();
+                // In bakery-env mode, show summary overlay instead of popup
+                if (document.body.classList.contains('in-bakery-env')) {
+                    this.showSummaryOverlay();
+                } else {
+                    this.showPopup({
+                        icon: '🌙',
+                        title: 'Closing Time!',
+                        message: 'The shop is now closed for the day.',
+                        type: 'info',
+                        buttons: [{ text: 'Return to Hub', action: () => this.showModeHub() }]
+                    });
+                }
                 return;
             }
 
@@ -3230,17 +4017,19 @@ class GameController {
             const sadDialogue = GAME_CONFIG.CUSTOMER_DIALOGUES.sad;
             const message = sadDialogue[Math.floor(Math.random() * sadDialogue.length)];
 
+            const sadHtml = `
+                <div class="customer-popup">
+                    <div class="customer-face" style="font-size: 64px;">${customerData.face || '🙂'}</div>
+                    <div class="customer-name">${customerData.name || 'Customer'}</div>
+                    <div class="customer-dialogue">"${message}"</div>
+                    <div class="customer-mood">😢 Disappointed</div>
+                </div>
+            `;
+
             const customerArea = document.getElementById('customer-area');
-            if (customerArea) {
-                customerArea.innerHTML = `
-                    <div class="customer-popup">
-                        <div class="customer-face" style="font-size: 64px;">${customerData.face || '🙂'}</div>
-                        <div class="customer-name">${customerData.name || 'Customer'}</div>
-                        <div class="customer-dialogue">"${message}"</div>
-                        <div class="customer-mood">😢 Disappointed</div>
-                    </div>
-                `;
-            }
+            if (customerArea) customerArea.innerHTML = sadHtml;
+            const overlayCustomerArea = document.getElementById('overlay-customer-area');
+            if (overlayCustomerArea) overlayCustomerArea.innerHTML = sadHtml;
 
             this.engine.missedCustomer();
             
@@ -3259,9 +4048,9 @@ class GameController {
             }
 
             setTimeout(() => {
-                if (customerArea) {
-                    customerArea.innerHTML = '<div class="waiting-message">Waiting for customers...</div>';
-                }
+                const waitHtml = '<div class="waiting-message">Waiting for customers...</div>';
+                if (customerArea) customerArea.innerHTML = waitHtml;
+                if (overlayCustomerArea) overlayCustomerArea.innerHTML = waitHtml;
             }, 2000);
 
             return;
@@ -3309,7 +4098,6 @@ class GameController {
         this.planCustomerService(newCustomer);
         this.renderCustomerArea();
     }
-
 
     completeCustomerSale(options = {}) {
         let customer = options.customer;
@@ -3395,6 +4183,18 @@ class GameController {
         if (revenueEl) revenueEl.textContent = `$${this.engine.dailyStats.revenue.toFixed(2)}`;
         if (customersEl) customersEl.textContent = this.engine.dailyStats.customersServed;
         if (missedEl) missedEl.textContent = this.engine.dailyStats.customersMissed;
+
+        // Also update overlay stat elements
+        const oRevenue = document.getElementById('overlay-stat-revenue');
+        const oCustomers = document.getElementById('overlay-stat-customers');
+        const oMissed = document.getElementById('overlay-stat-missed');
+        if (oRevenue) oRevenue.textContent = `$${this.engine.dailyStats.revenue.toFixed(2)}`;
+        if (oCustomers) oCustomers.textContent = this.engine.dailyStats.customersServed;
+        if (oMissed) oMissed.textContent = this.engine.dailyStats.customersMissed;
+
+        // Update overlay time display
+        const oTime = document.getElementById('overlay-sell-time');
+        if (oTime) oTime.textContent = this.engine.getTimeString();
     }
 
     assignCustomerToStaff() {
