@@ -4501,6 +4501,34 @@
         .overlay-tab-content { display: none; }
         .overlay-tab-content.active { display: block; }
 
+        /* Overlay automation controls */
+        #overlay-panel .overlay-auto-btn,
+        #overlay-panel button[id^="btn-overlay-auto-"] {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            visibility: visible !important;
+            opacity: 1 !important;
+            white-space: nowrap;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            font-weight: 700;
+            box-shadow: 0 8px 24px rgba(39, 174, 96, 0.28);
+            transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        }
+        #overlay-panel .overlay-auto-btn:hover,
+        #overlay-panel button[id^="btn-overlay-auto-"]:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+            box-shadow: 0 12px 28px rgba(39, 174, 96, 0.35);
+        }
+        #overlay-panel .overlay-auto-btn:focus-visible,
+        #overlay-panel button[id^="btn-overlay-auto-"]:focus-visible {
+            outline: 2px solid #ffd700;
+            outline-offset: 2px;
+        }
+
         /* Hide phase indicator when in 2D environment */
         body.in-bakery-env #phase-indicator { display: none !important; }
         body.in-bakery-env #top-nav { display: none !important; }
@@ -4509,6 +4537,104 @@
             overflow: hidden !important;
             height: 100vh;
             min-height: 0;
+        }
+
+        /* ===== MOBILE TOUCH CONTROLS ===== */
+        #mobile-dpad {
+            display: none;
+            position: fixed;
+            bottom: 28px;
+            left: 20px;
+            width: 132px;
+            height: 132px;
+            z-index: 5000;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #mobile-dpad .dpad-btn {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            background: rgba(20,10,5,0.65);
+            border: 2px solid rgba(255,215,0,0.55);
+            border-radius: 10px;
+            color: #ffd700;
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.08s, box-shadow 0.08s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+        }
+        #mobile-dpad .dpad-btn:active,
+        #mobile-dpad .dpad-btn.pressed {
+            background: rgba(255,215,0,0.45);
+            box-shadow: 0 0 12px rgba(255,215,0,0.5);
+        }
+        #mobile-dpad .dpad-up    { top: 0;    left: 45px; }
+        #mobile-dpad .dpad-down  { bottom: 0; left: 45px; }
+        #mobile-dpad .dpad-left  { top: 45px; left: 0;    }
+        #mobile-dpad .dpad-right { top: 45px; right: 0;   }
+        #mobile-interact-btn {
+            display: none;
+            position: fixed;
+            bottom: 34px;
+            right: 24px;
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle, rgba(255,215,0,0.35) 0%, rgba(255,160,0,0.15) 100%);
+            border: 3px solid rgba(255,215,0,0.7);
+            border-radius: 50%;
+            color: #ffd700;
+            font-size: 28px;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+            cursor: pointer;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 0.08s, transform 0.08s;
+            text-shadow: 0 0 10px rgba(255,215,0,0.9);
+            box-shadow: 0 0 18px rgba(255,215,0,0.3), 0 3px 10px rgba(0,0,0,0.5);
+        }
+        #mobile-interact-btn:active {
+            background: radial-gradient(circle, rgba(255,215,0,0.65) 0%, rgba(255,160,0,0.4) 100%);
+            transform: scale(0.92);
+        }
+        /* Show touch controls when touch device is in bakery env */
+        body.is-touch-device.in-bakery-env #mobile-dpad,
+        body.is-touch-device.in-bakery-env #mobile-interact-btn { display: flex; }
+        /* Hide keyboard hints on touch devices; show touch hint */
+        body.is-touch-device #hud-keybinds { display: none !important; }
+        body.is-touch-device #hud-touch-hint { display: block !important; }
+        /* Swap interact-prompt badge on touch */
+        body.is-touch-device #interact-key-badge { display: none !important; }
+        body.is-touch-device #interact-tap-badge { display: inline-block !important; }
+        /* Prevent canvas zoom/scroll on touch */
+        #game-container canvas { touch-action: none; }
+        /* Overlay panels: collapse to single column on narrow screens */
+        @media (max-width: 640px) {
+            #overlay-panel-inner { padding: 14px 10px !important; }
+            #overlay-panel-inner table { font-size: 12px; }
+            #overlay-panel-inner [style*="grid-template-columns"] {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+            #overlay-panel-inner .hud-pill { font-size: 11px !important; }
+        }
+        /* HUD pills: compact on very small screens */
+        @media (max-width: 480px) {
+            #bakery-hud { top: 8px !important; left: 8px !important; gap: 5px !important; }
+            .hud-pill { padding: 3px 8px !important; font-size: 11px !important; }
+            #hud-room-label { font-size: 13px !important; }
         }
     </style>
 </head>
@@ -4579,20 +4705,33 @@
                     <span class="val" id="hud-time" style="color:#f5deb3;">6:00 AM</span>
                 </div>
             </div>
-            <div style="font-size:11px; color:rgba(245,222,179,0.4);">
+            <div id="hud-keybinds" style="font-size:11px; color:rgba(245,222,179,0.4);">
                 <span style="background:rgba(44,24,16,0.6); padding:2px 6px; border-radius:4px; font-family:monospace; color:rgba(245,222,179,0.7);">WASD</span> Move
                 <span style="background:rgba(44,24,16,0.6); padding:2px 6px; border-radius:4px; font-family:monospace; color:rgba(245,222,179,0.7); margin-left:8px;">E</span> Interact
                 <span style="background:rgba(44,24,16,0.6); padding:2px 6px; border-radius:4px; font-family:monospace; color:rgba(245,222,179,0.7); margin-left:8px;">ESC</span> Close
             </div>
+            <div id="hud-touch-hint" style="display:none; font-size:11px; color:rgba(245,222,179,0.55);">👆 D-pad to move &nbsp;⚡ Tap to interact</div>
         </div>
 
         <!-- Interaction prompt -->
         <div id="interact-prompt">
             <div class="prompt-inner">
-                <span style="font-family:monospace; background:rgba(255,215,0,0.2); color:#ffd700; padding:2px 8px; border-radius:4px; font-size:13px;">E</span>
+                <span id="interact-key-badge" style="font-family:monospace; background:rgba(255,215,0,0.2); color:#ffd700; padding:2px 8px; border-radius:4px; font-size:13px;">E</span>
+                <span id="interact-tap-badge" style="display:none; background:rgba(255,215,0,0.25); color:#ffd700; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; letter-spacing:0.5px;">TAP ⚡</span>
                 <span id="interact-label" style="margin-left:8px; color:#f5deb3; font-size:13px;">Interact</span>
             </div>
         </div>
+
+        <!-- Mobile virtual D-pad (shown only on touch devices in 2D env) -->
+        <div id="mobile-dpad" aria-hidden="true">
+            <button class="dpad-btn dpad-up"    data-dir="up"    aria-label="Move up">▲</button>
+            <button class="dpad-btn dpad-down"  data-dir="down"  aria-label="Move down">▼</button>
+            <button class="dpad-btn dpad-left"  data-dir="left"  aria-label="Move left">◀</button>
+            <button class="dpad-btn dpad-right" data-dir="right" aria-label="Move right">▶</button>
+        </div>
+
+        <!-- Mobile interact button -->
+        <div id="mobile-interact-btn" role="button" aria-label="Interact">⚡</div>
 
         <!-- Overlay panel (appears over canvas for buying/baking/selling/etc) -->
         <div id="overlay-panel">
@@ -4603,6 +4742,71 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile device detection + touch input wiring -->
+    <script>
+    (function () {
+        // Detect touch capability
+        var IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        document.body.classList.toggle('is-touch-device', IS_TOUCH);
+
+        // Global mobile input state read by BakeryEnvironmentScene
+        window._mobileInput = { left: false, right: false, up: false, down: false, interact: false };
+
+        if (!IS_TOUCH) return;
+
+        function setupMobileControls() {
+            var dpad = document.getElementById('mobile-dpad');
+            var interactBtn = document.getElementById('mobile-interact-btn');
+            if (!dpad || !interactBtn) return;
+
+            // D-pad buttons
+            var dirBtns = dpad.querySelectorAll('.dpad-btn');
+            dirBtns.forEach(function (btn) {
+                var dir = btn.dataset.dir;
+                btn.addEventListener('pointerdown', function (e) {
+                    e.preventDefault();
+                    btn.setPointerCapture(e.pointerId);
+                    window._mobileInput[dir] = true;
+                    btn.classList.add('pressed');
+                }, { passive: false });
+                btn.addEventListener('pointerup', function (e) {
+                    e.preventDefault();
+                    window._mobileInput[dir] = false;
+                    btn.classList.remove('pressed');
+                }, { passive: false });
+                btn.addEventListener('pointercancel', function () {
+                    window._mobileInput[dir] = false;
+                    btn.classList.remove('pressed');
+                });
+                btn.addEventListener('pointerleave', function () {
+                    window._mobileInput[dir] = false;
+                    btn.classList.remove('pressed');
+                });
+            });
+
+            // Interact button
+            interactBtn.addEventListener('pointerdown', function (e) {
+                e.preventDefault();
+                interactBtn.setPointerCapture(e.pointerId);
+                window._mobileInput.interact = true;
+            }, { passive: false });
+            interactBtn.addEventListener('pointerup', function (e) {
+                e.preventDefault();
+                window._mobileInput.interact = false;
+            }, { passive: false });
+            interactBtn.addEventListener('pointercancel', function () {
+                window._mobileInput.interact = false;
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupMobileControls);
+        } else {
+            setupMobileControls();
+        }
+    })();
+    </script>
 
     <!-- Game Scripts -->
     <script src="js/GameConfig.js"></script>

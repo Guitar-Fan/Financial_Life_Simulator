@@ -27,6 +27,8 @@ class GameController {
 
         this.activeScenarioEffects = [];
         this.lastScenarioRollDay = null;
+        this.dayComplexityProfile = null;
+        this.lastCrisisRollAt = 0;
 
         // Initialize new systems
         this.timeManager = null;
@@ -424,6 +426,7 @@ class GameController {
                 this.enforceInventoryPlan();
                 this.renderInventory();
                 this.renderRecipeReference();
+                this.renderOverlayInventory();
                 message = 'Procurement plan executed. Inventory updated.';
                 break;
             case 'baking':
@@ -431,8 +434,13 @@ class GameController {
                 this.renderProductionQueue();
                 this.renderReadyProducts();
                 this.renderRecipes();
+                this.renderOverlayProductionQueue();
+                this.renderOverlayReadyProducts();
+                this.renderOverlayRecipes();
                 const bakingList = document.getElementById('employee-list');
                 if (bakingList) bakingList.innerHTML = this.renderEmployeePanel();
+                const overlayBakingList = document.getElementById('overlay-employee-list-baking');
+                if (overlayBakingList) overlayBakingList.innerHTML = this.renderEmployeePanel();
                 message = 'Production queue synced with automation targets.';
                 break;
             case 'selling':
@@ -440,6 +448,8 @@ class GameController {
                 this.renderCustomerArea();
                 const sellList = document.getElementById('employee-list-selling');
                 if (sellList) sellList.innerHTML = this.renderEmployeeSelling();
+                const overlaySellList = document.getElementById('overlay-employee-list-selling');
+                if (overlaySellList) overlaySellList.innerHTML = this.renderEmployeeSelling();
                 message = 'Front-of-house staff reassigned to active customers.';
                 break;
             default:
@@ -1725,6 +1735,8 @@ class GameController {
         const closeBtn = document.getElementById('overlay-panel-close');
         if (closeBtn) closeBtn.onclick = () => this.closeOverlayPanel();
 
+        this.applyDailyComplexityProfile(this.engine.day);
+
         // Start HUD update loop
         this.startHUDLoop();
         this.checkForScenarios();
@@ -1749,6 +1761,38 @@ class GameController {
         const navDay  = document.getElementById('nav-day');
         if (navCash && this.engine) navCash.textContent = `$${this.engine.cash.toFixed(2)}`;
         if (navDay && this.engine) navDay.textContent = `Day ${this.engine.day}`;
+    }
+
+    getComplexityProfile(day = this.engine?.day || 1) {
+        const cappedDay = Math.min(30, Math.max(1, day));
+        const ramp = (cappedDay - 1) / 29;
+        const tier = cappedDay <= 10 ? 'Early Growth' : cappedDay <= 20 ? 'Rising Pressure' : 'Peak Complexity';
+        return {
+            day,
+            cappedDay,
+            ramp,
+            tier,
+            customerDemandMultiplier: 0.9 + (0.85 * ramp),
+            costPressureMultiplier: 1 + (0.55 * ramp),
+            scenarioRolls: 1 + Math.floor(ramp * 2),
+            worldVolatility: 0.8 + (0.9 * ramp),
+            crisisChancePerMinute: 0.01 + (0.045 * ramp),
+            fatiguePressure: 1 + (0.4 * ramp)
+        };
+    }
+
+    applyDailyComplexityProfile(day = this.engine?.day || 1) {
+        if (!this.engine) return;
+        const profile = this.getComplexityProfile(day);
+        this.dayComplexityProfile = profile;
+
+        if (!this._baseRentAmount) {
+            this._baseRentAmount = this.engine.rentAmount || GAME_CONFIG.DAILY_EXPENSES.rent.amount;
+        }
+        this.engine.rentAmount = Math.round(this._baseRentAmount * profile.costPressureMultiplier);
+
+        const demandMultiplier = this.engine.economy?.getDemandMultiplier ? this.engine.economy.getDemandMultiplier() : 1;
+        this.engine.trafficMultiplier = Math.max(0.6, demandMultiplier * profile.customerDemandMultiplier);
     }
 
     // -- Overlay panel helpers --
@@ -1868,6 +1912,9 @@ class GameController {
         const currentVendor = vendorKeys[0] || 'METRO';
 
         el.innerHTML = `
+            <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                <button id="btn-overlay-auto-buying" class="overlay-auto-btn" style="padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); cursor:pointer; font-size:12px;">🤖 Deploy Procurement Automation</button>
+            </div>
             <div style="display:grid; grid-template-columns:220px 1fr 300px; gap:16px; max-height:60vh;">
                 <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; overflow-y:auto;">
                     <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🏪 Vendors</h4>
@@ -1906,6 +1953,10 @@ class GameController {
                 this.renderOverlayIngredients(btn.dataset.vendor);
             };
         });
+
+        const autoBuyingBtn = document.getElementById('btn-overlay-auto-buying');
+        if (autoBuyingBtn) autoBuyingBtn.onclick = () => this.manualAutomationTrigger('buying');
+
         // Highlight first vendor
         const firstBtn = el.querySelector('.overlay-vendor-btn');
         if (firstBtn) firstBtn.style.borderColor = '#ffd700';
@@ -2018,6 +2069,7 @@ class GameController {
         try {
             const report = this.engine.economy ? this.engine.economy.getDailyReport(this.engine.day) : null;
             if (!report) { el.innerHTML = '<div style="color:rgba(255,255,255,0.5);">Market data unavailable</div>'; return; }
+            const complexity = this.dayComplexityProfile || this.getComplexityProfile(this.engine.day);
             const eventsHtml = (report.activeEvents || []).length > 0
                 ? report.activeEvents.map(e => `<div style="background:rgba(231,76,60,0.15); border-left:3px solid #e74c3c; padding:8px; margin-bottom:6px; border-radius:4px; font-size:13px;">${e.icon||'⚠️'} ${e.name} (${e.daysRemaining} days left)</div>`).join('')
                 : '<div style="color:rgba(255,255,255,0.4); font-size:13px;">No active events</div>';
@@ -2032,9 +2084,19 @@ class GameController {
                         </div>
                     </div>
                     <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:14px;">
-                        <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">⚡ Active Events</h4>
-                        ${eventsHtml}
+                        <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🎚️ World Complexity</h4>
+                        <div style="font-size:13px; line-height:1.9;">
+                            <div>Tier: <strong style="color:#ffd700;">${complexity.tier}</strong> (Day ${Math.min(30, this.engine.day)}/30)</div>
+                            <div>Demand Pressure: <strong>${(complexity.customerDemandMultiplier * 100).toFixed(0)}%</strong></div>
+                            <div>Cost Pressure: <strong>${(complexity.costPressureMultiplier * 100).toFixed(0)}%</strong></div>
+                            <div>Volatility: <strong>${(complexity.worldVolatility * 100).toFixed(0)}%</strong></div>
+                            <div>Scenario Rolls/day: <strong>${complexity.scenarioRolls}</strong></div>
+                        </div>
                     </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:14px; margin-top:12px;">
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">⚡ Active Events</h4>
+                    ${eventsHtml}
                 </div>
             `;
         } catch(e) { el.innerHTML = '<div style="color:#e74c3c;">Error loading market data</div>'; }
@@ -2110,6 +2172,7 @@ class GameController {
                 <button class="overlay-speed-btn" data-speed="5" style="padding:4px 10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:white; cursor:pointer; font-size:12px;">5x</button>
                 <button class="overlay-speed-btn" data-speed="10" style="padding:4px 10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:white; cursor:pointer; font-size:12px;">10x</button>
                 <span id="overlay-speed-val" style="font-size:13px; font-weight:bold; color:#2ecc71;">1x</span>
+                <button id="btn-overlay-auto-baking" class="overlay-auto-btn" style="margin-left:auto; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">🤖 Deploy Baking Automation</button>
             </div>
             <div style="display:grid; grid-template-columns:1fr 300px; gap:16px; max-height:58vh;">
                 <div style="overflow-y:auto;">
@@ -2121,6 +2184,8 @@ class GameController {
                 <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:12px; overflow-y:auto;">
                     <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">📦 Ready Products</h4>
                     <div id="overlay-ready-products"></div>
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin:16px 0 10px;">👨‍🍳 Staff</h4>
+                    <div id="overlay-employee-list-baking">${this.renderEmployeePanel()}</div>
                 </div>
             </div>
         `;
@@ -2134,6 +2199,9 @@ class GameController {
                 if (val) val.textContent = btn.dataset.speed + 'x';
             };
         });
+
+        const autoBakingBtn = document.getElementById('btn-overlay-auto-baking');
+        if (autoBakingBtn) autoBakingBtn.onclick = () => this.manualAutomationTrigger('baking');
 
         this.renderOverlayRecipes();
         this.renderOverlayProductionQueue();
@@ -2251,8 +2319,9 @@ class GameController {
                 <input type="number" id="overlay-markup-input" min="0" max="500" value="${this.engine.markupPercentage || 100}" style="width:60px; padding:4px; border-radius:4px; border:1px solid #555; background:#222; color:white; font-size:12px;" oninput="window.game.updateMarkup(this.value)">
                 <span style="font-size:12px; color:rgba(255,255,255,0.5);">(×${(1 + (this.engine.markupPercentage || 100) / 100).toFixed(2)})</span>
                 <span style="margin-left:auto; font-size:13px;">Time: <strong id="overlay-sell-time">${this.engine.getTimeString ? this.engine.getTimeString() : ''}</strong></span>
+                <button id="btn-overlay-auto-selling" class="overlay-auto-btn" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">🤖 Deploy Service Automation</button>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr 250px; gap:16px; max-height:56vh;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 280px; gap:16px; max-height:56vh;">
                 <div style="overflow-y:auto;">
                     <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🏪 Display Case</h4>
                     <div id="overlay-display-products"></div>
@@ -2268,6 +2337,8 @@ class GameController {
                         <div>Customers: <strong id="overlay-stat-customers">${this.engine.dailyStats?.customersServed||0}</strong></div>
                         <div>Missed: <strong style="color:#e74c3c;" id="overlay-stat-missed">${this.engine.dailyStats?.customersMissed||0}</strong></div>
                     </div>
+                    <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin:14px 0 8px;">👨‍🍳 Staff</h4>
+                    <div id="overlay-employee-list-selling" style="font-size:12px;">${this.renderEmployeeSelling()}</div>
                     <div style="margin-top:16px;">
                         <button style="padding:8px 16px; background:#e74c3c; border:none; border-radius:8px; color:white; cursor:pointer; font-size:13px; width:100%;" onclick="window.game._stopSellingOnClose=true; window.game.closeOverlayPanel();">🚪 Close Shop</button>
                     </div>
@@ -2275,6 +2346,9 @@ class GameController {
             </div>
         `;
         this.openOverlayPanel('💰 Cash Register — Open Shop', bodyHtml);
+
+        const autoSellingBtn = document.getElementById('btn-overlay-auto-selling');
+        if (autoSellingBtn) autoSellingBtn.onclick = () => this.manualAutomationTrigger('selling');
 
         this.renderOverlayDisplayProducts();
         this.startSellingLoop();
@@ -2515,16 +2589,19 @@ class GameController {
         this.engine.isPaused = true;
         this.engine.hour = GAME_CONFIG.TIME.OPENING_HOUR;
         this.engine.minute = 0;
-        
+        this.applyDailyComplexityProfile(this.engine.day);
+
         // Start customer database day
         if (this.customerDB) {
             this.customerDB.startDay();
         }
 
+        const complexity = this.dayComplexityProfile || this.getComplexityProfile(this.engine.day);
+
         this.showPopup({
             icon: '🌅',
             title: `Day ${this.engine.day} Begins!`,
-            message: `Good morning, baker! Time to start your day.\n\nCurrent Cash: $${this.engine.cash.toFixed(2)}`,
+            message: `Good morning, baker! Time to start your day.\n\nCurrent Cash: $${this.engine.cash.toFixed(2)}\nComplexity: ${complexity.tier} (${Math.min(30, this.engine.day)}/30)\nDemand Pressure: ${(complexity.customerDemandMultiplier * 100).toFixed(0)}%`,
             type: 'info',
             buttons: [{ text: 'Go to Bakery →', action: () => this.showModeHub() }]
         });
@@ -3351,9 +3428,13 @@ class GameController {
                 this.renderOverlayProductionQueue();
                 this.renderOverlayReadyProducts();
                 this.renderOverlayRecipes();
+                const overlayBakingList = document.getElementById('overlay-employee-list-baking');
+                if (overlayBakingList) overlayBakingList.innerHTML = this.renderEmployeePanel();
             } else if (this.engine.productionQueue.length > 0) {
                 this.renderProductionQueue();
                 this.renderOverlayProductionQueue();
+                const overlayBakingList = document.getElementById('overlay-employee-list-baking');
+                if (overlayBakingList) overlayBakingList.innerHTML = this.renderEmployeePanel();
             }
 
             this.bakingLoopId = requestAnimationFrame(loop);
@@ -3564,6 +3645,30 @@ class GameController {
         const customer = this.getCustomerById(customerId);
         if (!customer) return;
 
+        if (window.CustomerInteractionScene && !customer._interactionInProgress) {
+            customer._interactionInProgress = true;
+            try {
+                const ownerStaff = {
+                    role: 'owner',
+                    isPlayer: true,
+                    name: 'You',
+                    face: '🧑‍🍳'
+                };
+                const interaction = new CustomerInteractionScene(this, customer, ownerStaff);
+                const interactionResult = await interaction.start();
+                if (interactionResult?.moodChange) {
+                    customer.currentMood = Math.max(0, Math.min(100, (customer.currentMood || 50) + interactionResult.moodChange));
+                }
+                if (interactionResult?.orderedItems?.length > 0) {
+                    customer.wantsItem = interactionResult.orderedItems[0];
+                }
+            } catch (error) {
+                console.warn('Customer interaction scene failed; using direct service fallback.', error);
+            } finally {
+                customer._interactionInProgress = false;
+            }
+        }
+
         // Customer just orders what they want
         if (customer.wantsItem) {
             const saleResult = this.engine.processSale(customer.wantsItem, 1);
@@ -3721,6 +3826,12 @@ class GameController {
                 this.staffManager.completeTask(task.id, { success: true });
             }
 
+            // Apply fatigue pressure from current complexity profile
+            const complexity = this.dayComplexityProfile || this.getComplexityProfile(this.engine?.day || 1);
+            const fatigueGain = Math.max(0.6, 1.1 * (complexity.fatiguePressure || 1));
+            staff.fatigue = Math.min(100, (staff.fatigue || 0) + fatigueGain);
+            staff.happiness = Math.max(0, (staff.happiness || 100) - (fatigueGain * 0.2));
+
             // Process the sale
             this.completeCustomerSale({ customer, auto: true });
 
@@ -3750,6 +3861,7 @@ class GameController {
     renderCustomerArea() {
         const container = document.getElementById('customer-area');
         const overlayContainer = document.getElementById('overlay-customer-area');
+        const overlayEmployeeList = document.getElementById('overlay-employee-list-selling');
 
         const html = (!this.activeCustomers || this.activeCustomers.length === 0)
             ? '<div class="waiting-message">Waiting for customers...</div>'
@@ -3757,6 +3869,7 @@ class GameController {
 
         if (container) container.innerHTML = html;
         if (overlayContainer) overlayContainer.innerHTML = html;
+        if (overlayEmployeeList) overlayEmployeeList.innerHTML = this.renderEmployeeSelling();
     }
 
     renderCustomerCard(customer) {
@@ -3907,12 +4020,21 @@ class GameController {
                 const scenarioDemand = this.getScenarioModifier('demand');
                 const scenarioTraffic = this.getScenarioModifier('traffic');
                 const loyaltyBoost = 1 + this.getScenarioModifier('loyalty', { defaultValue: 0, operation: 'add' });
-                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * loyaltyBoost) / 60 / 10;
+                const complexity = this.dayComplexityProfile || this.getComplexityProfile(this.engine.day);
+                const volatilityNoise = 1 + ((Math.random() - 0.5) * 0.08 * complexity.worldVolatility);
+                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * loyaltyBoost * complexity.customerDemandMultiplier * volatilityNoise) / 60 / 10;
 
                 if (timeSinceLastCustomer > 2000 && Math.random() < spawnChance) {
                     this.spawnCustomer();
                     this.lastCustomerTime = now;
                 }
+            }
+
+            const complexity = this.dayComplexityProfile || this.getComplexityProfile(this.engine.day);
+            if (!this.crisisActive && now - this.lastCrisisRollAt > 30000) {
+                this.lastCrisisRollAt = now;
+                const rollPerWindow = complexity.crisisChancePerMinute * 0.5;
+                if (Math.random() < rollPerWindow) this.triggerCrisis();
             }
 
             this.processAutoCustomers(now);
@@ -4031,6 +4153,10 @@ class GameController {
             const overlayCustomerArea = document.getElementById('overlay-customer-area');
             if (overlayCustomerArea) overlayCustomerArea.innerHTML = sadHtml;
 
+            window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+                detail: { emoji: '😢', message, tone: 'sad' }
+            }));
+
             this.engine.missedCustomer();
             
             // Phase 1: Pricing elasticity consequence
@@ -4095,6 +4221,13 @@ class GameController {
         };
 
         this.activeCustomers.push(newCustomer);
+        window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+            detail: {
+                emoji: customerData.face || '🙂',
+                message: orderMsg,
+                tone: 'neutral'
+            }
+        }));
         this.planCustomerService(newCustomer);
         this.renderCustomerArea();
     }
@@ -4134,6 +4267,13 @@ class GameController {
         customer.resultMessage = moodLine;
         customer.resultRevenue = result.revenue;
         customer.resultFace = moodFace;
+        window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+            detail: {
+                emoji: moodFace || '😊',
+                message: moodLine,
+                tone: 'happy'
+            }
+        }));
         this.releaseAssignedStaff(customer);
         this.renderCustomerArea();
 
@@ -4164,6 +4304,13 @@ class GameController {
         customer.state = 'sad';
         customer.resultFace = '😔';
         customer.resultMessage = 'Maybe next time.';
+        window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+            detail: {
+                emoji: '😔',
+                message: 'Maybe next time.',
+                tone: 'sad'
+            }
+        }));
         this.releaseAssignedStaff(customer);
         this.renderCustomerArea();
 
@@ -4299,6 +4446,13 @@ class GameController {
         customer.state = 'sad';
         customer.resultMessage = message;
         customer.resultFace = customer?.face || '😢';
+        window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+            detail: {
+                emoji: customer?.face || '😢',
+                message,
+                tone: 'sad'
+            }
+        }));
         this.releaseAssignedStaff(customer);
         this.renderCustomerArea();
 
@@ -5623,7 +5777,14 @@ class GameController {
             season: this.getSeason()
         };
 
-        const triggered = DYNAMIC_SCENARIOS.checkScenarioTriggers(gameState);
+        const complexity = this.dayComplexityProfile || this.getComplexityProfile(today);
+        const rolls = Math.max(1, complexity.scenarioRolls || 1);
+        let triggered = null;
+        for (let i = 0; i < rolls; i++) {
+            triggered = DYNAMIC_SCENARIOS.checkScenarioTriggers(gameState);
+            if (triggered) break;
+        }
+
         if (triggered) {
             // Delay slightly so player sees the scenario after phase loads
             setTimeout(() => this.showScenarioAlert(triggered), 1500);

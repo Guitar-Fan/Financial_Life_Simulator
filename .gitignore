@@ -5,17 +5,11 @@
 !README.md
 !README.MD
 
-I want to completely redesign the UI/UX of bakery game. My vision is:
--the main screen is a 2d phaser.js environment of inside the bakery, supplemented by the powerful tailwind browser v4 cdn link js library. Entire enviroment must use dynamic camera action to move along with main character to allow user to see entire bakery (not all at once)
-+interior environment of bakery consists of multiple rooms (some rooms have walk paths (these will be called sections, such as clerk area), some rooms have doors)
-*there will also second environment of outside the bakery of the virtual world, but this will be for later prompts to make
-+player will do all main tasks in the 2d environment (buy ingredients, equipment, store upgrades, buy anything on a computer that user has to buy at startup phase, bake routine, selling, viewing stats etc...)
-+All assets will be made with code; dynamic animations of customers filing in line will be developed; display case restocking with finished goods will be graphically updated with appropriate image code asset
-+image code assets will be written in phaser.js with tailwind browser v4
-For this prompt, work on everything I said above to integrate with the existing bakery game.
-Integrate 2dbakeryenvironment.html as the main environment (but add to it to make bakery environment complete and allow user to do everything that was possible in old verison of bakery game)
-Be through and detailed when adding to the 2d enviroment design. Always add code / edit the codebase in small chunks.
+Delete current setup modes (interactive storybook and first phaser environment with buildings) code.
+Create a new setup mode this is a hybrid of storybook and environment.
 
-replace the entire gameplay UX (hub, 4 phase gameplay) with the 2d environment into the main game. All stats be virtually stored and looked at through the computer in game
-user decides where to place everything klick on your lingo multiple
-
+I want to use Map.html to be the screen where user decides where they should open up their buisness.
+Their choice on decisions affects the rate of customers, fees and taxes (property tax, ingredient prices, etc...), 
+asthetics of how outside view of bakery looks, and that's it.
+I want you to adapt the map to my needs by create open lots, empty blocks for potential setup spot
+or parking.

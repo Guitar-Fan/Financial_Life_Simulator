@@ -1,12 +1,13 @@
 /**
  * BakeryEnvironmentScene.js — Persistent 2D bakery Phaser scene
  *
- * Extracted from 2dbakeryenvironment.html and wired into the main
- * GameController so that all gameplay happens *inside* the 2D world.
+ * Redesigned flow: customers browse display cases, pick items from
+ * what's available, queue in a neat checkout line, get served by
+ * cashier employees (or owner). No dialogue — thought bubbles only.
  *
- * Interaction points fire `bakery:interact` CustomEvents which are
- * caught by GameController to open DOM overlay panels (buying,
- * baking, selling, financials, etc.).
+ * Staff avatars move between kitchen (baking) and cashier area.
+ * Successful transactions show green floating revenue numbers.
+ * Display cases and shelves update visually from inventory.
  */
 
 // ============================================================
@@ -26,6 +27,37 @@ const BAKERY_WORLD = {
         walkin:  { x: 660,  y: 520,  w: 180,  h: 250, label: '🧊 Walk-in Fridge' },
         wc:      { x: 1060, y: 520,  w: 340,  h: 430, label: '🚻 WC' },
     },
+    // Checkout queue positions (neat line from register going right)
+    CHECKOUT_LINE: [
+        { x: 780, y: 230 },
+        { x: 830, y: 230 },
+        { x: 880, y: 230 },
+        { x: 930, y: 230 },
+        { x: 980, y: 230 },
+        { x: 1030, y: 230 },
+    ],
+    // Cashier positions behind service counter
+    CASHIER_POS: [
+        { x: 600, y: 190 },
+        { x: 680, y: 190 },
+    ],
+    // Browse spots near display cases and shelves
+    BROWSE_SPOTS: [
+        { x: 380, y: 340, display: 'main_display' },
+        { x: 460, y: 340, display: 'main_display' },
+        { x: 540, y: 340, display: 'main_display' },
+        { x: 790, y: 320, display: 'cold_display' },
+        { x: 860, y: 320, display: 'cold_display' },
+        { x: 140, y: 220, display: 'bread_shelf' },
+        { x: 250, y: 220, display: 'bread_shelf' },
+        { x: 1050, y: 280, display: 'product_shelf' },
+        { x: 1050, y: 380, display: 'product_shelf' },
+    ],
+    // Kitchen work positions
+    KITCHEN_WORK_POS: [
+        { x: 400, y: 600 },
+        { x: 520, y: 720 },
+    ],
 };
 
 // ============================================================
@@ -130,6 +162,33 @@ function generateBakeryTextures(scene) {
         g.fillStyle(0x000000); g.fillCircle(17,15,1.5); g.fillCircle(23,15,1.5);
         g.generateTexture('customer' + (i||''), 40, 65); g.clear();
     });
+
+    // --- Staff / Employee sprites ---
+    // Cashier (green apron)
+    g.fillStyle(0x000000,0.2); g.fillEllipse(25,68,28,9);
+    g.fillStyle(0x27ae60); g.fillRoundedRect(10,28,30,38,8);
+    g.fillStyle(0x1e8449); g.fillRoundedRect(14,30,22,28,4);
+    g.fillStyle(0x333333); g.fillRect(15,62,8,8); g.fillRect(27,62,8,8);
+    g.fillStyle(0xeebb99); g.fillCircle(25,22,12);
+    g.fillStyle(0x222222); g.fillRoundedRect(14,6,22,10,3);
+    g.fillStyle(0x000000); g.fillCircle(21,20,2); g.fillCircle(29,20,2);
+    g.generateTexture('staff_cashier',50,75); g.clear();
+
+    // Baker (white chef uniform + tall hat)
+    g.fillStyle(0x000000,0.2); g.fillEllipse(25,68,28,9);
+    g.fillStyle(0xf0f0f0); g.fillRoundedRect(10,28,30,38,8);
+    g.fillStyle(0xe0e0e0); g.fillRoundedRect(14,30,22,28,4);
+    g.fillStyle(0x333333); g.fillRect(15,62,8,8); g.fillRect(27,62,8,8);
+    g.fillStyle(0xeebb99); g.fillCircle(25,22,12);
+    g.fillStyle(0xffffff); g.fillRect(17,0,16,18);
+    g.fillRoundedRect(15,12,20,8,3);
+    g.fillStyle(0x000000); g.fillCircle(21,20,2); g.fillCircle(29,20,2);
+    g.generateTexture('staff_baker',50,75); g.clear();
+
+    // --- Customer tray (small basket held by customer) ---
+    g.lineStyle(1.5,0x8b6914); g.strokeRoundedRect(1,2,18,12,3);
+    g.fillStyle(0xd4a05e,0.4); g.fillRoundedRect(2,3,16,10,2);
+    g.generateTexture('customer_tray',20,16); g.clear();
 
     // --- Pastries ---
     g.fillStyle(0xd6a05e); g.fillEllipse(10,10,15,8);

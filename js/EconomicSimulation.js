@@ -240,13 +240,15 @@ class EconomicSimulation {
     }
     
     getIngredientPrice(ingredientKey, vendorKey) {
-        const ingredient = GAME_CONFIG.INGREDIENTS[ingredientKey];
-        const vendor = GAME_CONFIG.VENDORS[vendorKey];
-        
-        const basePrice = ingredient.basePrice;
-        const vendorMultiplier = vendor.priceMultiplier;
-        const economicMultiplier = this.ingredientPrices[ingredientKey];
-        
+        const ingredient = GAME_CONFIG.INGREDIENTS?.[ingredientKey] || {};
+        const vendor = GAME_CONFIG.VENDORS?.[vendorKey] || {};
+
+        const basePrice = Number.isFinite(ingredient.basePrice)
+            ? ingredient.basePrice
+            : (Number.isFinite(ingredient.cost) ? ingredient.cost : 1);
+        const vendorMultiplier = Number.isFinite(vendor.priceMultiplier) ? vendor.priceMultiplier : 1;
+        const economicMultiplier = Number.isFinite(this.ingredientPrices?.[ingredientKey]) ? this.ingredientPrices[ingredientKey] : 1;
+
         return basePrice * vendorMultiplier * economicMultiplier;
     }
     
