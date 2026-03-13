@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax RPG: Wealth Quest</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS 4.0 Beta -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+
+    <!-- Anime.js -->
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style type="text/tailwindcss">
+        @theme {
+            --color-deep-bg: #020617;
+            --color-glass-panel: rgba(15, 23, 42, 0.7);
+            --color-neon-blue: #06b6d4;
+            --color-neon-purple: #8b5cf6;
+            --color-neon-green: #10b981;
+            --color-neon-red: #ef4444;
+            
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --animate-float: float 6s ease-in-out infinite;
+            --animate-glow: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+            to { text-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 30px rgba(139, 92, 246, 0.6); }
+        }
+
+        body {
+            @apply bg-deep-bg text-slate-200 font-body overflow-x-hidden selection:bg-neon-blue selection:text-white;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.05) 0%, transparent 25%);
+        }
+
+        .glass-panel {
+            @apply bg-glass-panel backdrop-blur-xl border border-white/5 shadow-xl;
+        }
+
+        .card-3d {
+            transition: transform 0.1s ease-out;
+            transform-style: preserve-3d;
+        }
+
+        .strategy-card {
+            @apply relative overflow-hidden rounded-xl border border-slate-700 bg-slate-800/40 p-5 transition-all duration-300 hover:border-slate-500 hover:bg-slate-800/60 cursor-pointer;
+        }
+
+        .strategy-card::before {
+            content: '';
+            @apply absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity duration-300;
+        }
+        
+        .strategy-card:hover::before {
+            @apply opacity-100;
+        }
+
+        .strategy-active {
+            @apply border-neon-blue bg-neon-blue/10 shadow-[0_0_20px_rgba(6,182,212,0.1)];
+        }
+
+        .btn-primary {
+            @apply bg-gradient-to-r from-neon-blue to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-lg shadow-cyan-900/20 active:scale-95 flex items-center gap-2 justify-center;
+        }
+
+        .btn-secondary {
+            @apply bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-6 rounded-lg transition-all border border-slate-700 hover:border-slate-500 active:scale-95;
+        }
+
+        .stat-value {
+            @apply font-mono font-bold tracking-tight;
+        }
+        
+        .particle {
+            @apply absolute pointer-events-none rounded-full blur-[1px];
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 border-b border-white/5 bg-slate-900/80 backdrop-blur-2xl">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i data-lucide="wallet" class="text-white w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-xl tracking-tight text-white leading-none">Tax<span
+                            class="text-neon-blue">Quest</span></h1>
+                    <span class="text-[10px] uppercase tracking-widest text-slate-500 font-mono">Sim v4.0</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <div
+                    class="hidden md:flex items-center gap-4 bg-slate-800/50 rounded-full px-4 py-1.5 border border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i>
+                        <span class="font-mono text-sm text-slate-200">Year: <span id="game-year"
+                                class="text-white font-bold">1</span></span>
+                    </div>
+                    <div class="w-px h-4 bg-slate-700"></div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-4 h-4 text-neon-green"></i>
+                        <span class="font-mono text-sm text-neon-green" id="game-networth">$0</span>
+                    </div>
+                </div>
+
+                <button onclick="resetGame()" class="text-slate-400 hover:text-white transition-colors"
+                    title="Restart Quest">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full space-y-8 relative">
+
+        <!-- Game Intro / Class Selection -->
+        <div id="intro-screen" class="max-w-4xl mx-auto text-center py-12">
+            <h2
+                class="font-display font-black text-5xl md:text-6xl mb-6 bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent animate-float">
+                Select Your Origin
+            </h2>
+            <p class="text-slate-400 text-xl mb-12 max-w-2xl mx-auto">
+                Embark on a wealth-building journey. Your background determines your taxes, audit risks, and growth
+                potential.
+            </p>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Class: W2 -->
+                <button onclick="startGame('gov')"
+                    class="group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 p-8 hover:border-neon-blue transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-neon-blue/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
+                    <i data-lucide="building-2"
+                        class="w-16 h-16 mx-auto mb-6 text-slate-500 group-hover:text-neon-blue transition-colors"></i>
+                    <h3 class="font-display font-bold text-2xl text-white mb-2">Public Servant</h3>
+                    <div class="flex gap-2 justify-center mb-4">
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Stability ★★★</span>
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Risk ★</span>
+                    </div>
+                    <p class="text-sm text-slate-400">Guaranteed pension & benefits. High tax burden, low loophole
+                        access.</p>
+                </button>
+
+                <!-- Class: Biz -->
+                <button onclick="startGame('biz')"
+                    class="group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 p-8 hover:border-neon-purple transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)]">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-neon-purple/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
+                    <i data-lucide="rocket"
+                        class="w-16 h-16 mx-auto mb-6 text-slate-500 group-hover:text-neon-purple transition-colors"></i>
+                    <h3 class="font-display font-bold text-2xl text-white mb-2">Founder</h3>
+                    <div class="flex gap-2 justify-center mb-4">
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Growth ★★★</span>
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Risk ★★★</span>
+                    </div>
+                    <p class="text-sm text-slate-400">Unlimited upside. Access to expenses & QBI. High audit risk.</p>
+                </button>
+
+                <!-- Class: Rich -->
+                <button onclick="startGame('rich')"
+                    class="group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 p-8 hover:border-amber-500 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
+                    <i data-lucide="crown"
+                        class="w-16 h-16 mx-auto mb-6 text-slate-500 group-hover:text-amber-500 transition-colors"></i>
+                    <h3 class="font-display font-bold text-2xl text-white mb-2">Old Money</h3>
+                    <div class="flex gap-2 justify-center mb-4">
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Tax 0%</span>
+                        <span class="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">Passive</span>
+                    </div>
+                    <p class="text-sm text-slate-400">Start rich. Stay rich. Use debt mechanisms to avoid all taxes.</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quest Dashboard (Hidden initially) -->
+        <div id="quest-dashboard"
+            class="hidden grid lg:grid-cols-12 gap-6 opacity-0 translate-y-10 transition-all duration-700">
+
+            <!-- Left: Decisions & Events (Col 4) -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Current Year Status -->
+                <div class="glass-panel p-6 rounded-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-5">
+                        <i data-lucide="activity" class="w-32 h-32"></i>
+                    </div>
+
+                    <h3 class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-4">Financial Overview</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-end border-b border-white/5 pb-2">
+                            <span class="text-slate-300">Annual Income</span>
+                            <span id="stat-income" class="stat-value text-xl text-white">$0</span>
+                        </div>
+                        <div class="flex justify-between items-end border-b border-white/5 pb-2">
+                            <span class="text-slate-300">Tax Strategies</span>
+                            <span id="stat-strategies" class="stat-value text-neon-blue">0 Active</span>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <span class="text-slate-300">Projected Tax</span>
+                            <span id="stat-tax" class="stat-value text-neon-red">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mt-6">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-500">Effective Tax Rate</span>
+                            <span id="stat-rate" class="text-white">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="tax-bar"
+                                class="h-full bg-gradient-to-r from-neon-blue to-neon-purple w-0 transition-all duration-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Deck -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3
+                        class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-4 flex items-center justify-between">
+                        <span>Strategy Deck</span>
+                        <span id="points-badge"
+                            class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px]">2 Points
+                            Avail</span>
+                    </h3>
+
+                    <div id="strategy-container" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <button onclick="endTurn()" class="w-full mt-6 btn-primary py-4 text-lg">
+                        <span>File Taxes & End Year</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                    <!-- Auto-Run Button -->
+                    <button onclick="autoRun()" class="w-full mt-2 btn-secondary text-xs py-2">
+                        Simulate Remaining Years
+                    </button>
+                </div>
+            </div>
+
+            <!-- Middle: Main Visual & Events (Col 5) -->
+            <div class="lg:col-span-5 space-y-6">
+                <!-- Event Card -->
+                <div id="event-card"
+                    class="glass-panel p-1 rounded-2xl h-[300px] flex items-center justify-center relative overflow-hidden group">
+                    <div
+                        class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1611974765270-ca12586343bb?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-10 group-hover:opacity-20 transition-opacity duration-1000">
+                    </div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+
+                    <div class="relative z-10 text-center p-8">
+                        <div id="event-icon"
+                            class="w-20 h-20 rounded-full bg-slate-800/80 border border-slate-600 flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                            <i data-lucide="play" class="w-8 h-8 text-slate-200"></i>
+                        </div>
+                        <h2 id="event-title" class="font-display font-bold text-3xl text-white mb-2">Year 1 Begins</h2>
+                        <p id="event-desc" class="text-slate-300 leading-relaxed">Allocate your strategy points to
+                            minimize your tax liability before the fiscal year ends.</p>
+                    </div>
+                </div>
+
+                <!-- Wealth Chart -->
+                <div class="glass-panel p-6 rounded-2xl min-h-[300px] flex flex-col">
+                    <h3 class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-4">Wealth Trajectory</h3>
+                    <div class="flex-grow relative w-full h-full min-h-[250px]">
+                        <canvas id="wealth-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Assets & Net Worth (Col 3) -->
+            <div class="lg:col-span-3 space-y-6">
+
+                <div class="glass-panel p-6 rounded-2xl h-full flex flex-col relative overflow-hidden">
+                    <div
+                        class="absolute top-0 right-0 w-64 h-64 bg-neon-blue/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2">
+                    </div>
+
+                    <h3 class="text-sm uppercase tracking-widest text-slate-400 font-bold mb-6">Portfolio</h3>
+
+                    <div class="space-y-6 flex-grow">
+                        <!-- Asset Item -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-400">Cash Reserves</span>
+                                <span id="asset-cash" class="text-white font-mono">$0</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full">
+                                <div class="h-full bg-slate-500 w-full rounded-full"></div>
+                            </div>
+                        </div>
+
+                        <!-- Asset Item -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-400">Investments</span>
+                                <span id="asset-invest" class="text-white font-mono">$0</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full">
+                                <div class="h-full bg-neon-purple w-full rounded-full"></div>
+                            </div>
+                        </div>
+
+                        <!-- Asset Item -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-400">Real Estate</span>
+                                <span id="asset-property" class="text-white font-mono">$0</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-slate-800 rounded-full">
+                                <div class="h-full bg-amber-500 w-full rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-8 border-t border-white/5">
+                        <div class="text-center">
+                            <span class="text-xs text-slate-500 uppercase">Total Net Worth</span>
+                            <div id="portfolio-total" class="font-display font-bold text-3xl text-white mt-1">$0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- End Game Screen -->
+        <div id="end-screen" class="hidden absolute inset-0 z-50 flex items-center justify-center p-4">
+            <div
+                class="bg-slate-900 border border-slate-700 rounded-3xl p-12 max-w-2xl w-full shadow-2xl text-center relative overflow-hidden">
+                <div
+                    class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5">
+                </div>
+                <div class="relative z-10">
+                    <i data-lucide="trophy" class="w-20 h-20 text-amber-400 mx-auto mb-6"></i>
+                    <h2 class="font-display font-bold text-4xl text-white mb-2">Quest Complete</h2>
+                    <p class="text-slate-400 mb-8">You survived 30 years of tax policy.</p>
+
+                    <div class="bg-black/30 rounded-xl p-8 mb-8 backdrop-blur-sm border border-white/5">
+                        <div class="text-sm text-slate-500 uppercase tracking-widest mb-1">Final Net Worth</div>
+                        <div id="final-score" class="font-mono text-5xl font-bold text-neon-green mb-4">$10,432,100
+                        </div>
+                        <div class="flex justify-center gap-4 text-sm">
+                            <span class="text-slate-400">Lifetime Tax: <span id="final-tax"
+                                    class="text-red-400">$0</span></span>
+                            <span class="text-slate-400">Rate: <span id="final-rate"
+                                    class="text-blue-400">0%</span></span>
+                        </div>
+                    </div>
+
+                    <button onclick="location.reload()" class="btn-primary mx-auto">
+                        Play Again
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JS Logic -->
+    <script>
+        // --- Game Config & Data ---
+        const CONFIG = {
+            years: 30,
+            startYear: 1
+        };
+
+        const PROFILES = {
+            gov: {
+                name: "Public Servant",
+                salary: 75000,
+                assets: 20000,
+                growth: 0.03, // Low salary growth
+                risk: 0.0,
+                color: '#06b6d4',
+                strategies: ['standard', 'ira', 'municipals']
+            },
+            biz: {
+                name: "Founder",
+                salary: 120000,
+                assets: 50000,
+                growth: 0.08, // High potential
+                risk: 0.2, // Audit risk
+                color: '#8b5cf6',
+                strategies: ['standard', 'expense', 'qbi', 'sep_ira', 'offshore']
+            },
+            rich: {
+                name: "Old Money",
+                salary: 0,
+                assets: 10000000,
+                growth: 0.06, // Investment growth
+                risk: 0.05,
+                color: '#f59e0b',
+                strategies: ['standard', 'bbd', 'trusts', 'oz']
+            }
+        };
+
+        const STRATEGIES = {
+            standard: { id: 'standard', name: "Standard Deduction", cost: 0, desc: "Automatic $14.6k deduction.", type: 'passive' },
+            expense: { id: 'expense', name: "Biz Expenses", cost: 1, desc: "Write off 20% of revenue.", type: 'active' },
+            qbi: { id: 'qbi', name: "QBI Deduction", cost: 1, desc: "20% deduction on qualified income.", type: 'active' },
+            ira: { id: 'ira', name: "Max 401k/IRA", cost: 1, desc: "Defer tax on $23k/yr.", type: 'active' },
+            municipals: { id: 'municipals', name: "Muni Bonds", cost: 1, desc: "Tax-free interest income.", type: 'active' },
+            bbd: { id: 'bbd', name: "Buy Borrow Die", cost: 2, desc: "Live off loans. Pay 0% tax.", type: 'ultimate' },
+            offshore: { id: 'offshore', name: "Cayman LLC", cost: 2, desc: "High audit risk. Zero tax.", type: 'risky' }
+        };
+
+        // --- Game State ---
+        let state = {
+            profile: null,
+            year: 1,
+            netWorth: 0,
+            cash: 0,
+            income: 0,
+            points: 2,
+            activeStrategies: new Set(['standard']),
+            history: { wealth: [], tax: [] },
+            gameOver: false,
+            isAutoRunning: false
+        };
+
+        let chart;
+
+        // --- Core Functions ---
+
+        function startGame(profileId) {
+            const p = PROFILES[profileId];
+            state.profile = profileId;
+            state.income = p.salary;
+            state.netWorth = p.assets;
+            state.cash = p.assets * 0.1;
+            state.year = 1;
+            state.history.wealth = [state.netWorth];
+            state.history.tax = [];
+
+            // UI Transition
+            document.getElementById('intro-screen').style.display = 'none';
+            const board = document.getElementById('quest-dashboard');
+            board.classList.remove('hidden');
+
+            // Animate entry
+            setTimeout(() => {
+                board.classList.remove('opacity-0', 'translate-y-10');
+            }, 100);
+
+            initChart();
+            renderStrategies();
+            updateStats();
+        }
+
+        function renderStrategies() {
+            const container = document.getElementById('strategy-container');
+            container.innerHTML = '';
+
+            const allowed = PROFILES[state.profile].strategies;
+
+            allowed.forEach(sid => {
+                const s = STRATEGIES[sid];
+                const isActive = state.activeStrategies.has(sid);
+
+                const btn = document.createElement('div');
+                btn.className = `strategy-card group ${isActive ? 'strategy-active' : ''}`;
+                btn.onclick = () => toggleStrategy(sid);
+
+                let iconName = 'shield';
+                if (s.type === 'risky') iconName = 'alert-triangle';
+                if (s.type === 'ultimate') iconName = 'infinity';
+
+                btn.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-white flex items-center gap-2">
+                             <i data-lucide="${iconName}" class="w-4 h-4 text-slate-400 group-hover:text-white"></i>
+                             ${s.name}
+                        </span>
+                        ${isActive ? '<i data-lucide="check-circle" class="w-4 h-4 text-neon-blue"></i>' : `<span class="text-xs text-slate-500 font-mono">${s.cost} PT</span>`}
+                    </div>
+                    <p class="text-xs text-slate-400">${s.desc}</p>
+                `;
+                container.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleStrategy(id) {
+            if (state.gameOver) return;
+            const s = STRATEGIES[id];
+
+            if (state.activeStrategies.has(id)) {
+                if (id !== 'standard') { // Cannot remove standard
+                    state.activeStrategies.delete(id);
+                    state.points += s.cost;
+                }
+            } else {
+                if (state.points >= s.cost) {
+                    state.activeStrategies.add(id);
+                    state.points -= s.cost;
+                } else {
+                    shakeUI('#points-badge');
+                    return;
+                }
+            }
+
+            renderStrategies();
+            updateStats(true); // Preview mode
+        }
+
+        function calculateYearlyTax(isProjected = false) {
+            let gross = state.income;
+            // If Rich, income is mostly capital gains (simulated)
+            if (state.profile === 'rich') {
+                gross = state.netWorth * 0.08; // 8% gain
+            } else {
+                // Determine raise
+                if (!isProjected) gross = gross * (1 + PROFILES[state.profile].growth);
+            }
+
+            let taxable = gross;
+            let deduction = 0;
+
+            // Apply Strategies
+            if (state.activeStrategies.has('standard')) deduction += 14600;
+            if (state.activeStrategies.has('expense')) deduction += gross * 0.20;
+            if (state.activeStrategies.has('ira')) deduction += 23000;
+            if (state.activeStrategies.has('qbi')) deduction += (Math.max(0, taxable - deduction) * 0.20);
+
+            taxable = Math.max(0, taxable - deduction);
+
+            // Calculate Tax
+            let tax = 0;
+
+            if (state.profile === 'rich') {
+                // Capital Gains logic
+                if (state.activeStrategies.has('bbd')) {
+                    tax = 0; // Buy Borrow Die
+                } else {
+                    tax = taxable * 0.20; // 20% LTCG
+                }
+            } else {
+                // Ordinary Income logic (Simplified bracket)
+                // Effective rate approx
+                const rate = taxable > 200000 ? 0.32 : taxable > 100000 ? 0.24 : 0.12;
+                tax = taxable * rate;
+
+                // Add FICA if not rich/public servant has diff rules?
+                // Biz pays SE tax
+                if (state.profile === 'biz' && !state.activeStrategies.has('offshore')) {
+                    tax += gross * 0.153;
+                }
+                if (state.profile === 'gov') {
+                    tax += gross * 0.0765;
+                }
+            }
+
+            if (state.activeStrategies.has('offshore')) {
+                // Risky! tax becomes 0, but risk check happens on turn end
+                tax = 0;
+            }
+
+            return { gross, tax, net: gross - tax };
+        }
+
+        function updateStats(preview = false) {
+            const calcs = calculateYearlyTax(true);
+            const rate = (calcs.tax / Math.max(1, calcs.gross)) * 100;
+
+            document.getElementById('stat-income').textContent = formatMoney(calcs.gross);
+            document.getElementById('stat-tax').textContent = formatMoney(calcs.tax);
+            document.getElementById('stat-rate').textContent = rate.toFixed(1) + '%';
+            document.getElementById('stat-strategies').textContent = `${state.activeStrategies.size} Active`;
+            document.getElementById('points-badge').textContent = `${state.points} Pt Avail`;
+
+            document.getElementById('tax-bar').style.width = Math.min(rate * 2, 100) + '%';
+
+            // Global stats
+            document.getElementById('game-year').textContent = state.year;
+            document.getElementById('game-networth').textContent = formatMoney(state.netWorth);
+
+            // Assets
+            const nw = state.netWorth;
+            document.getElementById('asset-cash').textContent = formatMoney(nw * 0.1);
+            document.getElementById('asset-invest').textContent = formatMoney(nw * 0.5);
+            document.getElementById('asset-property').textContent = formatMoney(nw * 0.4);
+            document.getElementById('portfolio-total').textContent = formatMoney(nw);
+        }
+
+        function endTurn() {
+            if (state.year > CONFIG.years) return;
+
+            // 1. Process Finance
+            const calcs = calculateYearlyTax();
+            state.income = calcs.gross; // Commit the raise
+            state.netWorth += calcs.net; // Add net income to wealth
+            // Passive growth on existing wealth
+            state.netWorth = state.netWorth * 1.07;
+
+            // 2. Events & Risks
+            handleEvents();
+
+            // 3. Update History
+            state.history.wealth.push(state.netWorth);
+            state.history.tax.push(calcs.tax);
+            updateChart();
+
+            // 4. Advance
+            state.year++;
+
+            if (state.year > CONFIG.years) {
+                endGame();
+            } else {
+                updateStats();
+                // Reset points occasionally?
+                // For simplified gameplay, keep points static or allow slight regen
+            }
+        }
+
+        function autoRun() {
+            if (state.isAutoRunning) return;
+            state.isAutoRunning = true;
+
+            const interval = setInterval(() => {
+                if (state.year >= CONFIG.years) {
+                    clearInterval(interval);
+                    state.isAutoRunning = false;
+                } else {
+                    endTurn();
+                }
+            }, 200);
+        }
+
+        function handleEvents() {
+            // Simplified event text update
+            const events = [
+                { yr: 5, t: "Market Boom", d: "Assets appreciate 15%!" },
+                { yr: 10, t: "Audit Inspection", d: "IRS checking expenses..." },
+                { yr: 20, t: "Policy Shift", d: "Capital Gains tax raised." }
+            ];
+
+            const ev = events.find(e => e.yr === state.year);
+            if (ev) {
+                document.getElementById('event-title').textContent = ev.t;
+                document.getElementById('event-desc').textContent = ev.d;
+                animateEvent();
+            } else {
+                document.getElementById('event-title').textContent = `Year ${state.year}`;
+                document.getElementById('event-desc').textContent = "Fiscal year active. Review strategy.";
+            }
+
+            // Audit Check
+            if (state.activeStrategies.has('offshore') || state.activeStrategies.has('expense')) {
+                if (Math.random() < PROFILES[state.profile].risk) {
+                    // Penalty!
+                    const penalty = state.netWorth * 0.05;
+                    state.netWorth -= penalty;
+                    document.getElementById('event-title').textContent = "AUDIT CAUGHT!";
+                    document.getElementById('event-desc').textContent = `You were fined ${formatMoney(penalty)}. Risks didn't pay off.`;
+                    document.getElementById('event-title').classList.add('text-neon-red');
+                    setTimeout(() => document.getElementById('event-title').classList.remove('text-neon-red'), 2000);
+                }
+            }
+        }
+
+        function endGame() {
+            state.gameOver = true;
+            document.getElementById('quest-dashboard').classList.add('blur-sm');
+            document.getElementById('end-screen').classList.remove('hidden');
+
+            // countup
+            anime({
+                targets: document.getElementById('final-score'),
+                innerHTML: [0, state.netWorth],
+                round: 1,
+                easing: 'easeInOutExpo',
+                formatter: val => formatMoney(val)
+            });
+
+            const totalTax = state.history.tax.reduce((a, b) => a + b, 0);
+            document.getElementById('final-tax').textContent = formatMoney(totalTax);
+        }
+
+        function animateEvent() {
+            anime({
+                targets: '#event-card',
+                scale: [0.95, 1],
+                opacity: [0.8, 1],
+                duration: 500
+            });
+        }
+
+        function shakeUI(selector) {
+            anime({
+                targets: selector,
+                translateX: [-5, 5, -5, 5, 0],
+                duration: 400,
+                easing: 'easeInOutSine'
+            });
+        }
+
+        // --- Chart --
+        function initChart() {
+            const ctx = document.getElementById('wealth-chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: state.history.wealth.map((_, i) => i + 1),
+                    datasets: [{
+                        label: 'Net Worth',
+                        data: state.history.wealth,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            display: false,
+                            grid: { display: false }
+                        }
+                    },
+                    animation: { duration: 0 } // handled by manual updates mostly
+                }
+            });
+        }
+
+        function updateChart() {
+            if (!chart) return;
+            chart.data.labels = Array.from({ length: state.year }, (_, i) => i + 1);
+            chart.data.datasets[0].data = state.history.wealth;
+            chart.update();
+        }
+
+        // --- Utils --
+        const formatMoney = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+        function resetGame() {
+            location.reload();
+        }
+
+        // Init Icons
+        lucide.createIcons();
+
+    </script>
+</body>
+
+</html>

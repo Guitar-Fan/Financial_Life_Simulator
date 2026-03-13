@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8f5e8"/>
+      <stop offset="100%" stop-color="#e8dfc5"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd4b2"/>
+      <stop offset="100%" stop-color="#f0c19a"/>
+    </linearGradient>
+    <linearGradient id="apron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff7a5c"/>
+      <stop offset="50%" stop-color="#ff6347"/>
+      <stop offset="100%" stop-color="#e84a36"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f0f0"/>
+    </linearGradient>
+    <linearGradient id="chef-hat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#fafafa"/>
+      <stop offset="100%" stop-color="#ececec"/>
+    </linearGradient>
+    <radialGradient id="blush">
+      <stop offset="0%" stop-color="#ffb3b3" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#ffb3b3" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  
+  <!-- Body (Shirt) -->
+  <ellipse cx="256" cy="380" rx="135" ry="100" fill="url(#shirt)" filter="url(#shadow)"/>
+  <path d="M121 320 Q80 340 80 380 Q80 450 140 480" fill="url(#shirt)"/>
+  <path d="M391 320 Q432 340 432 380 Q432 450 372 480" fill="url(#shirt)"/>
+  
+  <!-- Apron -->
+  <rect x="176" y="320" width="160" height="180" rx="8" fill="url(#apron)" filter="url(#shadow)"/>
+  <path d="M176 320 Q196 280 256 280 Q316 280 336 320" fill="url(#apron)"/>
+  <rect x="246" y="290" width="20" height="40" fill="#ff4433"/>
+  
+  <!-- Apron Details -->
+  <rect x="186" y="340" width="140" height="2" fill="#ffffff" opacity="0.3"/>
+  <circle cx="256" cy="420" r="30" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.4"/>
+  <path d="M220 450 L230 470 L240 455 L250 475 L260 455 L270 470 L280 455 L292 470" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Apron Pocket -->
+  <rect x="211" y="380" width="90" height="70" rx="6" fill="#ff4433"/>
+  <rect x="211" y="380" width="90" height="8" rx="4" fill="#cc3322"/>
+  <line x1="220" y1="400" x2="230" y2="400" stroke="#ffffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="220" y1="410" x2="240" y2="410" stroke="#ffffff" stroke-width="1.5" opacity="0.6"/>
+  
+  <!-- Neck/Torso -->
+  <ellipse cx="256" cy="280" rx="45" ry="55" fill="url(#skin)"/>
+  
+  <!-- Head -->
+  <ellipse cx="256" cy="200" rx="85" ry="95" fill="url(#skin)" filter="url(#shadow)"/>
+  
+  <!-- Ears -->
+  <ellipse cx="175" cy="210" rx="18" ry="28" fill="#f5b896"/>
+  <ellipse cx="337" cy="210" rx="18" ry="28" fill="#f5b896"/>
+  <ellipse cx="178" cy="210" rx="10" ry="18" fill="#ffccaa"/>
+  <ellipse cx="334" cy="210" rx="10" ry="18" fill="#ffccaa"/>
+  
+  <!-- Hair (under hat) -->
+  <path d="M180 180 Q175 145 200 130 Q230 120 256 125 Q282 120 312 130 Q337 145 332 180" fill="#8b6f47"/>
+  <path d="M185 175 Q180 155 200 145 L210 165 Z" fill="#705a3a"/>
+  <path d="M327 175 Q332 155 312 145 L302 165 Z" fill="#705a3a"/>
+  
+  <!-- Chef Hat Base -->
+  <ellipse cx="256" cy="140" rx="100" ry="25" fill="url(#chef-hat)"/>
+  <ellipse cx="256" cy="140" rx="95" ry="20" fill="#ffffff"/>
+  
+  <!-- Chef Hat Top (Puffy) -->
+  <circle cx="230" cy="95" r="40" fill="url(#chef-hat)"/>
+  <circle cx="256" cy="70" r="48" fill="url(#chef-hat)"/>
+  <circle cx="282" cy="95" r="40" fill="url(#chef-hat)"/>
+  <circle cx="210" cy="115" r="32" fill="url(#chef-hat)"/>
+  <circle cx="302" cy="115" r="32" fill="url(#chef-hat)"/>
+  
+  <!-- Hat Details/Folds -->
+  <path d="M220 90 Q230 85 240 90" fill="none" stroke="#e0e0e0" stroke-width="2" opacity="0.5"/>
+  <path d="M270 90 Q280 85 290 90" fill="none" stroke="#e0e0e0" stroke-width="2" opacity="0.5"/>
+  <circle cx="256" cy="55" r="8" fill="#f0f0f0"/>
+  
+  <!-- Face Details -->
+  <!-- Eyebrows -->
+  <path d="M210 175 Q220 170 235 173" fill="none" stroke="#6b5643" stroke-width="5" stroke-linecap="round"/>
+  <path d="M277 173 Q292 170 302 175" fill="none" stroke="#6b5643" stroke-width="5" stroke-linecap="round"/>
+  
+  <!-- Eyes -->
+  <ellipse cx="225" cy="195" rx="18" ry="22" fill="#ffffff"/>
+  <ellipse cx="287" cy="195" rx="18" ry="22" fill="#ffffff"/>
+  <circle cx="228" cy="198" r="13" fill="#4a3728"/>
+  <circle cx="290" cy="198" r="13" fill="#4a3728"/>
+  <circle cx="231" cy="195" r="6" fill="#000000"/>
+  <circle cx="293" cy="195" r="6" fill="#000000"/>
+  <circle cx="233" cy="193" r="3" fill="#ffffff"/>
+  <circle cx="295" cy="193" r="3" fill="#ffffff"/>
+  
+  <!-- Nose -->
+  <ellipse cx="256" cy="215" rx="8" ry="12" fill="#f0a885"/>
+  <path d="M248 218 Q252 222 256 220" fill="none" stroke="#e09875" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M256 220 Q260 222 264 218" fill="none" stroke="#e09875" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Mouth (Happy smile) -->
+  <path d="M230 235 Q256 255 282 235" fill="none" stroke="#c97a6a" stroke-width="4" stroke-linecap="round"/>
+  <path d="M230 235 Q256 250 282 235" fill="#ff9999" opacity="0.3"/>
+  <ellipse cx="240" cy="240" rx="3" ry="2" fill="#ffffff" opacity="0.6"/>
+  
+  <!-- Blush -->
+  <ellipse cx="200" cy="215" rx="20" ry="15" fill="url(#blush)"/>
+  <ellipse cx="312" cy="215" rx="20" ry="15" fill="url(#blush)"/>
+  
+  <!-- Arms -->
+  <!-- Left Arm -->
+  <ellipse cx="140" cy="350" rx="28" ry="65" fill="url(#skin)" transform="rotate(-20 140 350)" filter="url(#shadow)"/>
+  <ellipse cx="120" cy="415" rx="22" ry="45" fill="url(#skin)" transform="rotate(-35 120 415)"/>
+  <!-- Left Hand -->
+  <ellipse cx="105" cy="460" rx="28" ry="32" fill="#ffc9a8"/>
+  <ellipse cx="95" cy="470" rx="10" ry="14" fill="#ffc9a8"/>
+  <ellipse cx="105" cy="475" rx="10" ry="14" fill="#ffc9a8"/>
+  <ellipse cx="115" cy="475" rx="10" ry="14" fill="#ffc9a8"/>
+  <ellipse cx="120" cy="468" rx="9" ry="12" fill="#ffc9a8"/>
+  
+  <!-- Right Arm -->
+  <ellipse cx="372" cy="350" rx="28" ry="65" fill="url(#skin)" transform="rotate(20 372 350)" filter="url(#shadow)"/>
+  <ellipse cx="392" cy="415" rx="22" ry="45" fill="url(#skin)" transform="rotate(35 392 415)"/>
+  <!-- Right Hand holding wooden spoon -->
+  <ellipse cx="407" cy="460" rx="28" ry="32" fill="#ffc9a8"/>
+  <ellipse cx="417" cy="470" rx="10" ry="14" fill="#ffc9a8"/>
+  <ellipse cx="407" cy="475" rx="10" ry="14" fill="#ffc9a8"/>
+  <ellipse cx="397" cy="475" rx="10" ry="14" fill="#ffc9a8"/>
+  <ellipse cx="392" cy="468" rx="9" ry="12" fill="#ffc9a8"/>
+  
+  <!-- Wooden Spoon -->
+  <rect x="395" y="440" width="8" height="80" rx="4" fill="#8b6f47" transform="rotate(25 399 480)"/>
+  <ellipse cx="430" cy="425" rx="18" ry="25" fill="#a68a5f" transform="rotate(25 430 425)"/>
+  <ellipse cx="430" cy="425" rx="14" ry="20" fill="#c9a76f" transform="rotate(25 430 425)"/>
+  
+  <!-- Shirt Collar -->
+  <path d="M235 275 L210 295 L220 310" fill="url(#shirt)"/>
+  <path d="M277 275 L302 295 L292 310" fill="url(#shirt)"/>
+  <path d="M235 275 L256 290 L277 275" fill="url(#shirt)"/>
+  
+  <!-- Buttons on Apron Strap -->
+  <circle cx="256" cy="295" r="6" fill="#ffffff" stroke="#ddd" stroke-width="1"/>
+  <circle cx="256" cy="295" r="2" fill="#ff6347"/>
+</svg>

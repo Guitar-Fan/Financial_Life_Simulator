@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="cream-bottle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffef7"/>
+      <stop offset="100%" stop-color="#fff8e7"/>
+    </linearGradient>
+  </defs>
+  <rect x="14" y="14" width="20" height="4" rx="1" fill="#ffe8d0"/>
+  <rect x="16" y="18" width="16" height="24" rx="2" fill="url(#cream-bottle)" stroke="#f0e0d0" stroke-width="1"/>
+  <rect x="16" y="22" width="16" height="16" fill="#fff8e7" opacity="0.8"/>
+  <text x="24" y="32" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#a67c52">CREAM</text>
+  <circle cx="24" cy="12" r="2" fill="#ffd700"/>
+</svg>

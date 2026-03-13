@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Tax Life Journey</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,300;400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS 4.0 (CDN) -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+
+    <!-- Anime.js & Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style type="text/tailwindcss">
+        @theme {
+            --color-void: #09090b;
+            --color-paper: #e4e4e7;
+            --color-ink: #18181b;
+            
+            --color-tax-red: #ef4444;
+            --color-wealth-gold: #eab308;
+            --color-life-blue: #3b82f6;
+            
+            --font-display: 'Fraunces', serif;
+            --font-sans: 'Space Grotesk', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        body {
+            @apply bg-void text-paper font-sans overflow-hidden;
+            background-image: radial-gradient(circle at 50% 50%, #27272a 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .panel {
+            @apply bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl;
+        }
+
+        .btn-action {
+            @apply px-4 py-2 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-all active:scale-95 flex items-center gap-2;
+        }
+
+        .tax-chip {
+            @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border;
+        }
+
+        /* Journey Path Animation */
+        #journey-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .stage-card {
+            @apply absolute transition-all duration-500 opacity-0 translate-y-10;
+        }
+        
+        .stage-active {
+            @apply opacity-100 translate-y-0 z-10;
+        }
+
+        .receipt-item {
+            @apply flex justify-between text-xs py-1 border-b border-dashed border-white/10 font-mono text-gray-400;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-full flex flex-col relative">
+
+    <!-- Background Canvas for Path -->
+    <canvas id="journey-canvas"></canvas>
+
+    <!-- Header -->
+    <nav class="relative z-50 flex justify-between items-center p-6 pointer-events-auto">
+        <div>
+            <h1 class="font-display font-light text-3xl tracking-tight">Tax<span
+                    class="italic font-bold text-wealth-gold">Life</span></h1>
+            <p class="text-xs text-gray-500 uppercase tracking-widest mt-1">A Financial Biography</p>
+        </div>
+
+        <div class="flex gap-6">
+            <div class="text-right">
+                <div class="text-xs text-gray-500 uppercase">Current Age</div>
+                <div class="font-display text-2xl" id="display-age">22</div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-gray-500 uppercase">Net Worth</div>
+                <div class="font-display text-2xl text-wealth-gold" id="display-worth">$0</div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-gray-500 uppercase">Lifetime Tax Paid</div>
+                <div class="font-display text-2xl text-tax-red" id="display-taxes">$0</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow relative z-10 flex">
+
+        <!-- Left: The Narrative Stream -->
+        <div class="w-1/3 h-full p-6 flex flex-col pointer-events-auto">
+            <div id="event-stream" class="flex-grow overflow-y-auto space-y-4 pr-2 masked-scroll">
+                <!-- Events injected here -->
+                <div class="panel p-6 border-l-4 border-life-blue">
+                    <div class="text-xs text-life-blue uppercase font-bold mb-2">Age 22 • The Beginning</div>
+                    <p class="text-sm leading-relaxed text-gray-300">
+                        You graduate college. The world is open, but so is your file at the IRS. You land your first
+                        job.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="mt-6 panel p-4">
+                <div id="decision-area" class="space-y-3">
+                    <h3 class="text-xs uppercase text-gray-500 mb-2">Life Choices</h3>
+                    <div class="grid grid-cols-2 gap-3" id="choices-container">
+                        <button onclick="advanceLife()" class="btn-action justify-center col-span-2">
+                            <span>Process Year</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Visualization Focus -->
+        <div class="w-1/3 flex items-center justify-center pointer-events-none">
+            <div id="character-avatar"
+                class="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-[0_0_100px_rgba(255,255,255,0.1)] relative">
+                <i data-lucide="user" class="w-12 h-12 text-black"></i>
+
+                <!-- Orbiting Tax Satellites -->
+                <div class="absolute w-48 h-48 border border-white/10 rounded-full animate-[spin_10s_linear_infinite]">
+                    <div
+                        class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 bg-tax-red w-4 h-4 rounded-full">
+                    </div>
+                </div>
+                <div
+                    class="absolute w-64 h-64 border border-white/5 rounded-full animate-[spin_15s_linear_infinite_reverse]">
+                    <div
+                        class="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 bg-life-blue w-3 h-3 rounded-full">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: The Tax Receipt -->
+        <div class="w-1/3 h-full p-6 pointer-events-auto">
+            <div class="panel h-full flex flex-col p-6 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-tax-red via-purple-500 to-life-blue">
+                </div>
+
+                <h3
+                    class="font-mono text-sm uppercase tracking-widest text-gray-400 mb-6 flex justify-between items-center">
+                    <span>Tax Receipt Year <span id="receipt-year">2024</span></span>
+                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                </h3>
+
+                <div class="flex-grow space-y-1 font-mono text-sm overflow-y-auto" id="receipt-items">
+                    <!-- Dynamic Receipt Items -->
+                </div>
+
+                <div class="mt-6 pt-6 border-t border-white/10 space-y-3">
+                    <div class="flex justify-between items-end">
+                        <span class="text-gray-400 text-xs uppercase">Gross Income</span>
+                        <span class="text-white" id="receipt-gross">$0</span>
+                    </div>
+                    <div class="flex justify-between items-end text-tax-red">
+                        <span class="text-xs uppercase">Total Tax Left</span>
+                        <span class="font-bold" id="receipt-total">-$0</span>
+                    </div>
+                    <div
+                        class="flex justify-between items-end text-emerald-400 text-lg font-bold pt-2 border-t border-dashed border-white/10">
+                        <span>Net Pocket</span>
+                        <span id="receipt-net">$0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Overlay: End Screen -->
+    <div id="end-screen"
+        class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-1000">
+        <div class="max-w-2xl text-center space-y-8">
+            <h1 class="font-display text-6xl text-white mb-2">Life Completed.</h1>
+            <p class="text-gray-400 text-xl font-light">Your contribution to civilization has been tallied.</p>
+
+            <div class="grid grid-cols-2 gap-8 text-left bg-zinc-900 p-8 rounded-2xl border border-white/10">
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-1">Total Lifetime Earnings</div>
+                    <div class="text-3xl font-display text-white" id="end-earnings">$0</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-1">Total Taxes Paid</div>
+                    <div class="text-3xl font-display text-tax-red" id="end-tax">$0</div>
+                </div>
+                <div class="col-span-2 pt-6 border-t border-white/10">
+                    <div class="text-xs uppercase text-gray-500 mb-1">Largest Tax Category</div>
+                    <div class="text-xl text-life-blue" id="end-category">Income Tax</div>
+                </div>
+            </div>
+
+            <button onclick="location.reload()"
+                class="btn-action mx-auto px-8 py-3 bg-white text-black hover:bg-gray-200">
+                Reincarnate
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const CONFIG = {
+            startAge: 22,
+            endAge: 85,
+            locations: ['State (No Income Tax)', 'State (High Tax)', 'Expat'],
+        };
+
+        // --- Tax Engine (The Core) ---
+        const TaxEngine = {
+            brackets: [
+                { limit: 11600, rate: 0.10 },
+                { limit: 47150, rate: 0.12 },
+                { limit: 100525, rate: 0.22 },
+                { limit: 191950, rate: 0.24 },
+                { limit: 243725, rate: 0.32 },
+                { limit: 609350, rate: 0.35 },
+                { limit: Infinity, rate: 0.37 }
+            ],
+
+            calcIncomeTax(income) {
+                let tax = 0;
+                let previousLimit = 0;
+
+                for (let b of this.brackets) {
+                    if (income > previousLimit) {
+                        const taxable = Math.min(income, b.limit) - previousLimit;
+                        tax += taxable * b.rate;
+                        previousLimit = b.limit;
+                    }
+                }
+                return tax;
+            },
+
+            calcFICA(income) {
+                // SS + Medicare
+                return (Math.min(income, 168600) * 0.062) + (income * 0.0145);
+            },
+
+            calcSalesTax(spending, locationRate = 0.07) {
+                return spending * locationRate;
+            },
+
+            calcPropertyTax(homeValue, rate = 0.012) {
+                return homeValue * rate;
+            },
+
+            calcGasTax(milesDriven = 10000) {
+                // Approx 50 cents/gallon, 25mpg = $0.02/mile
+                return milesDriven * 0.02;
+            }
+        };
+
+        // --- Game State ---
+        let Player = {
+            age: 22,
+            job: 'Junior Associate',
+            salary: 45000,
+            cash: 2000,
+            assets: 0, // Investments
+            property: 0, // Home value
+            debt: 30000, // Student loans
+
+            status: {
+                married: false,
+                children: 0,
+                homeowner: false,
+                businessOwner: false
+            },
+
+            stats: {
+                lifetimeEarnings: 0,
+                lifetimeTax: 0,
+                taxBreakdown: {}
+            }
+        };
+
+        const Events = [
+            { age: 24, type: 'career', text: "Promotion! You moved from Junior to Associate.", effect: (p) => { p.salary = 65000; p.job = "Associate"; } },
+            { age: 28, type: 'life', text: "Love is in the air. You got Married!", effect: (p) => { p.status.married = true; p.salary *= 1.5; /* Dual income approx */ } },
+            { age: 30, type: 'property', text: "You bought a Starter Home. Welcome to Property Taxes.", effect: (p) => { p.status.homeowner = true; p.property = 350000; p.debt += 280000; } },
+            { age: 34, type: 'family', text: "A Child is born! Child Tax Credits unlocked.", effect: (p) => { p.status.children++; } },
+            { age: 40, type: 'career', text: "Mid-Life Crisis? No, just a Business pivot.", effect: (p) => { p.status.businessOwner = true; p.salary = 120000; p.job = "Founder"; } },
+            { age: 50, type: 'wealth', text: "Market Bull Run. Your assets appreciate significantly.", effect: (p) => { p.assets *= 1.4; } },
+            { age: 65, type: 'life', text: "Retirement. Income shifts to 401k withdrawals.", effect: (p) => { p.job = "Retired"; p.salary = p.assets * 0.04; } }
+        ];
+
+        // --- Logic ---
+        function advanceLife() {
+            if (Player.age >= CONFIG.endAge) {
+                endGame();
+                return;
+            }
+
+            // 1. Process Year
+            // Income
+            let gross = Player.salary;
+            if (Player.status.businessOwner) gross += (Math.random() * 50000) - 10000; // Volatility
+
+            let spending = gross * 0.4; // Lifestyle creep
+
+            // Taxes
+            let taxes = [];
+
+            // A. Income Tax
+            let taxable = gross - (Player.status.married ? 29200 : 14600); // Std Deduction
+            if (Player.status.businessOwner) taxable *= 0.8; // Expenses
+            let fedTax = TaxEngine.calcIncomeTax(taxable);
+            // Credits
+            if (Player.status.children > 0) fedTax -= (Player.status.children * 2000);
+            fedTax = Math.max(0, fedTax);
+            taxes.push({ name: 'Federal Income', val: fedTax });
+
+            // B. FICA
+            let fica = TaxEngine.calcFICA(gross);
+            if (Player.status.businessOwner) fica *= 2; // SE Tax
+            taxes.push({ name: 'Payroll/FICA', val: fica });
+
+            // C. State Tax (Avg 5%)
+            taxes.push({ name: 'State Income', val: gross * 0.05 });
+
+            // D. Property Tax
+            if (Player.status.homeowner) {
+                let pTax = TaxEngine.calcPropertyTax(Player.property);
+                taxes.push({ name: 'Property Tax', val: pTax });
+            }
+
+            // E. Sales/Consumption Tax
+            let sTax = TaxEngine.calcSalesTax(spending);
+            taxes.push({ name: 'Sales Tax', val: sTax });
+
+            // F. Hidden Taxes (Gas, Alcohol, Cell, etc)
+            let hidden = 500 + (gross * 0.01);
+            taxes.push({ name: 'Hidden Fees/Excise', val: hidden });
+
+            // Total
+            let yearTax = taxes.reduce((acc, t) => acc + t.val, 0);
+            let net = gross - yearTax - spending;
+
+            // Update Player
+            Player.cash += net;
+            Player.stats.lifetimeEarnings += gross;
+            Player.stats.lifetimeTax += yearTax;
+
+            // Compounding
+            if (Player.assets > 0) Player.assets *= 1.07; // 7% returns
+            // Invest surplus
+            if (Player.cash > 20000) {
+                let invest = Player.cash - 20000;
+                Player.assets += invest;
+                Player.cash = 20000;
+            }
+
+            // Property Appreciation
+            if (Player.property > 0) Player.property *= 1.03;
+
+            // 2. Check Events
+            let yrEvent = Events.find(e => e.age === Player.age);
+            if (yrEvent) {
+                yrEvent.effect(Player);
+                addLog(yrEvent.text, 'event');
+            } else {
+                // Random filler
+                if (Math.random() < 0.1) addLog(`Age ${Player.age}: Just another year paying the piper.`, 'normal');
+            }
+
+            // 3. Render Reciept
+            renderReceipt(Player.age, gross, taxes, net);
+
+            // 4. Update Header
+            document.getElementById('display-age').textContent = Player.age;
+            document.getElementById('display-worth').textContent = formatMoney(Player.assets + Player.property + Player.cash - Player.debt);
+            document.getElementById('display-taxes').textContent = formatMoney(Player.stats.lifetimeTax);
+
+            // Increment
+            Player.age++;
+
+            // Scroll log
+            const loginfo = document.getElementById('event-stream');
+            loginfo.scrollTop = loginfo.scrollHeight;
+        }
+
+        // --- UI Rendering ---
+        function renderReceipt(year, gross, taxes, net) {
+            const list = document.getElementById('receipt-items');
+            list.innerHTML = ''; // Clear prev
+
+            document.getElementById('receipt-year').textContent = 2002 + (year - 22);
+
+            taxes.forEach(t => {
+                const row = document.createElement('div');
+                row.className = 'receipt-item animate-pulse-once';
+                row.innerHTML = `<span>${t.name}</span><span>-${Math.round(t.val).toLocaleString()}</span>`;
+                list.appendChild(row);
+
+                // Track category stats
+                Player.stats.taxBreakdown[t.name] = (Player.stats.taxBreakdown[t.name] || 0) + t.val;
+            });
+
+            const total = taxes.reduce((a, b) => a + b.val, 0);
+
+            document.getElementById('receipt-gross').textContent = formatMoney(gross);
+            document.getElementById('receipt-total').textContent = '-' + formatMoney(total);
+            document.getElementById('receipt-net').textContent = formatMoney(net);
+        }
+
+        function addLog(text, type) {
+            const stream = document.getElementById('event-stream');
+            const div = document.createElement('div');
+
+            let color = type === 'event' ? 'border-wealth-gold' : 'border-white/20';
+            if (type === 'event') {
+                div.className = `panel p-4 border-l-4 ${color}`;
+                div.innerHTML = `<div class="text-xs text-wealth-gold uppercase font-bold mb-1">Major Event</div>
+                                 <p class="text-sm text-gray-200">${text}</p>`;
+            } else {
+                div.className = `panel p-3 border-l-2 ${color} opacity-70`;
+                div.innerHTML = `<p class="text-xs text-gray-400">${text}</p>`;
+            }
+
+            stream.appendChild(div);
+        }
+
+        function endGame() {
+            const screen = document.getElementById('end-screen');
+            screen.classList.remove('pointer-events-none', 'opacity-0');
+
+            document.getElementById('end-earnings').textContent = formatMoney(Player.stats.lifetimeEarnings);
+            document.getElementById('end-tax').textContent = formatMoney(Player.stats.lifetimeTax);
+
+            // Find max tax category
+            let maxCat = '';
+            let maxVal = 0;
+            for (let [k, v] of Object.entries(Player.stats.taxBreakdown)) {
+                if (v > maxVal) { maxVal = v; maxCat = k; }
+            }
+            document.getElementById('end-category').textContent = `${maxCat} (${formatMoney(maxVal)})`;
+        }
+
+        function formatMoney(n) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+        }
+
+        // --- Visuals ---
+
+        // Background Path
+        function initCanvas() {
+            const cvs = document.getElementById('journey-canvas');
+            const ctx = cvs.getContext('2d');
+
+            const resize = () => {
+                cvs.width = window.innerWidth;
+                cvs.height = window.innerHeight;
+            };
+            window.addEventListener('resize', resize);
+            resize();
+
+            let offset = 0;
+
+            function loop() {
+                ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+                ctx.beginPath();
+                ctx.strokeStyle = '#3f3f46'; // zinc-700
+                ctx.lineWidth = 2;
+
+                // Draw a sin wave path that moves
+                for (let x = 0; x < cvs.width; x += 5) {
+                    let y = cvs.height / 2 + Math.sin((x + offset) * 0.005) * 100 + Math.cos((x + offset) * 0.01) * 50;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                offset += 0.5;
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // Init
+        lucide.createIcons();
+        initCanvas();
+        renderReceipt(22, 45000, [{ name: 'Fed Income', val: 3000 }, { name: 'FICA', val: 3442 }], 38558); // Setup initial view
+
+    </script>
+</body>
+
+</html>

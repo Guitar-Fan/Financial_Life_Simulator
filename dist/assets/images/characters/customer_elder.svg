@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="80" viewBox="0 0 60 80">
+  <defs>
+    <linearGradient id="skin-elder" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8c8b8"/>
+      <stop offset="100%" stop-color="#d4b4a4"/>
+    </linearGradient>
+    <linearGradient id="cardigan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="30" cy="75" rx="12" ry="4" fill="#5b21b6" opacity="0.3"/>
+  <rect x="22" y="60" width="7" height="16" fill="#6b21a8"/>
+  <rect x="31" y="60" width="7" height="16" fill="#6b21a8"/>
+  <ellipse cx="30" cy="45" rx="15" ry="18" fill="url(#cardigan)"/>
+  <line x1="30" y1="35" x2="30" y2="55" stroke="#7c3aed" stroke-width="2"/>
+  <circle cx="30" cy="38" r="2" fill="#ddd6fe"/>
+  <circle cx="30" cy="45" r="2" fill="#ddd6fe"/>
+  <circle cx="30" cy="52" r="2" fill="#ddd6fe"/>
+  <circle cx="30" cy="22" r="11" fill="url(#skin-elder)"/>
+  <circle cx="27" cy="21" r="2" fill="#4a3a2a"/>
+  <circle cx="33" cy="21" r="2" fill="#4a3a2a"/>
+  <path d="M27 26 Q30 27 33 26" stroke="#c8a898" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M20 18 Q24 12 30 13 Q36 12 40 18" stroke="#d4d4d4" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <rect x="24" y="19" width="14" height="4" fill="#e4e4e4" opacity="0.6" rx="2"/>
+  <ellipse cx="16" cy="48" rx="6" ry="12" fill="url(#skin-elder)"/>
+  <ellipse cx="44" cy="48" rx="6" ry="12" fill="url(#skin-elder)"/>
+</svg>

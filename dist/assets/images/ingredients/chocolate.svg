@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="choc-bag" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a3a1a"/>
+      <stop offset="100%" stop-color="#3a2410"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="18" width="28" height="26" rx="2" fill="url(#choc-bag)" stroke="#2a1a08" stroke-width="1.5"/>
+  <path d="M10 20 Q24 16 38 20" fill="#4a2a12"/>
+  <text x="24" y="30" text-anchor="middle" font-family="Arial" font-size="7" font-weight="bold" fill="#ffd700">CHOCOLATE</text>
+  <text x="24" y="38" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#ffd700">CHIPS</text>
+  <rect x="16" y="8" width="16" height="12" rx="2" fill="#6a4a2a"/>
+  <line x1="20" y1="10" x2="20" y2="18" stroke="#5a3a1a" stroke-width="1"/>
+  <line x1="28" y1="10" x2="28" y2="18" stroke="#5a3a1a" stroke-width="1"/>
+  <circle cx="18" cy="26" r="2" fill="#3a2410"/>
+  <circle cx="30" cy="26" r="2" fill="#3a2410"/>
+</svg>

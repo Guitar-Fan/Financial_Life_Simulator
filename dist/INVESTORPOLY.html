@@ -1,0 +1,2893 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvestorPoly - Investment Board Game</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@400;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #0a1f14;
+            color: #e8e0d0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh
+        }
+
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1
+        }
+
+        /* START SCREEN */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            background: linear-gradient(135deg, #0a1f14 0%, #1a3a2a 50%, #0d2818 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center
+        }
+
+        #startScreen h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
+            color: #d4af37;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.5), 0 4px 8px rgba(0, 0, 0, 0.5);
+            animation: titlePulse 3s ease-in-out infinite;
+            margin-bottom: 10px
+        }
+
+        @keyframes titlePulse {
+
+            0%,
+            100% {
+                text-shadow: 0 0 30px rgba(212, 175, 55, 0.5), 0 4px 8px rgba(0, 0, 0, 0.5)
+            }
+
+            50% {
+                text-shadow: 0 0 50px rgba(212, 175, 55, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5)
+            }
+        }
+
+        #startScreen .subtitle {
+            font-size: 1.1rem;
+            color: #a0937d;
+            margin-bottom: 30px;
+            letter-spacing: 3px;
+            text-transform: uppercase
+        }
+
+        .startPanel {
+            background: rgba(30, 60, 45, 0.9);
+            border: 2px solid #d4af37;
+            border-radius: 16px;
+            padding: 30px 40px;
+            max-width: 500px;
+            width: 90%
+        }
+
+        .startPanel label {
+            display: block;
+            color: #d4af37;
+            margin: 8px 0 4px;
+            font-size: .9rem
+        }
+
+        .startPanel select,
+        .startPanel input {
+            width: 100%;
+            padding: 10px;
+            background: #0d2818;
+            border: 1px solid #3a6b4a;
+            border-radius: 8px;
+            color: #e8e0d0;
+            font-size: 1rem;
+            margin-bottom: 4px
+        }
+
+        .startPanel select:focus,
+        .startPanel input:focus {
+            outline: none;
+            border-color: #d4af37
+        }
+
+        .playerInputs {
+            max-height: 200px;
+            overflow-y: auto
+        }
+
+        #startBtn {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+            padding: 16px;
+            background: linear-gradient(135deg, #d4af37, #b8962e);
+            color: #1a3a2a;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 700
+        }
+
+        #startBtn:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.5)
+        }
+
+        .rules {
+            margin-top: 15px;
+            font-size: .75rem;
+            color: #7a8a7a;
+            line-height: 1.4;
+            max-height: 100px;
+            overflow-y: auto
+        }
+
+        /* HUD OVERLAY */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10
+        }
+
+        #hud>* {
+            pointer-events: auto
+        }
+
+        /* TOP BAR */
+        #topBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(180deg, rgba(10, 31, 20, 0.95), rgba(10, 31, 20, 0.7));
+            border-bottom: 1px solid #2a5a3a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px
+        }
+
+        #topBar .title {
+            font-family: 'Playfair Display', serif;
+            color: #d4af37;
+            font-size: 1.3rem
+        }
+
+        #topBar .info {
+            color: #a0a080;
+            font-size: .85rem
+        }
+
+        #currentPlayerInd {
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: .9rem;
+            border: 2px solid;
+            animation: glow 2s ease-in-out infinite
+        }
+
+        @keyframes glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px currentColor
+            }
+
+            50% {
+                box-shadow: 0 0 20px currentColor
+            }
+        }
+
+        /* BOTTOM PLAYER BAR */
+        #bottomBar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(0deg, rgba(10, 31, 20, 0.95), rgba(10, 31, 20, 0.7));
+            border-top: 1px solid #2a5a3a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 10px
+        }
+
+        .playerCard {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 2px solid #2a5a3a;
+            background: rgba(20, 40, 30, 0.8);
+            min-width: 180px;
+            transition: all 0.3s
+        }
+
+        .playerCard.active {
+            border-color: #d4af37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3)
+        }
+
+        .playerCard.bankrupt {
+            opacity: 0.4;
+            filter: grayscale(1)
+        }
+
+        .playerCard .pIcon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem
+        }
+
+        .playerCard .pInfo {
+            font-size: .8rem;
+            line-height: 1.3
+        }
+
+        .playerCard .pName {
+            font-weight: 700
+        }
+
+        .playerCard .pCash {
+            color: #4caf50
+        }
+
+        .playerCard .pWorth {
+            color: #d4af37;
+            font-size: .7rem
+        }
+
+        /* LEFT LOG */
+        #leftPanel {
+            position: absolute;
+            top: 55px;
+            left: 5px;
+            width: 240px;
+            bottom: 85px;
+            background: rgba(10, 31, 20, 0.85);
+            border: 1px solid #2a5a3a;
+            border-radius: 12px;
+            padding: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column
+        }
+
+        #leftPanel h3 {
+            color: #d4af37;
+            font-size: .85rem;
+            margin-bottom: 8px;
+            font-family: 'Playfair Display', serif
+        }
+
+        #gameLog {
+            flex: 1;
+            overflow-y: auto;
+            font-size: .72rem;
+            line-height: 1.5
+        }
+
+        #gameLog::-webkit-scrollbar {
+            width: 4px
+        }
+
+        #gameLog::-webkit-scrollbar-thumb {
+            background: #3a6b4a;
+            border-radius: 2px
+        }
+
+        .logEntry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(42, 90, 58, 0.3)
+        }
+
+        .logEntry.money-gain {
+            color: #4caf50
+        }
+
+        .logEntry.money-loss {
+            color: #ef5350
+        }
+
+        .logEntry.card-event {
+            color: #ff9800
+        }
+
+        .logEntry.purchase {
+            color: #42a5f5
+        }
+
+        /* RIGHT PANEL */
+        #rightPanel {
+            position: absolute;
+            top: 55px;
+            right: 5px;
+            width: 250px;
+            bottom: 85px;
+            background: rgba(10, 31, 20, 0.85);
+            border: 1px solid #2a5a3a;
+            border-radius: 12px;
+            padding: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column
+        }
+
+        #rightPanel h3 {
+            color: #d4af37;
+            font-size: .85rem;
+            margin-bottom: 5px;
+            font-family: 'Playfair Display', serif
+        }
+
+        #portfolioList {
+            flex: 1;
+            overflow-y: auto;
+            font-size: .72rem
+        }
+
+        #portfolioList::-webkit-scrollbar {
+            width: 4px
+        }
+
+        #portfolioList::-webkit-scrollbar-thumb {
+            background: #3a6b4a;
+            border-radius: 2px
+        }
+
+        .propItem {
+            padding: 4px 6px;
+            margin: 2px 0;
+            border-radius: 6px;
+            background: rgba(30, 60, 45, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            justify-content: space-between
+        }
+
+        .propItem .colorDot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .propItem .propName {
+            flex: 1;
+            font-size: .7rem
+        }
+
+        .propItem button {
+            font-size: .6rem;
+            padding: 2px 6px;
+            background: #d4af37;
+            color: #1a3a2a;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer
+        }
+
+        .propItem button:hover {
+            background: #e8c84a
+        }
+
+        .propItem.mortgaged {
+            opacity: 0.5
+        }
+
+        #worthBreakdown {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(30, 60, 45, 0.5);
+            border-radius: 8px;
+            font-size: .75rem
+        }
+
+        #worthBreakdown div {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0
+        }
+
+        /* CENTER CONTROLS */
+        #centerControls {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px
+        }
+
+        #rollBtn {
+            padding: 14px 40px;
+            background: linear-gradient(135deg, #2e7d32, #1b5e20);
+            color: #d4af37;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.2rem;
+            border: 3px solid #d4af37;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px
+        }
+
+        #rollBtn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.4)
+        }
+
+        #rollBtn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed
+        }
+
+        #diceResult {
+            font-size: 1.5rem;
+            color: #d4af37;
+            font-weight: 700;
+            min-height: 30px
+        }
+
+        #endTurnBtn {
+            padding: 8px 30px;
+            background: linear-gradient(135deg, #5d4037, #3e2723);
+            color: #d4af37;
+            border: 2px solid #8d6e63;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: .9rem;
+            display: none
+        }
+
+        #endTurnBtn:hover {
+            background: linear-gradient(135deg, #6d4c41, #4e342e)
+        }
+
+        #payAuditBtn {
+            padding: 8px 20px;
+            background: #ef5350;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: .85rem;
+            display: none
+        }
+
+        /* MODAL */
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center
+        }
+
+        #modal.show {
+            display: flex
+        }
+
+        #modalContent {
+            background: linear-gradient(135deg, #1a3a2a, #0d2818);
+            border: 3px solid #d4af37;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            animation: modalIn 0.4s ease
+        }
+
+        @keyframes modalIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1
+            }
+        }
+
+        #modalContent h2 {
+            font-family: 'Playfair Display', serif;
+            color: #d4af37;
+            font-size: 1.5rem;
+            margin-bottom: 15px
+        }
+
+        #modalContent p {
+            font-size: .9rem;
+            line-height: 1.5;
+            margin-bottom: 10px;
+            color: #c8c0b0
+        }
+
+        #modalContent .propDetails {
+            background: rgba(30, 60, 45, 0.5);
+            padding: 12px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: left;
+            font-size: .82rem
+        }
+
+        #modalContent .propDetails div {
+            padding: 2px 0
+        }
+
+        .modalBtns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 15px
+        }
+
+        .modalBtns button {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s
+        }
+
+        .btnBuy {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+            color: #fff
+        }
+
+        .btnPass {
+            background: linear-gradient(135deg, #757575, #616161);
+            color: #fff
+        }
+
+        .btnOk {
+            background: linear-gradient(135deg, #d4af37, #b8962e);
+            color: #1a3a2a
+        }
+
+        .btnBuy:hover {
+            transform: scale(1.05)
+        }
+
+        .btnPass:hover {
+            transform: scale(1.05)
+        }
+
+        .btnOk:hover {
+            transform: scale(1.05)
+        }
+
+        /* CARD DISPLAY */
+        .cardDisplay {
+            width: 200px;
+            height: 130px;
+            margin: 15px auto;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            font-size: .85rem;
+            font-weight: 700;
+            text-align: center;
+            animation: cardFlip 0.6s ease
+        }
+
+        .cardDisplay.lifeEvent {
+            background: linear-gradient(135deg, #e91e63, #c2185b);
+            border: 3px solid #f48fb1
+        }
+
+        .cardDisplay.marketNews {
+            background: linear-gradient(135deg, #ff9800, #e65100);
+            border: 3px solid #ffcc02
+        }
+
+        @keyframes cardFlip {
+            0% {
+                transform: rotateY(90deg)
+            }
+
+            100% {
+                transform: rotateY(0)
+            }
+        }
+
+        /* VICTORY SCREEN */
+        #victoryScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column
+        }
+
+        #victoryScreen.show {
+            display: flex
+        }
+
+        #victoryScreen h1 {
+            font-family: 'Playfair Display', serif;
+            color: #d4af37;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.8)
+        }
+
+        #victoryScreen .stats {
+            background: rgba(26, 58, 42, 0.9);
+            border: 2px solid #d4af37;
+            border-radius: 16px;
+            padding: 20px 40px;
+            font-size: 1rem
+        }
+
+        #victoryScreen button {
+            margin-top: 20px;
+            padding: 12px 40px;
+            background: #d4af37;
+            color: #1a3a2a;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-family: 'Playfair Display', serif
+        }
+
+        /* TOOLTIP */
+        #tooltip {
+            position: fixed;
+            z-index: 50;
+            background: rgba(10, 31, 20, 0.95);
+            border: 1px solid #d4af37;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: .72rem;
+            max-width: 200px;
+            display: none;
+            pointer-events: none
+        }
+
+        #tooltip .ttName {
+            color: #d4af37;
+            font-weight: 700;
+            font-size: .8rem
+        }
+
+        #tooltip .ttDetails {
+            color: #a0a080;
+            margin-top: 3px;
+            white-space: pre-line
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- START SCREEN -->
+    <div id="startScreen">
+        <h1>INVESTORPOLY</h1>
+        <div class="subtitle">The Investment Board Game</div>
+        <div class="startPanel">
+            <label>Number of Players</label>
+            <select id="playerCount" onchange="updatePlayerInputs()">
+                <option value="2">2 Players</option>
+                <option value="3">3 Players</option>
+                <option value="4" selected>4 Players</option>
+            </select>
+            <div id="playerInputs" class="playerInputs"></div>
+            <button id="startBtn" onclick="startGame()">START GAME</button>
+            <div class="rules">
+                <strong>How to Play:</strong> Roll dice, move around the board, buy investments, collect rent, and build
+                your portfolio. Upgrade properties for higher returns. Watch out for taxes and market crashes! First to
+                $50,000 net worth or last player standing wins.
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME CANVAS -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" style="display:none">
+        <div id="topBar">
+            <div class="title">INVESTORPOLY</div>
+            <div class="info">Round: <span id="roundNum">1</span> | Pot: $<span id="potAmt">0</span></div>
+            <div id="currentPlayerInd">Player 1's Turn</div>
+        </div>
+        <div id="leftPanel">
+            <h3>📜 Game Log</h3>
+            <div id="gameLog"></div>
+        </div>
+        <div id="rightPanel">
+            <h3>💼 Your Portfolio</h3>
+            <div id="portfolioList"></div>
+            <div id="worthBreakdown">
+                <div><span>Cash:</span><span id="wCash">$10,000</span></div>
+                <div><span>Properties:</span><span id="wProp">$0</span></div>
+                <div style="border-top:1px solid #3a6b4a;margin-top:3px;padding-top:3px;color:#d4af37;font-weight:700">
+                    <span>Net Worth:</span><span id="wTotal">$10,000</span>
+                </div>
+            </div>
+        </div>
+        <div id="centerControls">
+            <div id="diceResult"></div>
+            <button id="rollBtn" onclick="rollDice()">🎲 ROLL DICE</button>
+            <button id="endTurnBtn" onclick="endTurn()">End Turn</button>
+            <button id="payAuditBtn" onclick="payAuditFine()">Pay $500 Fine</button>
+        </div>
+        <div id="bottomBar"></div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal">
+        <div id="modalContent"></div>
+    </div>
+
+    <!-- TOOLTIP -->
+    <div id="tooltip">
+        <div class="ttName"></div>
+        <div class="ttDetails"></div>
+    </div>
+
+    <!-- VICTORY SCREEN -->
+    <div id="victoryScreen">
+        <h1>🏆 WINNER! 🏆</h1>
+        <div class="stats" id="victoryStats"></div>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME DATA
+        // ============================================
+        const TILE_COLORS = {
+            'Light Blue': '#03a9f4', 'Brown': '#795548', 'Pink': '#e91e63', 'Red': '#f44336',
+            'Yellow': '#ffc107', 'Green': '#4caf50', 'Bond': '#9e9e9e', 'Dark Blue': '#1565c0',
+            'Purple': '#9c27b0', 'Orange': '#ff9800', 'Corner': '#d4af37', 'Tax': '#ef5350', 'Card': '#ff9800'
+        };
+
+        const PLAYER_COLORS = ['#d4af37', '#c0c0c0', '#cd7f32', '#e0e0e0'];
+        const PLAYER_ICONS = ['🐂', '🐻', '🦅', '💎'];
+        const PLAYER_NAMES_DEFAULT = ['Bull', 'Bear', 'Eagle', 'Diamond'];
+
+        const TILES = [
+            { id: 0, name: 'START', type: 'corner', desc: 'Collect $2,000 Salary', color: 'Corner' },
+            { id: 1, name: 'Suburban Rental', type: 'property', cost: 600, rent: 50, upgrade: 300, maxLvl: 3, color: 'Light Blue', sector: 'Real Estate' },
+            { id: 2, name: 'Life Event', type: 'lifeEvent', color: 'Card' },
+            { id: 3, name: 'Urban Condo', type: 'property', cost: 800, rent: 70, upgrade: 400, maxLvl: 3, color: 'Light Blue', sector: 'Real Estate' },
+            { id: 4, name: 'Property Tax', type: 'tax', desc: 'Pay 10% of portfolio', color: 'Tax', calc: 'portfolio10' },
+            { id: 5, name: 'Commercial Office', type: 'property', cost: 1200, rent: 120, upgrade: 500, maxLvl: 3, color: 'Brown', sector: 'Real Estate' },
+            { id: 6, name: 'REITs', type: 'property', cost: 1000, rent: 0, upgrade: 0, maxLvl: 0, color: 'Brown', sector: 'Real Estate', variable: 'reit' },
+            { id: 7, name: 'Market News', type: 'marketNews', color: 'Card' },
+            { id: 8, name: 'Luxury Villa', type: 'property', cost: 2000, rent: 180, upgrade: 700, maxLvl: 3, color: 'Brown', sector: 'Real Estate' },
+            { id: 9, name: 'Warehouse', type: 'property', cost: 900, rent: 90, upgrade: 400, maxLvl: 3, color: 'Light Blue', sector: 'Real Estate' },
+            { id: 10, name: 'TAX AUDIT', type: 'corner', desc: 'Lose a turn', color: 'Corner' },
+            { id: 11, name: 'Penny Stocks', type: 'property', cost: 300, rent: 40, upgrade: 0, maxLvl: 0, color: 'Pink', sector: 'Stock', variable: 'penny' },
+            { id: 12, name: 'Capital Gains Tax', type: 'tax', desc: 'Pay 15% profits', color: 'Tax', calc: 'gains15' },
+            { id: 13, name: 'Blue Chip Stocks', type: 'property', cost: 2500, rent: 200, upgrade: 600, maxLvl: 3, color: 'Red', sector: 'Stock' },
+            { id: 14, name: 'Index Fund', type: 'property', cost: 1500, rent: 130, upgrade: 400, maxLvl: 3, color: 'Red', sector: 'Stock' },
+            { id: 15, name: 'Brokerage Fee', type: 'tax', desc: 'Pay $200', color: 'Tax', calc: 'flat200' },
+            { id: 16, name: 'Tech Startup IPO', type: 'property', cost: 1800, rent: 0, upgrade: 0, maxLvl: 0, color: 'Yellow', sector: 'Stock', variable: 'techipo' },
+            { id: 17, name: 'Life Event', type: 'lifeEvent', color: 'Card' },
+            { id: 18, name: 'Pharma Stocks', type: 'property', cost: 2200, rent: 190, upgrade: 600, maxLvl: 3, color: 'Yellow', sector: 'Stock' },
+            { id: 19, name: 'Crypto Exchange', type: 'property', cost: 1000, rent: 0, upgrade: 0, maxLvl: 0, color: 'Yellow', sector: 'Stock', variable: 'crypto' },
+            { id: 20, name: 'DIVIDENDS', type: 'corner', desc: 'Collect from pot', color: 'Corner' },
+            { id: 21, name: 'Gold & Metals', type: 'property', cost: 1500, rent: 100, upgrade: 400, maxLvl: 3, color: 'Green', sector: 'Alternative' },
+            { id: 22, name: 'Market News', type: 'marketNews', color: 'Card' },
+            { id: 23, name: 'Art Collection', type: 'property', cost: 2000, rent: 90, upgrade: 0, maxLvl: 0, color: 'Green', sector: 'Alternative', variable: 'art' },
+            { id: 24, name: 'Venture Capital', type: 'property', cost: 3000, rent: 0, upgrade: 0, maxLvl: 0, color: 'Green', sector: 'Alternative', variable: 'vc' },
+            { id: 25, name: 'Gov Bonds', type: 'property', cost: 1000, rent: 80, upgrade: 0, maxLvl: 0, color: 'Bond', sector: 'Bond' },
+            { id: 26, name: 'Corp Bonds', type: 'property', cost: 1200, rent: 100, upgrade: 0, maxLvl: 0, color: 'Bond', sector: 'Bond', variable: 'corpbond' },
+            { id: 27, name: 'Muni Bonds', type: 'property', cost: 800, rent: 60, upgrade: 0, maxLvl: 0, color: 'Bond', sector: 'Bond', taxFree: true },
+            { id: 28, name: 'Hedge Fund', type: 'property', cost: 4000, rent: 350, upgrade: 0, maxLvl: 0, color: 'Dark Blue', sector: 'Alternative', mgmtFee: 100 },
+            { id: 29, name: 'INFLATION', type: 'tax', desc: 'All prices +5%', color: 'Tax', calc: 'inflation' },
+            { id: 30, name: 'MARKET CRASH', type: 'corner', desc: 'Go to Tax Audit!', color: 'Corner' },
+            { id: 31, name: 'Forex Trading', type: 'property', cost: 1500, rent: 0, upgrade: 0, maxLvl: 0, color: 'Purple', sector: 'Exotic', variable: 'forex' },
+            { id: 32, name: 'NFT Market', type: 'property', cost: 500, rent: 0, upgrade: 0, maxLvl: 0, color: 'Purple', sector: 'Exotic', variable: 'nft' },
+            { id: 33, name: 'Life Event', type: 'lifeEvent', color: 'Card' },
+            { id: 34, name: 'Oil & Energy', type: 'property', cost: 2500, rent: 220, upgrade: 600, maxLvl: 3, color: 'Orange', sector: 'Exotic' },
+            { id: 35, name: 'Luxury Tax', type: 'tax', desc: 'Pay $750', color: 'Tax', calc: 'flat750' },
+            { id: 36, name: 'Private Equity', type: 'property', cost: 3500, rent: 280, upgrade: 0, maxLvl: 0, color: 'Orange', sector: 'Exotic', lockTurns: 3 },
+            { id: 37, name: 'Market News', type: 'marketNews', color: 'Card' },
+            { id: 38, name: 'Angel Investment', type: 'property', cost: 2000, rent: 50, upgrade: 0, maxLvl: 0, color: 'Orange', sector: 'Exotic', variable: 'angel' },
+            { id: 39, name: 'Sovereign Fund', type: 'property', cost: 5000, rent: 400, upgrade: 800, maxLvl: 3, color: 'Dark Blue', sector: 'Exotic' }
+        ];
+
+        const LIFE_EVENTS = [
+            { text: "You got married! Wedding costs $500", amount: -500 },
+            { text: "Baby born! Hospital bill $300", amount: -300 },
+            { text: "Inheritance! Receive $1,500", amount: 1500 },
+            { text: "Car accident. Pay $400 repairs", amount: -400 },
+            { text: "Job promotion! Collect $500 bonus", amount: 500 },
+            { text: "Identity theft! Pay $600", amount: -600 },
+            { text: "Won a lawsuit! Collect $800", amount: 800 },
+            { text: "Home repair emergency. Pay $450", amount: -450 },
+            { text: "College tuition due. Pay $1,000", amount: -1000 },
+            { text: "Side hustle pays off! Collect $350", amount: 350 },
+            { text: "Medical emergency. Pay $1,200", amount: -1200 },
+            { text: "Birthday! Every player pays you $100", amount: 0, special: 'birthday' },
+            { text: "Divorce settlement. Pay $2,000", amount: -2000 },
+            { text: "Found rare coin collection. Sell for $700", amount: 700 },
+            { text: "IRS error in your favor. Collect $400", amount: 400 },
+            { text: "Student loan forgiveness! Save $500", amount: 500 }
+        ];
+
+        const MARKET_NEWS = [
+            { text: "Bull Market! Stock rents doubled this round", special: 'bullMarket' },
+            { text: "Bear Market! Stock values drop 20%", special: 'bearMarket' },
+            { text: "Housing Boom! Real estate rents doubled", special: 'housingBoom' },
+            { text: "Interest Rate Hike! Bond values +$200", special: 'rateHike' },
+            { text: "Recession! All players pay $300", special: 'recession' },
+            { text: "Tech Bubble Burst! Tech pays $0 rent", special: 'techBurst' },
+            { text: "Oil Spill! Energy stocks lose 50% value", special: 'oilSpill' },
+            { text: "Crypto Rally! Crypto rent tripled", special: 'cryptoRally' },
+            { text: "Government Bailout! $1000 if net worth < $3000", special: 'bailout' },
+            { text: "Insider Trading! Stock owners pay $500", special: 'insiderTrading' },
+            { text: "Pandemic! Real estate rents halved", special: 'pandemic' },
+            { text: "Gold Rush! Gold pays triple", special: 'goldRush' },
+            { text: "Regulatory Change! Random property lost", special: 'regulation' },
+            { text: "Merger! Buy any unowned at 50% off", special: 'merger' },
+            { text: "Inflation Spike! Cash loses 10%", special: 'inflationSpike' },
+            { text: "Dividend Payout! $50 per property owned", special: 'dividendPayout' }
+        ];
+
+        // ============================================
+        // GAME STATE
+        // ============================================
+        let game = {
+            players: [],
+            currentPlayer: 0,
+            round: 1,
+            pot: 0,
+            started: false,
+            diceRolling: false,
+            turnPhase: 'roll', // roll, action, end
+            doublesCount: 0,
+            inflationMult: 1.0,
+            properties: {}, // tileId -> {owner, level, mortgaged, lockTurns}
+            lifeEventDeck: [],
+            marketNewsDeck: [],
+            activeEffects: [] // temporary market effects
+        };
+
+        // ============================================
+        // THREE.JS SETUP
+        // ============================================
+        let scene, camera, renderer, controls;
+        let boardGroup, tileObjects = [], playerMeshes = [], diceMeshes = [];
+        let raycaster, mouse;
+        let particleSystem;
+
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1f14);
+            scene.fog = new THREE.Fog(0x0a1f14, 40, 80);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(0, 22, 18);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.maxPolarAngle = Math.PI / 2.3;
+            controls.minDistance = 10;
+            controls.maxDistance = 45;
+            controls.target.set(0, 0, 0);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.9);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 1;
+            dirLight.shadow.camera.far = 50;
+            dirLight.shadow.camera.left = -20;
+            dirLight.shadow.camera.right = 20;
+            dirLight.shadow.camera.top = 20;
+            dirLight.shadow.camera.bottom = -20;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xd4af37, 0.4, 30);
+            pointLight.position.set(0, 8, 0);
+            scene.add(pointLight);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            window.addEventListener('resize', onResize);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+
+            buildBoard();
+            buildDice();
+            createStockTicker();
+            animate();
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ============================================
+        // BOARD CONSTRUCTION
+        // ============================================
+        const BOARD_SIZE = 16;
+        const TILE_SIZE = 1.4;
+        const CORNER_SIZE = 2.0;
+        const TILES_PER_SIDE = 9;
+
+        function getTilePosition(index) {
+            // Returns {x, z, rotation} for tile index 0-39
+            // Board perimeter positions
+            const halfBoard = BOARD_SIZE / 2;
+            const cornerOff = CORNER_SIZE / 2;
+            const startOff = cornerOff + TILE_SIZE / 2;
+
+            if (index === 0) return { x: halfBoard - cornerOff, z: halfBoard - cornerOff, rot: 0, isCorner: true };
+            if (index === 10) return { x: -(halfBoard - cornerOff), z: halfBoard - cornerOff, rot: Math.PI / 2, isCorner: true };
+            if (index === 20) return { x: -(halfBoard - cornerOff), z: -(halfBoard - cornerOff), rot: Math.PI, isCorner: true };
+            if (index === 30) return { x: halfBoard - cornerOff, z: -(halfBoard - cornerOff), rot: -Math.PI / 2, isCorner: true };
+
+            // Side 1: bottom (positions 1-9), going right to left
+            if (index >= 1 && index <= 9) {
+                const i = index - 1;
+                const x = halfBoard - cornerOff - startOff - i * TILE_SIZE;
+                return { x, z: halfBoard - cornerOff, rot: 0, isCorner: false, side: 0 };
+            }
+            // Side 2: left (positions 11-19), going bottom to top
+            if (index >= 11 && index <= 19) {
+                const i = index - 11;
+                const z = halfBoard - cornerOff - startOff - i * TILE_SIZE;
+                return { x: -(halfBoard - cornerOff), z, rot: Math.PI / 2, isCorner: false, side: 1 };
+            }
+            // Side 3: top (positions 21-29), going left to right
+            if (index >= 21 && index <= 29) {
+                const i = index - 21;
+                const x = -(halfBoard - cornerOff) + startOff + i * TILE_SIZE;
+                return { x, z: -(halfBoard - cornerOff), rot: Math.PI, isCorner: false, side: 2 };
+            }
+            // Side 4: right (positions 31-39), going top to bottom
+            if (index >= 31 && index <= 39) {
+                const i = index - 31;
+                const z = -(halfBoard - cornerOff) + startOff + i * TILE_SIZE;
+                return { x: halfBoard - cornerOff, z, rot: -Math.PI / 2, isCorner: false, side: 3 };
+            }
+        }
+
+        function buildBoard() {
+            boardGroup = new THREE.Group();
+            scene.add(boardGroup);
+
+            // Board base
+            const boardGeo = new THREE.BoxGeometry(BOARD_SIZE + 0.5, 0.4, BOARD_SIZE + 0.5);
+            const boardMat = new THREE.MeshPhongMaterial({ color: 0x1a5c3a, specular: 0x1a3a2a, shininess: 30 });
+            const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+            boardMesh.position.y = -0.2;
+            boardMesh.receiveShadow = true;
+            boardGroup.add(boardMesh);
+
+            // Board border/frame
+            const frameMat = new THREE.MeshPhongMaterial({ color: 0x3e2723, specular: 0x5d4037, shininess: 50 });
+            const frameThickness = 0.3;
+            const frameHeight = 0.5;
+            const outerSize = BOARD_SIZE + 0.5 + frameThickness * 2;
+            // Four frame sides
+            const frameParts = [
+                { w: outerSize, h: frameHeight, d: frameThickness, x: 0, z: (BOARD_SIZE + 0.5) / 2 + frameThickness / 2 },
+                { w: outerSize, h: frameHeight, d: frameThickness, x: 0, z: -((BOARD_SIZE + 0.5) / 2 + frameThickness / 2) },
+                { w: frameThickness, h: frameHeight, d: BOARD_SIZE + 0.5, x: (BOARD_SIZE + 0.5) / 2 + frameThickness / 2, z: 0 },
+                { w: frameThickness, h: frameHeight, d: BOARD_SIZE + 0.5, x: -((BOARD_SIZE + 0.5) / 2 + frameThickness / 2), z: 0 }
+            ];
+            frameParts.forEach(fp => {
+                const g = new THREE.BoxGeometry(fp.w, fp.h, fp.d);
+                const m = new THREE.Mesh(g, frameMat);
+                m.position.set(fp.x, fp.h / 2 - 0.2, fp.z);
+                m.castShadow = true;
+                boardGroup.add(m);
+            });
+
+            // Inner board surface (green felt)
+            const innerSize = BOARD_SIZE - CORNER_SIZE * 2 - 0.2;
+            const innerGeo = new THREE.PlaneGeometry(innerSize, innerSize);
+            const innerMat = new THREE.MeshPhongMaterial({ color: 0x1a5c3a, specular: 0x0a3a1a, shininess: 10 });
+            const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+            innerMesh.rotation.x = -Math.PI / 2;
+            innerMesh.position.y = 0.01;
+            boardGroup.add(innerMesh);
+
+            // Center logo
+            createCenterLogo();
+
+            // Build tiles
+            TILES.forEach((tile, i) => {
+                const pos = getTilePosition(i);
+                const tileObj = createTile(tile, pos, i);
+                tileObjects.push(tileObj);
+            });
+
+            // Table underneath
+            const tableGeo = new THREE.CylinderGeometry(14, 14, 0.3, 32);
+            const tableMat = new THREE.MeshPhongMaterial({ color: 0x2d1810, specular: 0x3e2723, shininess: 20 });
+            const tableMesh = new THREE.Mesh(tableGeo, tableMat);
+            tableMesh.position.y = -0.6;
+            tableMesh.receiveShadow = true;
+            scene.add(tableMesh);
+        }
+
+        function createCenterLogo() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            ctx.fillStyle = '#1a5c3a';
+            ctx.fillRect(0, 0, 512, 512);
+
+            // Decorative border
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(30, 30, 452, 452);
+            ctx.strokeRect(40, 40, 432, 432);
+
+            // Title
+            ctx.fillStyle = '#d4af37';
+            ctx.font = 'bold 52px Playfair Display, serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('INVESTOR', 256, 200);
+            ctx.font = 'bold 64px Playfair Display, serif';
+            ctx.fillText('POLY', 256, 270);
+
+            // Subtitle
+            ctx.font = '18px Roboto, sans-serif';
+            ctx.fillStyle = '#a0c0a0';
+            ctx.fillText('THE INVESTMENT BOARD GAME', 256, 310);
+
+            // Dollar signs decoration
+            ctx.font = '40px serif';
+            ctx.fillStyle = 'rgba(212,175,55,0.3)';
+            ctx.fillText('$ £ € ¥ ₿', 256, 400);
+
+            // Stock chart decoration
+            ctx.strokeStyle = 'rgba(212,175,55,0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(80, 440);
+            ctx.lineTo(130, 420);
+            ctx.lineTo(180, 435);
+            ctx.lineTo(230, 390);
+            ctx.lineTo(280, 410);
+            ctx.lineTo(330, 370);
+            ctx.lineTo(380, 380);
+            ctx.lineTo(430, 350);
+            ctx.stroke();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const logoGeo = new THREE.PlaneGeometry(7, 7);
+            const logoMat = new THREE.MeshPhongMaterial({ map: texture, specular: 0x333333, shininess: 20 });
+            const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+            logoMesh.rotation.x = -Math.PI / 2;
+            logoMesh.position.y = 0.02;
+            boardGroup.add(logoMesh);
+        }
+
+        function createTile(tile, pos, index) {
+            const isCorner = pos.isCorner;
+            const tileW = isCorner ? CORNER_SIZE : TILE_SIZE;
+            const tileD = isCorner ? CORNER_SIZE : (CORNER_SIZE);
+            const tileH = 0.08;
+
+            // Tile base
+            const geo = new THREE.BoxGeometry(tileW - 0.04, tileH, tileD - 0.04);
+            const baseMat = new THREE.MeshPhongMaterial({ color: 0x1a4a2a, specular: 0x2a5a3a, shininess: 20 });
+            const mesh = new THREE.Mesh(geo, baseMat);
+            mesh.position.set(pos.x, tileH / 2, pos.z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = { tileIndex: index };
+            boardGroup.add(mesh);
+
+            // Color strip for properties
+            if (tile.type === 'property' || tile.type === 'tax' || tile.type === 'lifeEvent' || tile.type === 'marketNews') {
+                const stripH = 0.06;
+                const stripD = 0.35;
+                const stripGeo = new THREE.BoxGeometry(tileW - 0.08, stripH, stripD);
+                const colorHex = TILE_COLORS[tile.color] || '#888888';
+                const stripMat = new THREE.MeshPhongMaterial({ color: new THREE.Color(colorHex), specular: 0x333333, shininess: 40 });
+                const strip = new THREE.Mesh(stripGeo, stripMat);
+
+                // Position strip based on side
+                let stripX = 0, stripZ = 0;
+                if (!isCorner) {
+                    if (pos.side === 0) { stripZ = -tileD / 2 + stripD / 2 + 0.02; }
+                    else if (pos.side === 1) { stripX = tileW / 2 - stripD / 2; stripZ = 0; strip.rotation.y = Math.PI / 2; }
+                    else if (pos.side === 2) { stripZ = tileD / 2 - stripD / 2 - 0.02; }
+                    else if (pos.side === 3) { stripX = -tileW / 2 + stripD / 2; stripZ = 0; strip.rotation.y = Math.PI / 2; }
+                }
+                strip.position.set(pos.x + stripX, tileH + stripH / 2, pos.z + stripZ);
+                boardGroup.add(strip);
+            }
+
+            // Text on tile
+            const canvas = document.createElement('canvas');
+            canvas.width = isCorner ? 200 : 128;
+            canvas.height = isCorner ? 200 : 200;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(20,60,35,0.9)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Color strip on canvas
+            if (tile.color && TILE_COLORS[tile.color]) {
+                ctx.fillStyle = TILE_COLORS[tile.color];
+                ctx.fillRect(0, 0, canvas.width, isCorner ? 35 : 40);
+            }
+
+            ctx.fillStyle = '#e8e0d0';
+            ctx.textAlign = 'center';
+
+            if (isCorner) {
+                ctx.font = 'bold 22px Playfair Display, serif';
+                ctx.fillStyle = '#d4af37';
+                ctx.fillText(tile.name, canvas.width / 2, 80);
+                ctx.font = '12px Roboto, sans-serif';
+                ctx.fillStyle = '#a0c0a0';
+                wrapText(ctx, tile.desc, canvas.width / 2, 110, canvas.width - 20, 16);
+                // Corner icons
+                if (index === 0) { ctx.font = '50px serif'; ctx.fillText('→', canvas.width / 2, 170); }
+                if (index === 10) { ctx.font = '40px serif'; ctx.fillText('📋', canvas.width / 2, 170); }
+                if (index === 20) { ctx.font = '40px serif'; ctx.fillText('💰', canvas.width / 2, 170); }
+                if (index === 30) { ctx.font = '40px serif'; ctx.fillText('📉', canvas.width / 2, 170); }
+            } else {
+                const fs = tile.name.length > 14 ? 10 : 12;
+                ctx.font = `bold ${fs}px Roboto, sans-serif`;
+                ctx.fillStyle = '#e8e0d0';
+                wrapText(ctx, tile.name, canvas.width / 2, 60, canvas.width - 10, 14);
+
+                if (tile.cost) {
+                    ctx.font = 'bold 14px Roboto, sans-serif';
+                    ctx.fillStyle = '#d4af37';
+                    ctx.fillText('$' + tile.cost, canvas.width / 2, 110);
+                }
+                if (tile.type === 'tax') {
+                    ctx.font = '10px Roboto, sans-serif';
+                    ctx.fillStyle = '#ef5350';
+                    wrapText(ctx, tile.desc, canvas.width / 2, 110, canvas.width - 10, 13);
+                }
+                if (tile.type === 'lifeEvent') {
+                    ctx.font = '30px serif';
+                    ctx.fillText('🎴', canvas.width / 2, 120);
+                    ctx.font = '10px Roboto';
+                    ctx.fillStyle = '#e91e63';
+                    ctx.fillText('LIFE EVENT', canvas.width / 2, 150);
+                }
+                if (tile.type === 'marketNews') {
+                    ctx.font = '30px serif';
+                    ctx.fillText('📰', canvas.width / 2, 120);
+                    ctx.font = '10px Roboto';
+                    ctx.fillStyle = '#ff9800';
+                    ctx.fillText('MARKET NEWS', canvas.width / 2, 150);
+                }
+                if (tile.rent) {
+                    ctx.font = '9px Roboto';
+                    ctx.fillStyle = '#8a8';
+                    ctx.fillText('Rent: $' + tile.rent, canvas.width / 2, 135);
+                }
+                if (tile.sector) {
+                    ctx.font = '8px Roboto';
+                    ctx.fillStyle = '#686';
+                    ctx.fillText(tile.sector, canvas.width / 2, 185);
+                }
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            const textGeo = new THREE.PlaneGeometry(tileW - 0.08, tileD - 0.08);
+            const textMat = new THREE.MeshPhongMaterial({ map: texture, transparent: true, specular: 0x111111, shininess: 5 });
+            const textMesh = new THREE.Mesh(textGeo, textMat);
+            textMesh.rotation.x = -Math.PI / 2;
+            textMesh.position.set(pos.x, tileH + 0.01, pos.z);
+
+            // Rotate text based on side
+            if (!isCorner) {
+                if (pos.side === 1) textMesh.rotation.z = -Math.PI / 2;
+                else if (pos.side === 2) textMesh.rotation.z = Math.PI;
+                else if (pos.side === 3) textMesh.rotation.z = Math.PI / 2;
+            }
+
+            boardGroup.add(textMesh);
+
+            return { mesh, textMesh, pos, tile };
+        }
+
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, y);
+        }
+
+        // ============================================
+        // PLAYER TOKENS
+        // ============================================
+        function createPlayerTokens() {
+            playerMeshes = [];
+            game.players.forEach((player, i) => {
+                const group = new THREE.Group();
+                const color = new THREE.Color(PLAYER_COLORS[i]);
+
+                // Different shapes for each player
+                let bodyGeo, headGeo;
+                if (i === 0) { // Bull - cone + spheres
+                    bodyGeo = new THREE.ConeGeometry(0.25, 0.6, 8);
+                    const body = new THREE.Mesh(bodyGeo, new THREE.MeshPhongMaterial({ color, specular: 0x999999, shininess: 80 }));
+                    body.position.y = 0.4;
+                    group.add(body);
+                    // Horns
+                    const hornGeo = new THREE.ConeGeometry(0.05, 0.25, 6);
+                    const hornMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 60 });
+                    const h1 = new THREE.Mesh(hornGeo, hornMat); h1.position.set(-0.15, 0.75, 0); h1.rotation.z = 0.4; group.add(h1);
+                    const h2 = new THREE.Mesh(hornGeo, hornMat); h2.position.set(0.15, 0.75, 0); h2.rotation.z = -0.4; group.add(h2);
+                } else if (i === 1) { // Bear - sphere + cone
+                    const body = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), new THREE.MeshPhongMaterial({ color, specular: 0x888888, shininess: 60 }));
+                    body.position.y = 0.45;
+                    group.add(body);
+                    const snout = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), new THREE.MeshPhongMaterial({ color: 0x999999 }));
+                    snout.position.set(0, 0.4, 0.22);
+                    group.add(snout);
+                    const ear1 = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshPhongMaterial({ color }));
+                    ear1.position.set(-0.2, 0.7, 0); group.add(ear1);
+                    const ear2 = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshPhongMaterial({ color }));
+                    ear2.position.set(0.2, 0.7, 0); group.add(ear2);
+                } else if (i === 2) { // Eagle - pyramid
+                    const body = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 4), new THREE.MeshPhongMaterial({ color, specular: 0x666666, shininess: 40 }));
+                    body.position.y = 0.45;
+                    group.add(body);
+                    // Wings
+                    const wingGeo = new THREE.BoxGeometry(0.6, 0.05, 0.2);
+                    const wing = new THREE.Mesh(wingGeo, new THREE.MeshPhongMaterial({ color }));
+                    wing.position.y = 0.5;
+                    group.add(wing);
+                } else { // Diamond
+                    const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshPhongMaterial({ color, specular: 0xffffff, shininess: 100, transparent: true, opacity: 0.9 }));
+                    body.position.y = 0.5;
+                    group.add(body);
+                }
+
+                // Base
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16), new THREE.MeshPhongMaterial({ color: color.clone().multiplyScalar(0.7), specular: 0x555555, shininess: 40 }));
+                base.position.y = 0.1;
+                group.add(base);
+
+                const startPos = getTilePosition(0);
+                const offset = getPlayerOffset(i);
+                group.position.set(startPos.x + offset.x, 0.08, startPos.z + offset.z);
+                group.castShadow = true;
+                boardGroup.add(group);
+                playerMeshes.push(group);
+            });
+        }
+
+        function getPlayerOffset(playerIdx) {
+            const offsets = [{ x: -0.3, z: -0.3 }, { x: 0.3, z: -0.3 }, { x: -0.3, z: 0.3 }, { x: 0.3, z: 0.3 }];
+            return offsets[playerIdx] || { x: 0, z: 0 };
+        }
+
+        // ============================================
+        // DICE
+        // ============================================
+        function buildDice() {
+            // We'll create dice visually when rolling
+        }
+
+        function createDieMesh(value) {
+            const geo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+
+            const materials = [];
+            // Face order in Three.js: right, left, top, bottom, front, back
+            // We map: [0]=right=3, [1]=left=4, [2]=top=1, [3]=bottom=6, [4]=front=2, [5]=back=5
+            const faceMapping = [3, 4, 1, 6, 2, 5];
+            
+            for (let face = 0; face < 6; face++) {
+                const c = canvas.cloneNode();
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, 128, 128);
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(4, 4, 120, 120);
+
+                const faceValue = faceMapping[face];
+                ctx.fillStyle = '#222';
+                const dotPositions = {
+                    1: [[64, 64]],
+                    2: [[32, 32], [96, 96]],
+                    3: [[32, 32], [64, 64], [96, 96]],
+                    4: [[32, 32], [96, 32], [32, 96], [96, 96]],
+                    5: [[32, 32], [96, 32], [64, 64], [32, 96], [96, 96]],
+                    6: [[32, 32], [96, 32], [32, 64], [96, 64], [32, 96], [96, 96]]
+                };
+                (dotPositions[faceValue] || []).forEach(([dx, dy]) => {
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                const tex = new THREE.CanvasTexture(c);
+                materials.push(new THREE.MeshPhongMaterial({ map: tex, specular: 0x555555, shininess: 30 }));
+            }
+
+            const mesh = new THREE.Mesh(geo, materials);
+            mesh.castShadow = true;
+            return mesh;
+        }
+
+        // Get the top face value of a die based on its rotation
+        function getDieTopFace(dieRotation) {
+            // Create a vector pointing up in local space
+            const upVector = new THREE.Vector3(0, 1, 0);
+            
+            // Create rotation matrix from die's rotation
+            const rotMatrix = new THREE.Matrix4();
+            rotMatrix.makeRotationFromEuler(dieRotation);
+            
+            // Face normals in local space (before rotation)
+            const faceNormals = [
+                new THREE.Vector3(1, 0, 0),   // right = 3
+                new THREE.Vector3(-1, 0, 0),  // left = 4
+                new THREE.Vector3(0, 1, 0),   // top = 1
+                new THREE.Vector3(0, -1, 0),  // bottom = 6
+                new THREE.Vector3(0, 0, 1),   // front = 2
+                new THREE.Vector3(0, 0, -1)   // back = 5
+            ];
+            const faceValues = [3, 4, 1, 6, 2, 5];
+            
+            // Transform normals by rotation and find which is most aligned with world up
+            let maxDot = -Infinity;
+            let topFace = 1;
+            
+            for (let i = 0; i < faceNormals.length; i++) {
+                const normal = faceNormals[i].clone();
+                normal.applyMatrix4(rotMatrix);
+                const dot = normal.dot(upVector);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    topFace = faceValues[i];
+                }
+            }
+            
+            return topFace;
+        }
+
+        // ============================================
+        // AUDIO
+        // ============================================
+        let audioCtx;
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            switch (type) {
+                case 'dice':
+                    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'coin':
+                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(2400, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                    break;
+                case 'buy':
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.05);
+                    osc.frequency.setValueAtTime(1000, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                    break;
+                case 'tax':
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'win':
+                    [523, 659, 784, 1047].forEach((f, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g); g.connect(audioCtx.destination);
+                        o.frequency.value = f;
+                        g.gain.setValueAtTime(0.1, audioCtx.currentTime + i * 0.15);
+                        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+                        o.start(audioCtx.currentTime + i * 0.15);
+                        o.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+                    });
+                    break;
+            }
+        }
+
+        // ============================================
+        // PARTICLES
+        // ============================================
+        let particles = [];
+
+        function spawnParticles(x, y, z, color, count = 20) {
+            for (let i = 0; i < count; i++) {
+                const geo = new THREE.SphereGeometry(0.05, 4, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color) });
+                const p = new THREE.Mesh(geo, mat);
+                p.position.set(x, y, z);
+                p.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.15,
+                    Math.random() * 0.15 + 0.05,
+                    (Math.random() - 0.5) * 0.15
+                );
+                p.userData.life = 1.0;
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.add(p.userData.velocity);
+                p.userData.velocity.y -= 0.003;
+                p.userData.life -= 0.02;
+                p.material.opacity = p.userData.life;
+                p.material.transparent = true;
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // ============================================
+        // OWNERSHIP MARKERS ON BOARD
+        // ============================================
+        let ownerMarkers = {};
+
+        function updateOwnerMarkers() {
+            // Remove old markers
+            Object.values(ownerMarkers).forEach(m => boardGroup.remove(m));
+            ownerMarkers = {};
+
+            // Add new markers for owned properties
+            Object.keys(game.properties).forEach(tileId => {
+                const prop = game.properties[tileId];
+                if (prop && !prop.mortgaged) {
+                    const pos = getTilePosition(parseInt(tileId));
+                    if (!pos) return;
+                    const color = new THREE.Color(PLAYER_COLORS[prop.owner]);
+                    const markerGeo = new THREE.SphereGeometry(0.12, 8, 8);
+                    const markerMat = new THREE.MeshPhongMaterial({ color, emissive: color.clone().multiplyScalar(0.3), specular: 0xffffff, shininess: 80 });
+                    const marker = new THREE.Mesh(markerGeo, markerMat);
+                    // Offset marker toward center of board
+                    let mx = pos.x, mz = pos.z;
+                    if (pos.side === 0) mz -= 0.7;
+                    else if (pos.side === 1) mx += 0.7;
+                    else if (pos.side === 2) mz += 0.7;
+                    else if (pos.side === 3) mx -= 0.7;
+                    marker.position.set(mx, 0.25, mz);
+                    boardGroup.add(marker);
+                    ownerMarkers[tileId] = marker;
+
+                    // Add level indicators
+                    if (prop.level > 0) {
+                        for (let l = 0; l < prop.level; l++) {
+                            const lvlGeo = new THREE.BoxGeometry(0.08, 0.15, 0.08);
+                            const lvlMat = new THREE.MeshPhongMaterial({ color: 0x4caf50, emissive: 0x1b5e20 });
+                            const lvl = new THREE.Mesh(lvlGeo, lvlMat);
+                            lvl.position.set(mx + (l - 1) * 0.15, 0.35, mz);
+                            boardGroup.add(lvl);
+                            ownerMarkers[tileId + '_lvl' + l] = lvl;
+                        }
+                    }
+                }
+            });
+        }
+
+        // ============================================
+        // STOCK TICKER (center board)
+        // ============================================
+        let tickerMesh, tickerCtx, tickerCanvas, tickerData = [];
+
+        function createStockTicker() {
+            tickerCanvas = document.createElement('canvas');
+            tickerCanvas.width = 512;
+            tickerCanvas.height = 64;
+            tickerCtx = tickerCanvas.getContext('2d');
+
+            // Initialize ticker data
+            const symbols = ['INVP', 'TECH', 'BOND', 'GOLD', 'REIT', 'CRPT', 'OIL', 'PHMA'];
+            symbols.forEach(s => {
+                tickerData.push({ symbol: s, price: (Math.random() * 200 + 50).toFixed(2), change: 0 });
+            });
+
+            const texture = new THREE.CanvasTexture(tickerCanvas);
+            texture.minFilter = THREE.LinearFilter;
+            const geo = new THREE.PlaneGeometry(6, 0.6);
+            const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+            tickerMesh = new THREE.Mesh(geo, mat);
+            tickerMesh.rotation.x = -Math.PI / 2;
+            tickerMesh.position.set(0, 0.03, 2.5);
+            boardGroup.add(tickerMesh);
+        }
+
+        let tickerOffset = 0;
+        function updateTicker() {
+            if (!tickerCtx) return;
+            const ctx = tickerCtx;
+            ctx.fillStyle = 'rgba(10,20,15,0.95)';
+            ctx.fillRect(0, 0, 512, 64);
+
+            // Update prices randomly
+            tickerData.forEach(d => {
+                d.change = (Math.random() - 0.48) * 5;
+                d.price = Math.max(1, (parseFloat(d.price) + d.change)).toFixed(2);
+            });
+
+            ctx.font = 'bold 18px Roboto, monospace';
+            let xPos = -tickerOffset;
+            tickerData.forEach(d => {
+                const isUp = d.change >= 0;
+                ctx.fillStyle = isUp ? '#4caf50' : '#ef5350';
+                const text = `${d.symbol} $${d.price} ${isUp ? '▲' : '▼'}${Math.abs(d.change).toFixed(1)}  `;
+                ctx.fillText(text, xPos, 40);
+                xPos += ctx.measureText(text).width;
+            });
+
+            tickerOffset = (tickerOffset + 1) % 400;
+            if (tickerMesh) tickerMesh.material.map.needsUpdate = true;
+        }
+
+        // ============================================
+        // ANIMATION LOOP
+        // ============================================
+        let bobTime = 0;
+        let tickerTimer = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            controls.update();
+            updateParticles();
+
+            // Bob current player
+            bobTime += 0.03;
+            if (game.started && playerMeshes[game.currentPlayer]) {
+                const pm = playerMeshes[game.currentPlayer];
+                pm.position.y = 0.08 + Math.sin(bobTime * 2) * 0.05;
+            }
+
+            // Update ticker every few frames
+            tickerTimer++;
+            if (tickerTimer % 10 === 0) updateTicker();
+
+            renderer.render(scene, camera);
+        }
+
+        // ============================================
+        // GAME LOGIC
+        // ============================================
+        function updatePlayerInputs() {
+            const count = parseInt(document.getElementById('playerCount').value);
+            const div = document.getElementById('playerInputs');
+            div.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                div.innerHTML += `<label>Player ${i + 1} Name</label>
+      <input type="text" id="pName${i}" value="${PLAYER_NAMES_DEFAULT[i]}" placeholder="Player ${i + 1}">`;
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            const count = parseInt(document.getElementById('playerCount').value);
+            game.players = [];
+            for (let i = 0; i < count; i++) {
+                const name = document.getElementById('pName' + i).value || PLAYER_NAMES_DEFAULT[i];
+                game.players.push({
+                    name,
+                    cash: 10000,
+                    position: 0,
+                    properties: [],
+                    bankrupt: false,
+                    inAudit: false,
+                    auditTurns: 0,
+                    doublesCount: 0,
+                    totalEarned: 0,
+                    taxExempt: false
+                });
+            }
+
+            // Shuffle decks
+            game.lifeEventDeck = shuffle([...Array(16).keys()]);
+            game.marketNewsDeck = shuffle([...Array(16).keys()]);
+            game.properties = {};
+            game.pot = 0;
+            game.round = 1;
+            game.currentPlayer = 0;
+            game.started = true;
+            game.turnPhase = 'roll';
+            game.inflationMult = 1.0;
+            game.activeEffects = [];
+
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+
+            initThree();
+            createPlayerTokens();
+            updateUI();
+            addLog('Game started! ' + game.players.map(p => p.name).join(', ') + ' are playing.');
+            addLog(`${currentPlayer().name}'s turn. Roll the dice!`);
+            saveGame();
+        }
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function currentPlayer() { return game.players[game.currentPlayer]; }
+
+        function getNetWorth(player) {
+            let worth = player.cash;
+            player.properties.forEach(tileId => {
+                const tile = TILES[tileId];
+                const prop = game.properties[tileId];
+                if (prop && !prop.mortgaged) {
+                    worth += Math.floor(tile.cost * game.inflationMult);
+                    if (prop.level) worth += prop.level * Math.floor((tile.upgrade || 0) * game.inflationMult);
+                } else if (prop && prop.mortgaged) {
+                    worth += Math.floor(tile.cost * game.inflationMult * 0.5);
+                }
+            });
+            return worth;
+        }
+
+        function getPropertyValue(player) {
+            let val = 0;
+            player.properties.forEach(tileId => {
+                const tile = TILES[tileId];
+                const prop = game.properties[tileId];
+                if (prop) {
+                    val += Math.floor(tile.cost * game.inflationMult);
+                    if (prop.level) val += prop.level * Math.floor((tile.upgrade || 0) * game.inflationMult);
+                }
+            });
+            return val;
+        }
+
+        // ============================================
+        // DICE ROLLING
+        // ============================================
+        function rollDice() {
+            if (game.turnPhase !== 'roll' || game.diceRolling) return;
+            const player = currentPlayer();
+            if (player.bankrupt) { endTurn(); return; }
+
+            game.diceRolling = true;
+            document.getElementById('rollBtn').disabled = true;
+
+            playSound('dice');
+
+            // Remove old dice
+            diceMeshes.forEach(d => scene.remove(d));
+            diceMeshes = [];
+
+            // Create dice with random initial positions and orientations
+            const die1 = createDieMesh(1);
+            const die2 = createDieMesh(1);
+            
+            // Random spawn positions above the board (higher up for dramatic effect)
+            const spawnHeight = 8 + Math.random() * 3;
+            const spawnX1 = -2 + Math.random() * 1;
+            const spawnZ1 = -1 + Math.random() * 2;
+            const spawnX2 = 1 + Math.random() * 1;
+            const spawnZ2 = -1 + Math.random() * 2;
+            
+            die1.position.set(spawnX1, spawnHeight, spawnZ1);
+            die2.position.set(spawnX2, spawnHeight, spawnZ2);
+            
+            // Random initial orientations
+            die1.rotation.set(
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2
+            );
+            die2.rotation.set(
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2
+            );
+            
+            scene.add(die1);
+            scene.add(die2);
+            diceMeshes.push(die1, die2);
+
+            // Physics simulation variables for each die
+            const dice = [
+                {
+                    mesh: die1,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.05,
+                        0,
+                        (Math.random() - 0.5) * 0.05
+                    ),
+                    angularVelocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3
+                    ),
+                    shakePhase: 0,
+                    shakeSpeed: 0.15 + Math.random() * 0.1,
+                    shakeAmplitude: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3
+                    )
+                },
+                {
+                    mesh: die2,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.05,
+                        0,
+                        (Math.random() - 0.5) * 0.05
+                    ),
+                    angularVelocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3
+                    ),
+                    shakePhase: 0,
+                    shakeSpeed: 0.15 + Math.random() * 0.1,
+                    shakeAmplitude: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.5) * 0.3
+                    )
+                }
+            ];
+
+            const shakeDuration = 300 + Math.random() * 400; // Random shake time 300-700ms
+            const dropDuration = 1200; // Time to fall and settle
+            const totalDuration = shakeDuration + dropDuration;
+            const startTime = Date.now();
+            const gravity = 0.0003;
+            const boardY = 0.3; // Board surface level
+            const damping = 0.7; // Bounce damping
+            const friction = 0.95; // Friction on board
+            const angularDamping = 0.92; // Rotational damping
+            
+            // Animation loop
+            const animateDice = () => {
+                const elapsed = Date.now() - startTime;
+                
+                if (elapsed < shakeDuration) {
+                    // SHAKE PHASE: Dice shake in mid-air at random angles
+                    dice.forEach(d => {
+                        d.shakePhase += d.shakeSpeed;
+                        
+                        // Random vibration
+                        d.mesh.position.x += Math.sin(d.shakePhase * 2.3) * d.shakeAmplitude.x;
+                        d.mesh.position.y += Math.sin(d.shakePhase * 1.7) * d.shakeAmplitude.y * 0.5;
+                        d.mesh.position.z += Math.sin(d.shakePhase * 1.9) * d.shakeAmplitude.z;
+                        
+                        // Random rotation during shake
+                        d.mesh.rotation.x += Math.sin(d.shakePhase * 3.1) * 0.15;
+                        d.mesh.rotation.y += Math.sin(d.shakePhase * 2.7) * 0.15;
+                        d.mesh.rotation.z += Math.sin(d.shakePhase * 3.3) * 0.15;
+                    });
+                    
+                    requestAnimationFrame(animateDice);
+                } else if (elapsed < totalDuration) {
+                    // DROP PHASE: Physics simulation
+                    const dt = 16; // Assume ~60fps
+                    
+                    dice.forEach(d => {
+                        // Apply gravity
+                        d.velocity.y -= gravity * dt;
+                        
+                        // Update position
+                        d.mesh.position.x += d.velocity.x * dt;
+                        d.mesh.position.y += d.velocity.y * dt;
+                        d.mesh.position.z += d.velocity.z * dt;
+                        
+                        // Update rotation
+                        d.mesh.rotation.x += d.angularVelocity.x;
+                        d.mesh.rotation.y += d.angularVelocity.y;
+                        d.mesh.rotation.z += d.angularVelocity.z;
+                        
+                        // Collision with board
+                        if (d.mesh.position.y <= boardY) {
+                            d.mesh.position.y = boardY;
+                            d.velocity.y = -d.velocity.y * damping; // Bounce
+                            
+                            // Apply friction to horizontal velocity
+                            d.velocity.x *= friction;
+                            d.velocity.z *= friction;
+                            
+                            // Reduce angular velocity on impact
+                            d.angularVelocity.x *= angularDamping;
+                            d.angularVelocity.y *= angularDamping;
+                            d.angularVelocity.z *= angularDamping;
+                            
+                            // Stop small bounces
+                            if (Math.abs(d.velocity.y) < 0.001) {
+                                d.velocity.y = 0;
+                            }
+                        }
+                        
+                        // Apply air resistance
+                        d.velocity.x *= 0.99;
+                        d.velocity.z *= 0.99;
+                        
+                        // Gradually reduce rotation
+                        d.angularVelocity.x *= 0.98;
+                        d.angularVelocity.y *= 0.98;
+                        d.angularVelocity.z *= 0.98;
+                    });
+                    
+                    requestAnimationFrame(animateDice);
+                } else {
+                    // SETTLE PHASE: Snap to final position and read values
+                    dice.forEach(d => {
+                        // Ensure dice are flat on board
+                        d.mesh.position.y = boardY;
+                        d.velocity.set(0, 0, 0);
+                        d.angularVelocity.set(0, 0, 0);
+                    });
+                    
+                    // Read the top faces
+                    const d1 = getDieTopFace(die1.rotation);
+                    const d2 = getDieTopFace(die2.rotation);
+                    const total = d1 + d2;
+                    const isDoubles = d1 === d2;
+                    
+                    document.getElementById('diceResult').textContent = `🎲 ${d1} + ${d2} = ${total}` + (isDoubles ? ' DOUBLES!' : '');
+                    
+                    // Continue with game logic
+                    processDiceResult(d1, d2, total, isDoubles);
+                }
+            };
+            
+            animateDice();
+        }
+
+        function processDiceResult(d1, d2, total, isDoubles) {
+            const player = currentPlayer();
+
+            setTimeout(() => {
+                // Handle doubles
+                if (isDoubles) {
+                    player.doublesCount = (player.doublesCount || 0) + 1;
+                    if (player.doublesCount >= 3) {
+                        addLog(`${player.name} rolled 3 doubles! Sent to Tax Audit!`, 'money-loss');
+                        sendToAudit(player);
+                        game.diceRolling = false;
+                        game.turnPhase = 'end';
+                        showEndTurn();
+                        return;
+                    }
+                } else {
+                    player.doublesCount = 0;
+                }
+
+                if (player.inAudit) {
+                    if (isDoubles) {
+                        player.inAudit = false;
+                        player.auditTurns = 0;
+                        addLog(`${player.name} rolled doubles and escaped Tax Audit!`, 'money-gain');
+                        movePlayer(player, total, isDoubles);
+                    } else {
+                        player.auditTurns++;
+                        if (player.auditTurns >= 2) {
+                            player.inAudit = false;
+                            player.auditTurns = 0;
+                            player.cash -= 500;
+                            addLog(`${player.name} forced out of Tax Audit, paid $500`, 'money-loss');
+                            movePlayer(player, total, isDoubles);
+                        } else {
+                            addLog(`${player.name} is in Tax Audit. Wait or pay $500.`, 'money-loss');
+                            game.diceRolling = false;
+                            game.turnPhase = 'end';
+                            showEndTurn();
+                            document.getElementById('payAuditBtn').style.display = 'inline-block';
+                        }
+                    }
+                } else {
+                    movePlayer(player, total, isDoubles);
+                }
+            }, 1000);
+        }
+
+        function movePlayer(player, steps, isDoubles) {
+            const playerIdx = game.players.indexOf(player);
+            const startPos = player.position;
+            let currentStep = 0;
+
+            function stepForward() {
+                if (currentStep >= steps) {
+                    // Arrived
+                    game.diceRolling = false;
+                    handleLanding(player, isDoubles);
+                    return;
+                }
+                currentStep++;
+                player.position = (player.position + 1) % 40;
+
+                // Check passing START
+                if (player.position === 0 && currentStep < steps) {
+                    player.cash += 2000;
+                    player.totalEarned += 2000;
+                    addLog(`${player.name} passed START! Collected $2,000 salary.`, 'money-gain');
+                    playSound('coin');
+                    const tp = getTilePosition(0);
+                    spawnParticles(tp.x, 1, tp.z, '#4caf50', 15);
+                }
+
+                // Animate token
+                const tilePos = getTilePosition(player.position);
+                const offset = getPlayerOffset(playerIdx);
+                const mesh = playerMeshes[playerIdx];
+
+                new TWEEN.Tween(mesh.position)
+                    .to({ x: tilePos.x + offset.x, z: tilePos.z + offset.z }, 150)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .onComplete(stepForward)
+                    .start();
+            }
+
+            stepForward();
+        }
+
+        function handleLanding(player, isDoubles) {
+            const tile = TILES[player.position];
+            const playerIdx = game.players.indexOf(player);
+
+            // Clean up effects that expired
+            game.activeEffects = game.activeEffects.filter(e => e.turnsLeft > 0);
+
+            switch (tile.type) {
+                case 'corner':
+                    handleCorner(player, tile);
+                    break;
+                case 'property':
+                    handleProperty(player, tile, isDoubles);
+                    return; // Don't auto-end turn
+                case 'tax':
+                    handleTax(player, tile);
+                    break;
+                case 'lifeEvent':
+                    drawLifeEvent(player, isDoubles);
+                    return;
+                case 'marketNews':
+                    drawMarketNews(player, isDoubles);
+                    return;
+            }
+
+            game.turnPhase = 'end';
+            if (isDoubles && !player.inAudit && player.doublesCount < 3) {
+                addLog(`${player.name} rolled doubles - extra turn!`, 'card-event');
+                game.turnPhase = 'roll';
+                document.getElementById('rollBtn').disabled = false;
+            } else {
+                showEndTurn();
+            }
+            updateUI();
+            checkBankruptcy(player);
+        }
+
+        function handleCorner(player, tile) {
+            if (tile.id === 0) {
+                // START - already handled by passing
+                player.cash += 2000;
+                player.totalEarned += 2000;
+                addLog(`${player.name} landed on START! Collected $2,000.`, 'money-gain');
+                playSound('coin');
+            } else if (tile.id === 10) {
+                // Tax Audit - just visiting
+                addLog(`${player.name} is just visiting Tax Audit.`);
+            } else if (tile.id === 20) {
+                // Dividends - collect pot
+                const amount = Math.max(game.pot, 200);
+                player.cash += amount;
+                player.totalEarned += amount;
+                game.pot = 0;
+                addLog(`${player.name} collected $${amount} in dividends!`, 'money-gain');
+                playSound('coin');
+                const tp = getTilePosition(20);
+                spawnParticles(tp.x, 1, tp.z, '#d4af37', 25);
+            } else if (tile.id === 30) {
+                // Market Crash - go to audit
+                addLog(`${player.name} hit a MARKET CRASH! Sent to Tax Audit!`, 'money-loss');
+                sendToAudit(player);
+            }
+        }
+
+        function sendToAudit(player) {
+            player.position = 10;
+            player.inAudit = true;
+            player.auditTurns = 0;
+            const playerIdx = game.players.indexOf(player);
+            const tp = getTilePosition(10);
+            const offset = getPlayerOffset(playerIdx);
+            new TWEEN.Tween(playerMeshes[playerIdx].position)
+                .to({ x: tp.x + offset.x, z: tp.z + offset.z }, 500)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
+            playSound('tax');
+            spawnParticles(tp.x, 1, tp.z, '#ef5350', 20);
+        }
+
+        function handleProperty(player, tile, isDoubles) {
+            const prop = game.properties[tile.id];
+
+            if (!prop) {
+                // Unowned - offer to buy
+                showBuyModal(player, tile, isDoubles);
+            } else if (prop.owner !== game.players.indexOf(player)) {
+                // Owned by someone else
+                if (prop.mortgaged) {
+                    addLog(`${tile.name} is mortgaged. No rent due.`);
+                    game.turnPhase = 'end';
+                    showEndTurn();
+                } else {
+                    const rent = calculateRent(tile, prop);
+                    const owner = game.players[prop.owner];
+                    player.cash -= rent;
+                    owner.cash += rent;
+                    owner.totalEarned += rent;
+                    addLog(`${player.name} paid $${rent} rent to ${owner.name} for ${tile.name}`, 'money-loss');
+                    playSound('tax');
+                    game.turnPhase = 'end';
+                    if (isDoubles && !player.inAudit && player.doublesCount < 3) {
+                        game.turnPhase = 'roll';
+                        document.getElementById('rollBtn').disabled = false;
+                    } else {
+                        showEndTurn();
+                    }
+                    checkBankruptcy(player);
+                }
+            } else {
+                // Own property - offer upgrade
+                if (tile.maxLvl > 0 && prop.level < tile.maxLvl && !prop.mortgaged) {
+                    showUpgradeModal(player, tile, prop, isDoubles);
+                } else {
+                    addLog(`${player.name} landed on their own ${tile.name}.`);
+                    game.turnPhase = 'end';
+                    if (isDoubles && !player.inAudit && player.doublesCount < 3) {
+                        game.turnPhase = 'roll';
+                        document.getElementById('rollBtn').disabled = false;
+                    } else {
+                        showEndTurn();
+                    }
+                }
+            }
+            updateUI();
+        }
+
+        function calculateRent(tile, prop) {
+            let rent = 0;
+            const mult = game.inflationMult;
+
+            if (tile.variable) {
+                const roll = Math.floor(Math.random() * 6) + 1;
+                switch (tile.variable) {
+                    case 'reit': rent = roll * 30; break;
+                    case 'penny': rent = Math.random() > 0.5 ? tile.cost * 0.3 : tile.cost * 0.05; break;
+                    case 'techipo': rent = roll <= 2 ? -100 : (roll <= 4 ? 150 : 400); break;
+                    case 'crypto': rent = roll === 1 ? -Math.floor(tile.cost * 0.5) : (roll === 6 ? tile.cost : Math.floor(tile.cost * 0.1)); break;
+                    case 'vc': rent = roll <= 2 ? 0 : (roll <= 4 ? 200 : 600); break;
+                    case 'corpbond': rent = roll === 1 ? 0 : 100; break;
+                    case 'forex': rent = roll === 1 ? -(roll * 50) : roll * 50; break;
+                    case 'nft': rent = Math.random() > 0.5 ? 500 : 0; break;
+                    case 'angel': rent = 50; break;
+                    case 'art': rent = 90; break;
+                    default: rent = tile.rent || 50;
+                }
+            } else {
+                rent = Math.floor((tile.rent || 0) * mult);
+                if (prop.level) {
+                    rent = Math.floor(rent * (1 + prop.level * 0.6));
+                }
+            }
+
+            // Apply active effects
+            game.activeEffects.forEach(effect => {
+                if (effect.type === 'bullMarket' && tile.sector === 'Stock') rent *= 2;
+                if (effect.type === 'housingBoom' && tile.sector === 'Real Estate') rent *= 2;
+                if (effect.type === 'pandemic' && tile.sector === 'Real Estate') rent = Math.floor(rent / 2);
+                if (effect.type === 'techBurst' && (tile.name.includes('Tech') || tile.name.includes('IPO'))) rent = 0;
+                if (effect.type === 'cryptoRally' && tile.variable === 'crypto') rent *= 3;
+                if (effect.type === 'goldRush' && tile.name.includes('Gold')) rent *= 3;
+            });
+
+            // Bond bonus
+            if (tile.sector === 'Bond') {
+                const owner = game.players[prop.owner];
+                const bondCount = owner.properties.filter(id => TILES[id].sector === 'Bond').length;
+                if (bondCount > 1) rent = Math.floor(rent * (1 + (bondCount - 1) * 0.3));
+            }
+
+            // Hedge fund management fee
+            if (tile.mgmtFee) rent -= tile.mgmtFee;
+
+            return Math.max(0, Math.floor(rent));
+        }
+
+        function handleTax(player, tile) {
+            let amount = 0;
+            switch (tile.calc) {
+                case 'portfolio10':
+                    if (player.taxExempt) { addLog(`${player.name} is tax exempt!`, 'money-gain'); return; }
+                    amount = Math.floor(getNetWorth(player) * 0.1);
+                    break;
+                case 'gains15':
+                    if (player.taxExempt) { addLog(`${player.name} is tax exempt!`, 'money-gain'); return; }
+                    amount = Math.floor(player.totalEarned * 0.15);
+                    break;
+                case 'flat200':
+                    amount = 200;
+                    break;
+                case 'flat750':
+                    amount = 750;
+                    break;
+                case 'inflation':
+                    game.inflationMult *= 1.05;
+                    addLog(`INFLATION! All prices increased by 5%. Multiplier: ${(game.inflationMult * 100).toFixed(0)}%`, 'card-event');
+                    playSound('tax');
+                    return;
+            }
+            player.cash -= amount;
+            game.pot += amount;
+            addLog(`${player.name} paid $${amount} in ${tile.name}.`, 'money-loss');
+            playSound('tax');
+            checkBankruptcy(player);
+        }
+
+        function drawLifeEvent(player, isDoubles) {
+            if (game.lifeEventDeck.length === 0) game.lifeEventDeck = shuffle([...Array(16).keys()]);
+            const cardIdx = game.lifeEventDeck.pop();
+            const card = LIFE_EVENTS[cardIdx];
+
+            showCardModal('Life Event', card.text, 'lifeEvent', () => {
+                if (card.special === 'birthday') {
+                    game.players.forEach((p, i) => {
+                        if (i !== game.currentPlayer && !p.bankrupt) {
+                            p.cash -= 100;
+                            player.cash += 100;
+                            player.totalEarned += 100;
+                        }
+                    });
+                    addLog(`${player.name}: Birthday! Everyone pays $100.`, 'card-event');
+                } else {
+                    player.cash += card.amount;
+                    if (card.amount > 0) {
+                        player.totalEarned += card.amount;
+                        playSound('coin');
+                        addLog(`${player.name}: ${card.text}`, 'money-gain');
+                    } else {
+                        game.pot += Math.abs(card.amount);
+                        playSound('tax');
+                        addLog(`${player.name}: ${card.text}`, 'money-loss');
+                    }
+                }
+                game.turnPhase = 'end';
+                if (isDoubles && !player.inAudit && player.doublesCount < 3) {
+                    addLog(`${player.name} rolled doubles - extra turn!`, 'card-event');
+                    game.turnPhase = 'roll';
+                    document.getElementById('rollBtn').disabled = false;
+                } else {
+                    showEndTurn();
+                }
+                updateUI();
+                checkBankruptcy(player);
+            });
+        }
+
+        function drawMarketNews(player, isDoubles) {
+            if (game.marketNewsDeck.length === 0) game.marketNewsDeck = shuffle([...Array(16).keys()]);
+            const cardIdx = game.marketNewsDeck.pop();
+            const card = MARKET_NEWS[cardIdx];
+
+            showCardModal('Market News', card.text, 'marketNews', () => {
+                applyMarketNews(card, player);
+                game.turnPhase = 'end';
+                if (isDoubles && !player.inAudit && player.doublesCount < 3) {
+                    addLog(`${player.name} rolled doubles - extra turn!`, 'card-event');
+                    game.turnPhase = 'roll';
+                    document.getElementById('rollBtn').disabled = false;
+                } else {
+                    showEndTurn();
+                }
+                updateUI();
+            });
+        }
+
+        function applyMarketNews(card, player) {
+            switch (card.special) {
+                case 'bullMarket':
+                    game.activeEffects.push({ type: 'bullMarket', turnsLeft: game.players.length });
+                    addLog('📈 Bull Market! Stock rents doubled!', 'card-event');
+                    break;
+                case 'bearMarket':
+                    game.players.forEach(p => {
+                        p.properties.forEach(id => {
+                            if (TILES[id].sector === 'Stock') {
+                                // Just a log effect, values remain
+                            }
+                        });
+                    });
+                    addLog('📉 Bear Market!', 'card-event');
+                    break;
+                case 'housingBoom':
+                    game.activeEffects.push({ type: 'housingBoom', turnsLeft: game.players.length });
+                    addLog('🏠 Housing Boom! Real estate rents doubled!', 'card-event');
+                    break;
+                case 'rateHike':
+                    game.players.forEach(p => {
+                        const bonds = p.properties.filter(id => TILES[id].sector === 'Bond');
+                        if (bonds.length > 0) {
+                            p.cash += bonds.length * 200;
+                            p.totalEarned += bonds.length * 200;
+                            addLog(`${p.name} earns $${bonds.length * 200} from bonds.`, 'money-gain');
+                        }
+                    });
+                    break;
+                case 'recession':
+                    game.players.forEach(p => {
+                        if (!p.bankrupt) { p.cash -= 300; game.pot += 300; }
+                    });
+                    addLog('💸 Recession! All players pay $300.', 'money-loss');
+                    break;
+                case 'techBurst':
+                    game.activeEffects.push({ type: 'techBurst', turnsLeft: game.players.length * 2 });
+                    addLog('💥 Tech Bubble Burst!', 'card-event');
+                    break;
+                case 'oilSpill':
+                    addLog('🛢️ Oil Spill! Energy affected.', 'card-event');
+                    break;
+                case 'cryptoRally':
+                    game.activeEffects.push({ type: 'cryptoRally', turnsLeft: game.players.length });
+                    addLog('🚀 Crypto Rally!', 'card-event');
+                    break;
+                case 'bailout':
+                    if (getNetWorth(player) < 3000) {
+                        player.cash += 1000;
+                        player.totalEarned += 1000;
+                        addLog(`${player.name} received $1,000 bailout!`, 'money-gain');
+                        playSound('coin');
+                    }
+                    break;
+                case 'insiderTrading':
+                    game.players.forEach(p => {
+                        const stocks = p.properties.filter(id => TILES[id].sector === 'Stock');
+                        if (stocks.length > 0 && !p.bankrupt) {
+                            p.cash -= 500;
+                            game.pot += 500;
+                            addLog(`${p.name} fined $500 for stocks.`, 'money-loss');
+                        }
+                    });
+                    break;
+                case 'pandemic':
+                    game.activeEffects.push({ type: 'pandemic', turnsLeft: game.players.length * 2 });
+                    addLog('🦠 Pandemic! Real estate rents halved.', 'card-event');
+                    break;
+                case 'goldRush':
+                    game.activeEffects.push({ type: 'goldRush', turnsLeft: game.players.length });
+                    addLog('✨ Gold Rush!', 'card-event');
+                    break;
+                case 'regulation':
+                    // Remove a random property from current player
+                    if (player.properties.length > 0) {
+                        const idx = Math.floor(Math.random() * player.properties.length);
+                        const lostId = player.properties.splice(idx, 1)[0];
+                        delete game.properties[lostId];
+                        addLog(`${player.name} lost ${TILES[lostId].name} to regulation!`, 'money-loss');
+                    }
+                    break;
+                case 'merger':
+                    // Find unowned properties
+                    const unowned = TILES.filter(t => t.type === 'property' && !game.properties[t.id]);
+                    if (unowned.length > 0) {
+                        const prop = unowned[Math.floor(Math.random() * unowned.length)];
+                        const cost = Math.floor(prop.cost * game.inflationMult * 0.5);
+                        if (player.cash >= cost) {
+                            showModal(`Merger Opportunity!`, `Buy ${prop.name} at 50% off for $${cost}?`,
+                                [{
+                                    text: 'Buy', class: 'btnBuy', action: () => {
+                                        player.cash -= cost;
+                                        game.properties[prop.id] = { owner: game.currentPlayer, level: 0, mortgaged: false };
+                                        player.properties.push(prop.id);
+                                        addLog(`${player.name} bought ${prop.name} for $${cost} (merger)!`, 'purchase');
+                                        hideModal(); updateUI();
+                                    }
+                                },
+                                { text: 'Pass', class: 'btnPass', action: () => { hideModal(); } }]
+                            );
+                        }
+                    }
+                    break;
+                case 'inflationSpike':
+                    game.players.forEach(p => {
+                        if (!p.bankrupt) {
+                            const loss = Math.floor(p.cash * 0.1);
+                            p.cash -= loss;
+                            game.pot += loss;
+                            addLog(`${p.name} lost $${loss} to inflation.`, 'money-loss');
+                        }
+                    });
+                    break;
+                case 'dividendPayout':
+                    game.players.forEach(p => {
+                        if (!p.bankrupt) {
+                            const bonus = p.properties.length * 50;
+                            p.cash += bonus;
+                            p.totalEarned += bonus;
+                            addLog(`${p.name} received $${bonus} in dividends.`, 'money-gain');
+                        }
+                    });
+                    playSound('coin');
+                    break;
+            }
+
+            // Decrement active effects
+            game.activeEffects.forEach(e => e.turnsLeft--);
+        }
+
+        // ============================================
+        // MODALS
+        // ============================================
+        function showBuyModal(player, tile, isDoubles) {
+            const cost = Math.floor(tile.cost * game.inflationMult);
+            const canAfford = player.cash >= cost;
+
+            let details = `<div class="propDetails">
+    <div><strong>Cost:</strong> $${cost}</div>
+    <div><strong>Base Rent:</strong> ${tile.rent ? '$' + tile.rent : 'Variable'}</div>
+    <div><strong>Sector:</strong> ${tile.sector || 'N/A'}</div>
+    ${tile.maxLvl > 0 ? `<div><strong>Upgrade Cost:</strong> $${tile.upgrade} (max ${tile.maxLvl} levels)</div>` : ''}
+    ${tile.variable ? '<div><em>⚡ Variable returns based on dice rolls</em></div>' : ''}
+  </div>`;
+
+            const colorHex = TILE_COLORS[tile.color] || '#888';
+            let html = `<h2 style="color:${colorHex}">💼 INVESTMENT OPPORTUNITY</h2>
+    <p><strong>${tile.name}</strong></p>${details}`;
+
+            if (!canAfford) {
+                html += `<p style="color:#ef5350">Insufficient funds! You have $${player.cash}</p>`;
+            }
+
+            const buttons = [];
+            if (canAfford) {
+                buttons.push({
+                    text: `Buy $${cost}`, class: 'btnBuy', action: () => {
+                        player.cash -= cost;
+                        game.properties[tile.id] = { owner: game.currentPlayer, level: 0, mortgaged: false, lockTurns: tile.lockTurns || 0 };
+                        player.properties.push(tile.id);
+                        addLog(`${player.name} bought ${tile.name} for $${cost}`, 'purchase');
+                        playSound('buy');
+                        const tp = getTilePosition(tile.id);
+                        spawnParticles(tp.x, 1, tp.z, colorHex, 15);
+                        hideModal();
+                        game.turnPhase = 'end';
+                        if (isDoubles && player.doublesCount < 3) {
+                            game.turnPhase = 'roll';
+                            document.getElementById('rollBtn').disabled = false;
+                        } else {
+                            showEndTurn();
+                        }
+                        updateUI();
+                    }
+                });
+            }
+            buttons.push({
+                text: 'Pass', class: 'btnPass', action: () => {
+                    hideModal();
+                    game.turnPhase = 'end';
+                    if (isDoubles && player.doublesCount < 3) {
+                        game.turnPhase = 'roll';
+                        document.getElementById('rollBtn').disabled = false;
+                    } else {
+                        showEndTurn();
+                    }
+                    updateUI();
+                }
+            });
+
+            showModal('', html, buttons);
+        }
+
+        function showUpgradeModal(player, tile, prop, isDoubles) {
+            const cost = Math.floor(tile.upgrade * game.inflationMult);
+            const canAfford = player.cash >= cost;
+            const nextRent = Math.floor(tile.rent * game.inflationMult * (1 + (prop.level + 1) * 0.6));
+
+            showModal('', `<h2>🔧 UPGRADE ${tile.name}?</h2>
+    <div class="propDetails">
+      <div><strong>Current Level:</strong> ${prop.level} / ${tile.maxLvl}</div>
+      <div><strong>Upgrade Cost:</strong> $${cost}</div>
+      <div><strong>New Rent:</strong> ~$${nextRent}</div>
+    </div>
+    ${!canAfford ? `<p style="color:#ef5350">Not enough cash ($${player.cash})</p>` : ''}`,
+                [
+                    ...(canAfford ? [{
+                        text: `Upgrade $${cost}`, class: 'btnBuy', action: () => {
+                            player.cash -= cost;
+                            prop.level++;
+                            addLog(`${player.name} upgraded ${tile.name} to level ${prop.level}!`, 'purchase');
+                            playSound('buy');
+                            hideModal();
+                            finishPropertyAction(isDoubles);
+                            updateUI();
+                        }
+                    }] : []),
+                    {
+                        text: 'Skip', class: 'btnPass', action: () => {
+                            hideModal();
+                            finishPropertyAction(isDoubles);
+                            updateUI();
+                        }
+                    }
+                ]
+            );
+        }
+
+        function finishPropertyAction(isDoubles) {
+            const player = currentPlayer();
+            game.turnPhase = 'end';
+            if (isDoubles && !player.inAudit && player.doublesCount < 3) {
+                game.turnPhase = 'roll';
+                document.getElementById('rollBtn').disabled = false;
+            } else {
+                showEndTurn();
+            }
+        }
+
+        function showCardModal(type, text, cssClass, callback) {
+            const modal = document.getElementById('modal');
+            const content = document.getElementById('modalContent');
+            content.innerHTML = `
+    <h2>${type === 'Life Event' ? '🎴' : '📰'} ${type}</h2>
+    <div class="cardDisplay ${cssClass}">${text}</div>
+  `;
+            const btn = document.createElement('div');
+            btn.className = 'modalBtns';
+            const okBtn = document.createElement('button');
+            okBtn.className = 'btnOk';
+            okBtn.textContent = 'OK';
+            okBtn.onclick = () => { hideModal(); callback(); };
+            btn.appendChild(okBtn);
+            content.appendChild(btn);
+            modal.classList.add('show');
+        }
+
+        function showModal(title, html, buttons) {
+            const modal = document.getElementById('modal');
+            const content = document.getElementById('modalContent');
+            content.innerHTML = html;
+            if (buttons && buttons.length) {
+                const btnDiv = document.createElement('div');
+                btnDiv.className = 'modalBtns';
+                buttons.forEach(b => {
+                    const btn = document.createElement('button');
+                    btn.className = b.class;
+                    btn.textContent = b.text;
+                    btn.onclick = b.action;
+                    btnDiv.appendChild(btn);
+                });
+                content.appendChild(btnDiv);
+            }
+            modal.classList.add('show');
+        }
+
+        function hideModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+
+        // ============================================
+        // TURN MANAGEMENT
+        // ============================================
+        function showEndTurn() {
+            document.getElementById('endTurnBtn').style.display = 'inline-block';
+            document.getElementById('rollBtn').disabled = true;
+        }
+
+        function endTurn() {
+            document.getElementById('endTurnBtn').style.display = 'none';
+            document.getElementById('payAuditBtn').style.display = 'none';
+
+            // Check win condition
+            const activePlayers = game.players.filter(p => !p.bankrupt);
+            if (activePlayers.length <= 1) {
+                showVictory(activePlayers[0]);
+                return;
+            }
+
+            const winner = game.players.find(p => !p.bankrupt && getNetWorth(p) >= 50000);
+            if (winner) {
+                showVictory(winner);
+                return;
+            }
+
+            // Next player
+            do {
+                game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
+                if (game.currentPlayer === 0) game.round++;
+            } while (game.players[game.currentPlayer].bankrupt);
+
+            game.turnPhase = 'roll';
+            document.getElementById('rollBtn').disabled = false;
+            currentPlayer().doublesCount = 0;
+
+            addLog(`--- ${currentPlayer().name}'s turn (Round ${game.round}) ---`);
+            updateUI();
+            saveGame();
+
+            // Remove dice
+            diceMeshes.forEach(d => scene.remove(d));
+            diceMeshes = [];
+
+            // In audit reminder
+            if (currentPlayer().inAudit) {
+                document.getElementById('payAuditBtn').style.display = 'inline-block';
+            }
+        }
+
+        function payAuditFine() {
+            const player = currentPlayer();
+            if (player.cash >= 500) {
+                player.cash -= 500;
+                player.inAudit = false;
+                player.auditTurns = 0;
+                game.pot += 500;
+                addLog(`${player.name} paid $500 fine to leave Tax Audit.`, 'money-loss');
+                document.getElementById('payAuditBtn').style.display = 'none';
+                updateUI();
+            } else {
+                addLog(`${player.name} can't afford the $500 fine!`, 'money-loss');
+            }
+        }
+
+        function checkBankruptcy(player) {
+            if (player.cash < 0) {
+                // Try to auto-mortgage properties
+                for (const tileId of [...player.properties]) {
+                    if (player.cash >= 0) break;
+                    const prop = game.properties[tileId];
+                    if (prop && !prop.mortgaged) {
+                        const tile = TILES[tileId];
+                        const mortgageValue = Math.floor(tile.cost * game.inflationMult * 0.5);
+                        prop.mortgaged = true;
+                        player.cash += mortgageValue;
+                        addLog(`${player.name} auto-mortgaged ${tile.name} for $${mortgageValue}`, 'money-loss');
+                    }
+                }
+
+                if (player.cash < 0) {
+                    player.bankrupt = true;
+                    // Return properties
+                    player.properties.forEach(id => { delete game.properties[id]; });
+                    player.properties = [];
+                    addLog(`💀 ${player.name} went BANKRUPT!`, 'money-loss');
+                    playSound('tax');
+                    const tp = getTilePosition(player.position);
+                    spawnParticles(tp.x, 1, tp.z, '#ef5350', 30);
+                }
+            }
+            updateUI();
+        }
+
+        // ============================================
+        // UI UPDATES
+        // ============================================
+        function updateUI() {
+            if (!game.started) return;
+
+            // Top bar
+            document.getElementById('roundNum').textContent = game.round;
+            document.getElementById('potAmt').textContent = game.pot.toLocaleString();
+            const cpInd = document.getElementById('currentPlayerInd');
+            const cp = currentPlayer();
+            cpInd.textContent = `${PLAYER_ICONS[game.currentPlayer]} ${cp.name}'s Turn`;
+            cpInd.style.color = PLAYER_COLORS[game.currentPlayer];
+            cpInd.style.borderColor = PLAYER_COLORS[game.currentPlayer];
+
+            // Bottom bar
+            const bb = document.getElementById('bottomBar');
+            bb.innerHTML = '';
+            game.players.forEach((p, i) => {
+                const card = document.createElement('div');
+                card.className = 'playerCard' + (i === game.currentPlayer ? ' active' : '') + (p.bankrupt ? ' bankrupt' : '');
+                card.innerHTML = `
+      <div class="pIcon" style="background:${PLAYER_COLORS[i]};color:#1a3a2a">${p.bankrupt ? '☠️' : PLAYER_ICONS[i]}</div>
+      <div class="pInfo">
+        <div class="pName">${p.name}</div>
+        <div class="pCash">$${p.cash.toLocaleString()}</div>
+        <div class="pWorth">NW: $${getNetWorth(p).toLocaleString()}</div>
+      </div>`;
+                bb.appendChild(card);
+            });
+
+            // Portfolio (right panel) - show current player's
+            const pl = document.getElementById('portfolioList');
+            pl.innerHTML = '';
+            cp.properties.forEach(tileId => {
+                const tile = TILES[tileId];
+                const prop = game.properties[tileId];
+                if (!prop) return;
+                const colorHex = TILE_COLORS[tile.color] || '#888';
+                const div = document.createElement('div');
+                div.className = 'propItem' + (prop.mortgaged ? ' mortgaged' : '');
+                div.innerHTML = `
+      <div class="colorDot" style="background:${colorHex}"></div>
+      <div class="propName">${tile.name}${prop.level > 0 ? ' ★'.repeat(prop.level) : ''}${prop.mortgaged ? ' [M]' : ''}</div>
+    `;
+
+                // Upgrade button
+                if (tile.maxLvl > 0 && prop.level < tile.maxLvl && !prop.mortgaged && game.turnPhase === 'end') {
+                    const btn = document.createElement('button');
+                    btn.textContent = `⬆ $${Math.floor(tile.upgrade * game.inflationMult)}`;
+                    btn.onclick = () => {
+                        const cost = Math.floor(tile.upgrade * game.inflationMult);
+                        if (cp.cash >= cost) {
+                            cp.cash -= cost;
+                            prop.level++;
+                            addLog(`${cp.name} upgraded ${tile.name} to level ${prop.level}`, 'purchase');
+                            playSound('buy');
+                            updateUI();
+                        }
+                    };
+                    div.appendChild(btn);
+                }
+
+                // Mortgage button
+                if (!prop.mortgaged && game.turnPhase === 'end') {
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Mortgage';
+                    btn.style.background = '#ef5350';
+                    btn.onclick = () => {
+                        const val = Math.floor(tile.cost * game.inflationMult * 0.5);
+                        prop.mortgaged = true;
+                        cp.cash += val;
+                        addLog(`${cp.name} mortgaged ${tile.name} for $${val}`, 'money-loss');
+                        updateUI();
+                    };
+                    div.appendChild(btn);
+                } else if (prop.mortgaged && game.turnPhase === 'end') {
+                    const unmortgageCost = Math.floor(tile.cost * game.inflationMult * 0.6);
+                    const btn = document.createElement('button');
+                    btn.textContent = `Unmtg $${unmortgageCost}`;
+                    btn.style.background = '#4caf50';
+                    btn.onclick = () => {
+                        if (cp.cash >= unmortgageCost) {
+                            cp.cash -= unmortgageCost;
+                            prop.mortgaged = false;
+                            addLog(`${cp.name} unmortgaged ${tile.name}`, 'purchase');
+                            updateUI();
+                        }
+                    };
+                    div.appendChild(btn);
+                }
+
+                pl.appendChild(div);
+            });
+
+            // Worth breakdown
+            document.getElementById('wCash').textContent = '$' + cp.cash.toLocaleString();
+            document.getElementById('wProp').textContent = '$' + getPropertyValue(cp).toLocaleString();
+            document.getElementById('wTotal').textContent = '$' + getNetWorth(cp).toLocaleString();
+
+            // Update 3D board ownership markers
+            if (typeof updateOwnerMarkers === 'function') updateOwnerMarkers();
+        }
+
+        function addLog(text, className = '') {
+            const log = document.getElementById('gameLog');
+            const entry = document.createElement('div');
+            entry.className = 'logEntry ' + className;
+            entry.textContent = text;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // ============================================
+        // TOOLTIP
+        // ============================================
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(boardGroup.children, false);
+
+            const tooltip = document.getElementById('tooltip');
+            let found = false;
+
+            for (const hit of intersects) {
+                if (hit.object.userData.tileIndex !== undefined) {
+                    const tile = TILES[hit.object.userData.tileIndex];
+                    const prop = game.properties[tile.id];
+
+                    tooltip.querySelector('.ttName').textContent = tile.name;
+                    let details = '';
+                    if (tile.cost) details += `Cost: $${Math.floor(tile.cost * game.inflationMult)}\n`;
+                    if (tile.rent) details += `Rent: $${tile.rent}\n`;
+                    if (tile.sector) details += `Sector: ${tile.sector}\n`;
+                    if (prop) {
+                        const owner = game.players[prop.owner];
+                        details += `Owner: ${owner ? owner.name : 'Bank'}\n`;
+                        if (prop.level) details += `Level: ${prop.level}\n`;
+                        if (prop.mortgaged) details += `MORTGAGED\n`;
+                    }
+                    if (tile.desc) details += tile.desc;
+                    tooltip.querySelector('.ttDetails').textContent = details;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = event.clientX + 15 + 'px';
+                    tooltip.style.top = event.clientY + 15 + 'px';
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) tooltip.style.display = 'none';
+        }
+
+        // ============================================
+        // VICTORY
+        // ============================================
+        function showVictory(winner) {
+            playSound('win');
+            const screen = document.getElementById('victoryScreen');
+            screen.classList.add('show');
+            const idx = game.players.indexOf(winner);
+            document.getElementById('victoryStats').innerHTML = `
+    <h2 style="color:${PLAYER_COLORS[idx]}">${PLAYER_ICONS[idx]} ${winner.name}</h2>
+    <div style="margin:10px 0">
+      <div>💰 Cash: $${winner.cash.toLocaleString()}</div>
+      <div>🏠 Properties: ${winner.properties.length}</div>
+      <div>📊 Net Worth: $${getNetWorth(winner).toLocaleString()}</div>
+      <div>💵 Total Earned: $${winner.totalEarned.toLocaleString()}</div>
+      <div>🔄 Rounds Played: ${game.round}</div>
+    </div>`;
+
+            // Fireworks
+            setInterval(() => {
+                if (screen.classList.contains('show')) {
+                    const x = (Math.random() - 0.5) * 15;
+                    const z = (Math.random() - 0.5) * 15;
+                    const colors = ['#d4af37', '#ef5350', '#4caf50', '#42a5f5', '#ff9800'];
+                    spawnParticles(x, 5, z, colors[Math.floor(Math.random() * colors.length)], 30);
+                }
+            }, 500);
+        }
+
+        // ============================================
+        // SAVE/LOAD
+        // ============================================
+        function saveGame() {
+            try {
+                const state = {
+                    players: game.players,
+                    currentPlayer: game.currentPlayer,
+                    round: game.round,
+                    pot: game.pot,
+                    properties: game.properties,
+                    inflationMult: game.inflationMult,
+                    activeEffects: game.activeEffects
+                };
+                localStorage.setItem('investorpoly_save', JSON.stringify(state));
+            } catch (e) { }
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        updatePlayerInputs();
+    </script>
+</body>
+
+</html>

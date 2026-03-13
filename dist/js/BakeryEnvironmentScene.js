@@ -1,0 +1,1133 @@
+/**
+ * BakeryEnvironmentScene.js — Persistent 2D bakery Phaser scene
+ *
+ * Extracted from 2dbakeryenvironment.html and wired into the main
+ * GameController so that all gameplay happens *inside* the 2D world.
+ *
+ * Interaction points fire `bakery:interact` CustomEvents which are
+ * caught by GameController to open DOM overlay panels (buying,
+ * baking, selling, financials, etc.).
+ */
+
+// ============================================================
+//  WORLD LAYOUT
+// ============================================================
+const BAKERY_WORLD = {
+    W: 1400,
+    H: 1050,
+    WALL_H: 100,
+    FLOOR_Y: 100,
+    FLOOR_H: 950,
+    DIVIDER_Y: 520,
+    ROOMS: {
+        shop:    { x: 0,    y: 100,  w: 1400, h: 420, label: '🏪 Shop Floor' },
+        office:  { x: 0,    y: 520,  w: 280,  h: 430, label: '💼 Office' },
+        kitchen: { x: 280,  y: 520,  w: 560,  h: 530, label: '🍞 Kitchen' },
+        walkin:  { x: 660,  y: 520,  w: 180,  h: 250, label: '🧊 Walk-in Fridge' },
+        wc:      { x: 1060, y: 520,  w: 340,  h: 430, label: '🚻 WC' },
+    },
+};
+
+// ============================================================
+//  TEXTURE GENERATION
+// ============================================================
+function generateBakeryTextures(scene) {
+    const g = scene.make.graphics({ x: 0, y: 0, add: false });
+
+    // --- Floors ---
+    g.fillStyle(0x8a7b6a); g.fillRect(0,0,64,64);
+    g.fillStyle(0x978870); g.beginPath();
+    g.moveTo(32,0); g.lineTo(64,32); g.lineTo(32,64); g.lineTo(0,32); g.closePath(); g.fillPath();
+    g.lineStyle(1,0x706050,0.6);
+    g.beginPath(); g.moveTo(32,0); g.lineTo(64,32); g.lineTo(32,64); g.lineTo(0,32); g.closePath(); g.strokePath();
+    g.generateTexture('floor_shop',64,64); g.clear();
+
+    g.fillStyle(0x889090); g.fillRect(0,0,64,64);
+    g.fillStyle(0x7e8686); g.fillRect(0,0,32,32); g.fillRect(32,32,32,32);
+    g.lineStyle(1,0x6a7272,0.6); g.strokeRect(0,0,64,64);
+    g.generateTexture('floor_kitchen',64,64); g.clear();
+
+    g.fillStyle(0x3a3545); g.fillRect(0,0,64,64);
+    g.fillStyle(0x343040); g.fillRect(0,0,32,32); g.fillRect(32,32,32,32);
+    g.generateTexture('floor_office',64,64); g.clear();
+
+    g.fillStyle(0x9aa8b0); g.fillRect(0,0,64,64);
+    g.lineStyle(1,0x8898a0,0.4);
+    g.strokeRect(0,0,32,32); g.strokeRect(32,32,32,32);
+    g.generateTexture('floor_walkin',64,64); g.clear();
+
+    g.fillStyle(0xdde0e0); g.fillRect(0,0,64,64);
+    g.lineStyle(1,0xbbbebd,0.5); g.strokeRect(0,0,32,32); g.strokeRect(32,0,32,32);
+    g.strokeRect(0,32,32,32); g.strokeRect(32,32,32,32);
+    g.generateTexture('floor_wc',64,64); g.clear();
+
+    // --- Walls ---
+    g.fillStyle(0xe8e8e4); g.fillRect(0,0,100,100);
+    g.fillStyle(0xf0f0ec); g.fillRect(2,2,96,60);
+    g.fillStyle(0xd8d8d0); g.fillRect(0,80,100,20);
+    g.lineStyle(1,0xcccccc,0.4); g.beginPath(); g.moveTo(0,80); g.lineTo(100,80); g.strokePath();
+    g.generateTexture('wall_shop',100,100); g.clear();
+
+    g.fillStyle(0xd8d8d0); g.fillRect(0,0,100,100);
+    g.lineStyle(1,0xbbbbbb);
+    for(let y=0;y<100;y+=25){ g.beginPath(); g.moveTo(0,y); g.lineTo(100,y); g.strokePath(); }
+    for(let x=0;x<100;x+=25){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,100); g.strokePath(); }
+    g.generateTexture('wall_kitchen',100,100); g.clear();
+
+    g.fillStyle(0x2a2535); g.fillRect(0,0,100,100);
+    g.fillStyle(0x302b3d); g.fillRoundedRect(4,4,92,92,3);
+    g.generateTexture('wall_office',100,100); g.clear();
+
+    g.fillStyle(0x707880); g.fillRect(0,0,100,100);
+    g.lineStyle(1,0x606870); g.strokeRect(2,2,96,96);
+    g.generateTexture('wall_walkin',100,100); g.clear();
+
+    g.fillStyle(0xd0d4d4); g.fillRect(0,0,100,100);
+    g.lineStyle(1,0xb8bcbc);
+    for(let y=0;y<100;y+=20){ g.beginPath(); g.moveTo(0,y); g.lineTo(100,y); g.strokePath(); }
+    g.generateTexture('wall_wc',100,100); g.clear();
+
+    g.fillStyle(0x4a3828); g.fillRect(0,0,16,100);
+    g.lineStyle(1,0x3a2818); g.strokeRect(0,0,16,100);
+    g.generateTexture('wall_divider',16,100); g.clear();
+
+    g.fillStyle(0x7a5a20); g.fillRect(0,0,50,16);
+    g.fillStyle(0x0a0804,0.7); g.fillRect(4,2,42,12);
+    g.generateTexture('door_frame',50,16); g.clear();
+
+    // --- Brick tile (oven) ---
+    g.fillStyle(0xa34841); g.fillRect(0,0,48,48);
+    g.fillStyle(0xcccccc,0.6);
+    g.fillRect(0,22,48,3); g.fillRect(22,0,3,22); g.fillRect(46,25,3,23);
+    g.generateTexture('brick_tile',48,48); g.clear();
+
+    // --- Wood panel ---
+    g.fillStyle(0x6b4d31); g.fillRect(0,0,32,32);
+    g.lineStyle(1,0x4a321c);
+    g.beginPath(); g.moveTo(0,8); g.lineTo(32,8); g.strokePath();
+    g.beginPath(); g.moveTo(0,24); g.lineTo(32,24); g.strokePath();
+    g.generateTexture('wood_tile',32,32); g.clear();
+
+    // --- Player (Baker) ---
+    g.fillStyle(0x000000,0.25); g.fillEllipse(25,68,30,10);
+    g.fillStyle(0xffffff); g.fillRoundedRect(10,28,30,38,8);
+    g.fillStyle(0x333333); g.fillRect(15,62,8,8); g.fillRect(27,62,8,8);
+    g.fillStyle(0xffccaa); g.fillCircle(25,22,12);
+    g.fillStyle(0xffffff); g.fillRect(15,2,20,14);
+    g.fillCircle(15,7,8); g.fillCircle(35,7,8); g.fillCircle(25,2,10);
+    g.fillStyle(0x000000); g.fillCircle(21,20,2); g.fillCircle(29,20,2);
+    g.generateTexture('baker',50,75); g.clear();
+
+    // --- Customer sprites ---
+    const custColors = [0x3a7bd5, 0xd35a5a, 0x4caf50];
+    const hairColors = [0x442211, 0x111111, 0x664422];
+    custColors.forEach((col, i) => {
+        g.fillStyle(0x000000,0.2); g.fillEllipse(20,58,26,8);
+        g.fillStyle(col); g.fillRoundedRect(7,22,26,34,6);
+        g.fillStyle(0x282828); g.fillRect(12,52,7,8); g.fillRect(22,52,7,8);
+        g.fillStyle(0xeebb99); g.fillCircle(20,16,10);
+        g.fillStyle(hairColors[i]); g.fillRoundedRect(10,4,20,12,4);
+        g.fillStyle(0x000000); g.fillCircle(17,15,1.5); g.fillCircle(23,15,1.5);
+        g.generateTexture('customer' + (i||''), 40, 65); g.clear();
+    });
+
+    // --- Pastries ---
+    g.fillStyle(0xd6a05e); g.fillEllipse(10,10,15,8);
+    g.fillStyle(0xcc3344); g.fillCircle(10,6,4);
+    g.generateTexture('pastry_tart',20,20); g.clear();
+    g.fillStyle(0xa06a3e); g.fillRoundedRect(0,5,20,10,4);
+    g.generateTexture('pastry_loaf',20,20); g.clear();
+    g.fillStyle(0x8da872); g.fillRect(2,5,16,12);
+    g.fillStyle(0xffffff); g.fillRect(4,2,12,3);
+    g.generateTexture('pastry_cake',20,20); g.clear();
+    g.fillStyle(0xd4944a); g.fillEllipse(10,10,14,10);
+    g.generateTexture('pastry_croissant',20,20); g.clear();
+    g.fillStyle(0x8b5e3c); g.fillCircle(10,10,8);
+    g.fillStyle(0x5c3a1e); g.fillCircle(7,8,2); g.fillCircle(13,8,2);
+    g.generateTexture('pastry_cookie',20,20); g.clear();
+
+    // --- Flour sack ---
+    g.fillStyle(0x000000,0.25); g.fillEllipse(20,42,28,8);
+    g.fillStyle(0xe8dec5); g.fillRoundedRect(6,14,28,32,8);
+    g.fillEllipse(20,12,14,7);
+    g.lineStyle(2,0xa05959); g.beginPath(); g.moveTo(10,14); g.lineTo(30,14); g.strokePath();
+    g.generateTexture('flour_sack',40,48); g.clear();
+
+    // --- Glass pane ---
+    g.fillStyle(0xddf0ff,0.30); g.fillRect(0,0,64,64);
+    g.lineStyle(1,0xffffff,0.4); g.strokeRect(1,1,62,62);
+    g.generateTexture('glass_tile',64,64); g.clear();
+
+    // --- Cash register ---
+    g.fillStyle(0x333333); g.fillRoundedRect(2,6,32,24,3);
+    g.fillStyle(0x222222); g.fillRect(4,2,28,6);
+    g.fillStyle(0x00cc66); g.fillRect(7,12,10,5);
+    g.fillStyle(0x444444); g.fillRect(20,10,10,7);
+    g.generateTexture('register',36,34); g.clear();
+
+    // --- Computer ---
+    g.fillStyle(0x222228); g.fillRoundedRect(4,2,44,30,3);
+    g.fillStyle(0x3366aa); g.fillRect(8,5,36,24);
+    g.fillStyle(0x333338); g.fillRect(20,32,12,5);
+    g.fillStyle(0x444448); g.fillRect(12,37,28,3);
+    g.generateTexture('computer',52,42); g.clear();
+
+    // --- Desk ---
+    g.fillStyle(0x5c4025); g.fillRect(0,0,90,45);
+    g.lineStyle(1,0x3a2a18); g.strokeRect(0,0,90,45);
+    g.generateTexture('desk',90,45); g.clear();
+
+    // --- Prep table ---
+    g.fillStyle(0xcccccc); g.fillRect(0,0,110,40);
+    g.fillStyle(0xbbbbbb); g.fillRect(2,2,106,36);
+    g.lineStyle(1,0x999999); g.strokeRect(0,0,110,40);
+    g.generateTexture('prep_table',110,40); g.clear();
+
+    // --- Mixer ---
+    g.fillStyle(0xdddddd); g.fillRoundedRect(3,8,20,22,5);
+    g.fillStyle(0xbbbbbb); g.fillRect(8,2,10,8);
+    g.fillStyle(0xcccccc); g.fillCircle(13,25,6);
+    g.generateTexture('mixer',26,36); g.clear();
+
+    // --- Storage shelf ---
+    g.fillStyle(0x5a4030); g.fillRect(0,0,70,120);
+    for(let sy=10;sy<120;sy+=25) { g.fillStyle(0x4a3525); g.fillRect(0,sy,70,4); }
+    g.generateTexture('storage_shelf',70,120); g.clear();
+
+    // --- Crate ---
+    g.fillStyle(0x8b6914); g.fillRect(0,0,24,18);
+    g.lineStyle(1,0x5a4010); g.strokeRect(0,0,24,18);
+    g.generateTexture('crate',24,18); g.clear();
+
+    // --- Refrigerated display case ---
+    g.fillStyle(0x888890); g.fillRect(0,0,120,50);
+    g.fillStyle(0x9a9aa0); g.fillRect(2,2,116,20);
+    g.fillStyle(0xddf0ff,0.35); g.fillRect(2,22,116,26);
+    g.lineStyle(1,0xffffff,0.3); g.beginPath(); g.moveTo(2,22); g.lineTo(118,22); g.strokePath();
+    g.lineStyle(1,0x666670); g.strokeRect(0,0,120,50);
+    g.fillStyle(0x333338); g.fillRect(4,44,50,4);
+    g.generateTexture('display_case',120,50); g.clear();
+
+    // --- Wooden bread shelf ---
+    g.fillStyle(0x8b6b3e); g.fillRect(0,0,80,100);
+    g.fillStyle(0xa07a48);
+    for(let sy=0;sy<100;sy+=20){ g.fillRect(2,sy,76,3); }
+    g.lineStyle(1,0x5a4020); g.strokeRect(0,0,80,100);
+    g.fillStyle(0xc8a060); g.fillRoundedRect(8,5,18,8,3); g.fillRoundedRect(30,5,22,8,3);
+    g.fillRoundedRect(56,5,18,8,3);
+    g.fillStyle(0xb89050); g.fillRoundedRect(10,25,20,8,3); g.fillRoundedRect(34,25,16,8,3);
+    g.fillRoundedRect(54,25,20,8,3);
+    g.fillStyle(0xd4a868); g.fillRoundedRect(6,45,22,8,3); g.fillRoundedRect(32,45,18,8,3);
+    g.fillRoundedRect(54,45,20,8,3);
+    g.fillStyle(0xc09858); g.fillRoundedRect(12,65,16,8,3); g.fillRoundedRect(34,65,20,8,3);
+    g.fillRoundedRect(58,65,14,8,3);
+    g.generateTexture('bread_shelf',80,100); g.clear();
+
+    // --- Service counter ---
+    g.fillStyle(0x5a4025); g.fillRect(0,0,100,28);
+    g.fillStyle(0x6b4d31); g.fillRect(2,2,96,12);
+    g.lineStyle(1,0x3a2a18); g.strokeRect(0,0,100,28);
+    g.generateTexture('service_counter',100,28); g.clear();
+
+    // --- Pendant light ---
+    g.fillStyle(0x333333); g.fillRect(14,0,4,10);
+    g.fillStyle(0x2a2a2a); g.beginPath();
+    g.moveTo(6,10); g.lineTo(26,10); g.lineTo(30,22); g.lineTo(2,22); g.closePath(); g.fillPath();
+    g.fillStyle(0xffdd88,0.6); g.fillEllipse(16,28,28,12);
+    g.generateTexture('pendant_light',32,36); g.clear();
+
+    // --- Jar ---
+    g.fillStyle(0xdd9944); g.fillRect(2,6,14,14);
+    g.fillStyle(0xcc8833); g.fillRect(4,2,10,6);
+    g.lineStyle(1,0xaa7722); g.strokeRect(2,6,14,14);
+    g.generateTexture('jar',18,22); g.clear();
+
+    // --- Wire basket ---
+    g.lineStyle(1,0x444444); g.strokeRoundedRect(2,4,26,18,3);
+    g.lineStyle(1,0x555555); g.beginPath();
+    for(let bx=6;bx<28;bx+=5){ g.moveTo(bx,4); g.lineTo(bx,22); } g.strokePath();
+    g.fillStyle(0xc8a060); g.fillRoundedRect(5,2,8,6,2); g.fillRoundedRect(16,2,10,6,2);
+    g.generateTexture('wire_basket',30,24); g.clear();
+
+    // --- Toilet ---
+    g.fillStyle(0xeeeeee); g.fillRoundedRect(4,8,22,24,6);
+    g.fillStyle(0xdddddd); g.fillRect(6,2,18,10);
+    g.lineStyle(1,0xcccccc); g.strokeRoundedRect(4,8,22,24,6);
+    g.generateTexture('toilet',30,34); g.clear();
+
+    // --- Sink ---
+    g.fillStyle(0xd0d4d4); g.fillRoundedRect(2,4,22,18,4);
+    g.fillStyle(0xaabbcc); g.fillEllipse(13,12,14,10);
+    g.fillStyle(0x888888); g.fillRect(11,0,4,6);
+    g.generateTexture('sink',26,24); g.clear();
+
+    // --- Fridge shelves ---
+    g.fillStyle(0x808890); g.fillRect(0,0,60,100);
+    g.fillStyle(0x9098a0);
+    for(let fy=10;fy<100;fy+=22){ g.fillRect(2,fy,56,3); }
+    g.lineStyle(1,0x6a7278); g.strokeRect(0,0,60,100);
+    g.generateTexture('fridge_shelf',60,100); g.clear();
+
+    // --- Interaction ring ---
+    g.lineStyle(2,0xffd700,0.7); g.strokeCircle(24,24,22);
+    g.lineStyle(1,0xffd700,0.25); g.strokeCircle(24,24,27);
+    g.generateTexture('interact_ring',48,48); g.clear();
+}
+
+// ============================================================
+//  BAKERY ENVIRONMENT SCENE
+// ============================================================
+class BakeryEnvironmentScene extends Phaser.Scene {
+    constructor() {
+        super('BakeryEnvironmentScene');
+        this.interactables = [];
+        this.activeInteraction = null;
+        this.customers = [];
+        this.displayItems = [];
+        this.inputEnabled = true;
+        this.overlayInputLock = false;
+        this.checkoutInputLock = false;
+        this._expressionHandler = null;
+        this._moneyFloatHandler = null;
+        this._checkoutStateHandler = null;
+        this._overlayOpenedHandler = null;
+        this._overlayClosedHandler = null;
+        this.staffActors = new Map();
+        this._staffRouteHandler = null;
+        this._staffSyncTimer = null;
+        this._checkoutLockFailsafe = null;
+        this.staffStations = {
+            floor: { x: 700, y: 380 },
+            counter: { x: 700, y: 250 },
+            computer: { x: 140, y: 700 },
+            prep: { x: 560, y: 760 }
+        };
+    }
+
+    preload() { generateBakeryTextures(this); }
+
+    create() {
+        this.depthGroup = this.add.group();
+        this.staticColliders = this.physics.add.staticGroup();
+
+        this.buildExteriorWalls();
+        this.buildFloors();
+        this.buildDividerWall();
+        this.buildShopFloor();
+        this.buildKitchen();
+        this.buildWalkInFridge();
+        this.buildOffice();
+        this.buildWC();
+
+        // ---- Player ----
+        this.player = this.physics.add.sprite(700, 380, 'baker');
+        this.player.setOrigin(0.5, 1);
+        this.player.body.setSize(26, 12);
+        this.player.body.setOffset(12, 62);
+        this.player.setCollideWorldBounds(true);
+        this.depthGroup.add(this.player);
+
+        // ---- Physics ----
+        this.physics.world.setBounds(10, BAKERY_WORLD.FLOOR_Y + 10, BAKERY_WORLD.W - 20, BAKERY_WORLD.FLOOR_H - 20);
+        this.physics.add.collider(this.player, this.staticColliders);
+
+        // ---- Camera ----
+        this.cameras.main.setBounds(0, 0, BAKERY_WORLD.W, BAKERY_WORLD.H);
+        this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
+        this.cameras.main.setDeadzone(80, 50);
+
+        // ---- Input ----
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = this.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S,
+            left: Phaser.Input.Keyboard.KeyCodes.A, right: Phaser.Input.Keyboard.KeyCodes.D
+        });
+        this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+        // ---- Warm ambient ----
+        const overlay = this.add.rectangle(0, 0, BAKERY_WORLD.W * 2, BAKERY_WORLD.H * 2, 0xffaa44, 0.05);
+        overlay.setBlendMode(Phaser.BlendModes.MULTIPLY);
+        overlay.setScrollFactor(0); overlay.setDepth(9998);
+
+        // ---- Customers ----
+        this.time.addEvent({ delay: 4000, callback: () => this.spawnCustomer(), loop: true });
+        this.spawnCustomer();
+
+        // Listen for overlay open/close to freeze/unfreeze player
+        this._overlayOpenedHandler = () => {
+            this.overlayInputLock = true;
+            this.updateInputLock();
+            this.player.setVelocity(0, 0);
+        };
+        this._overlayClosedHandler = () => {
+            this.overlayInputLock = false;
+            this.updateInputLock();
+        };
+        window.addEventListener('bakery:overlay-opened', this._overlayOpenedHandler);
+        window.addEventListener('bakery:overlay-closed', this._overlayClosedHandler);
+
+        // Listen for game-driven customer expressions from GameController
+        this._expressionHandler = (event) => this.showWorldCustomerBubble(event.detail || {});
+        window.addEventListener('bakery:customer-expression', this._expressionHandler);
+        this._moneyFloatHandler = (event) => this.showMoneyFloat(event.detail || {});
+        window.addEventListener('bakery:money-float', this._moneyFloatHandler);
+        this._checkoutStateHandler = (event) => this.applyCheckoutLock(event.detail || {});
+        window.addEventListener('bakery:checkout-state', this._checkoutStateHandler);
+
+        this.initStaffVisuals();
+        this._staffRouteHandler = (event) => this.routeStaffActor(event.detail || {});
+        window.addEventListener('bakery:staff-route', this._staffRouteHandler);
+        this._staffSyncTimer = this.time.addEvent({
+            delay: 2000,
+            loop: true,
+            callback: () => this.syncStaffActorsFromGame()
+        });
+
+        // Ambient chatter while customers roam
+        this.time.addEvent({
+            delay: 5200,
+            loop: true,
+            callback: () => {
+                if (this.customers.length === 0) return;
+                const ambient = [
+                    { emoji: '🤔', message: 'Hmm… what looks fresh today?', tone: 'neutral' },
+                    { emoji: '😋', message: 'Those pastries smell amazing!', tone: 'happy' },
+                    { emoji: '🛍️', message: 'I might grab one for later.', tone: 'neutral' },
+                ];
+                this.showWorldCustomerBubble(Phaser.Utils.Array.GetRandom(ambient));
+            }
+        });
+    }
+
+    shutdown() {
+        if (this._expressionHandler) {
+            window.removeEventListener('bakery:customer-expression', this._expressionHandler);
+            this._expressionHandler = null;
+        }
+        if (this._moneyFloatHandler) {
+            window.removeEventListener('bakery:money-float', this._moneyFloatHandler);
+            this._moneyFloatHandler = null;
+        }
+        if (this._checkoutStateHandler) {
+            window.removeEventListener('bakery:checkout-state', this._checkoutStateHandler);
+            this._checkoutStateHandler = null;
+        }
+        if (this._overlayOpenedHandler) {
+            window.removeEventListener('bakery:overlay-opened', this._overlayOpenedHandler);
+            this._overlayOpenedHandler = null;
+        }
+        if (this._overlayClosedHandler) {
+            window.removeEventListener('bakery:overlay-closed', this._overlayClosedHandler);
+            this._overlayClosedHandler = null;
+        }
+        if (this._staffRouteHandler) {
+            window.removeEventListener('bakery:staff-route', this._staffRouteHandler);
+            this._staffRouteHandler = null;
+        }
+        if (this._staffSyncTimer) {
+            this._staffSyncTimer.remove(false);
+            this._staffSyncTimer = null;
+        }
+        if (this._checkoutLockFailsafe) {
+            this._checkoutLockFailsafe.remove(false);
+            this._checkoutLockFailsafe = null;
+        }
+    }
+
+    // ======== EXTERIOR WALLS ========
+    buildExteriorWalls() {
+        const wall = this.add.tileSprite(BAKERY_WORLD.W / 2, BAKERY_WORLD.WALL_H / 2, BAKERY_WORLD.W, BAKERY_WORLD.WALL_H, 'wall_shop').setDepth(0);
+        const style = window.game?.engine?.exteriorStyle || 'warm_classic';
+        const tintByStyle = {
+            warm_classic: 0xffffff,
+            modern_glass: 0xdbeafe,
+            rustic_market: 0xffedd5,
+            industrial_minimal: 0xe5e7eb,
+            neighborhood_cozy: 0xfef3c7
+        };
+        wall.setTint(tintByStyle[style] || 0xffffff);
+    }
+
+    // ======== FLOORS ========
+    buildFloors() {
+        const R = BAKERY_WORLD.ROOMS;
+        this.add.tileSprite(R.shop.x + R.shop.w/2, R.shop.y + R.shop.h/2, R.shop.w, R.shop.h, 'floor_shop').setDepth(-1);
+        this.add.tileSprite(R.kitchen.x + R.kitchen.w/2, R.kitchen.y + R.kitchen.h/2, R.kitchen.w, R.kitchen.h, 'floor_kitchen').setDepth(-1);
+        this.add.tileSprite(R.office.x + R.office.w/2, R.office.y + R.office.h/2, R.office.w, R.office.h, 'floor_office').setDepth(-1);
+        this.add.tileSprite(R.walkin.x + R.walkin.w/2, R.walkin.y + R.walkin.h/2, R.walkin.w, R.walkin.h, 'floor_walkin').setDepth(-1);
+        this.add.tileSprite(R.wc.x + R.wc.w/2, R.wc.y + R.wc.h/2, R.wc.w, R.wc.h, 'floor_wc').setDepth(-1);
+    }
+
+    // ======== DIVIDER WALL ========
+    buildDividerWall() {
+        const dy = BAKERY_WORLD.DIVIDER_Y;
+        const wallThick = 16;
+        const doors = [
+            { x: 200, w: 50 },
+            { x: 500, w: 60 },
+            { x: 1150, w: 50 },
+        ];
+        let lastX = 0;
+        for (const door of doors) {
+            const segW = door.x - lastX;
+            if (segW > 0) this.addWallH(lastX, dy, segW, wallThick);
+            this.add.image(door.x + door.w / 2, dy + wallThick / 2, 'door_frame')
+                .setDisplaySize(door.w, wallThick).setDepth(dy + wallThick);
+            lastX = door.x + door.w;
+        }
+        if (lastX < BAKERY_WORLD.W) this.addWallH(lastX, dy, BAKERY_WORLD.W - lastX, wallThick);
+
+        this.addWallV(280, dy + wallThick, wallThick, 430 - wallThick, 'office_right');
+        this.addWallV(660, dy + wallThick, wallThick, 100, 'walkin_left_top');
+        this.add.image(660 + 8, dy + wallThick + 100 + 25, 'door_frame')
+            .setDisplaySize(16, 50).setAngle(90).setDepth(dy + 200);
+        this.addWallV(660, dy + wallThick + 150, wallThick, 100, 'walkin_left_bot');
+        this.addWallH(660, dy + wallThick + 250, 180, wallThick);
+        this.addWallV(840, dy + wallThick, wallThick, 250, 'walkin_right');
+        this.addWallV(1060, dy + wallThick, wallThick, 430 - wallThick, 'wc_left');
+    }
+
+    addWallH(x, y, w, h) {
+        const wall = this.add.tileSprite(x + w/2, y + h/2, w, h, 'wall_divider');
+        wall.setDepth(y + h);
+        const col = this.staticColliders.create(x + w/2, y + h/2, null);
+        col.setSize(w, h); col.setVisible(false);
+    }
+
+    addWallV(x, y, w, h, _id) {
+        const wall = this.add.tileSprite(x + w/2, y + h/2, w, h, 'wall_divider');
+        wall.setDepth(y + h);
+        const col = this.staticColliders.create(x + w/2, y + h/2, null);
+        col.setSize(w, h); col.setVisible(false);
+    }
+
+    addCollider(x, y, w, h) {
+        const c = this.staticColliders.create(x, y, null);
+        c.setSize(w, h); c.setVisible(false); return c;
+    }
+
+    // ======== SHOP FLOOR ========
+    buildShopFloor() {
+        const R = BAKERY_WORLD.ROOMS.shop;
+
+        // Pendant lights
+        [250, 500, 750, 1000, 1200].forEach(lx => {
+            this.add.image(lx, R.y + 8, 'pendant_light').setDepth(10001);
+            this.add.circle(lx, R.y + 70, 60, 0xffdd88, 0.04).setDepth(R.y);
+        });
+
+        // Main display case
+        const dc1X = 420, dc1Y = 300;
+        const dc1 = this.add.image(dc1X, dc1Y, 'display_case');
+        dc1.setDisplaySize(260, 55); dc1.yDepth = dc1Y; this.depthGroup.add(dc1);
+        this.addCollider(dc1X, dc1Y, 260, 40);
+        const pastryTypes = ['pastry_tart','pastry_loaf','pastry_cake','pastry_croissant','pastry_cookie'];
+        for (let px = dc1X - 110; px <= dc1X + 110; px += 28) {
+            const p = this.add.image(px, dc1Y - 8, Phaser.Utils.Array.GetRandom(pastryTypes));
+            p.setDepth(dc1Y - 2); this.displayItems.push(p);
+        }
+        this.add.tileSprite(dc1X, dc1Y - 14, 250, 18, 'glass_tile').setAlpha(0.25).setDepth(dc1Y + 1);
+        this.addInteractable(dc1X, dc1Y + 40, 'Display Case', 'display', '🍰 Manage pastry display');
+
+        // Second display case
+        const dc2X = 820, dc2Y = 280;
+        const dc2 = this.add.image(dc2X, dc2Y, 'display_case');
+        dc2.setDisplaySize(200, 50); dc2.yDepth = dc2Y; this.depthGroup.add(dc2);
+        this.addCollider(dc2X, dc2Y, 200, 35);
+        for (let px = dc2X - 80; px <= dc2X + 80; px += 28) {
+            const p = this.add.image(px, dc2Y - 8, Phaser.Utils.Array.GetRandom(pastryTypes));
+            p.setDepth(dc2Y - 2); this.displayItems.push(p);
+        }
+        this.add.tileSprite(dc2X, dc2Y - 12, 190, 16, 'glass_tile').setAlpha(0.25).setDepth(dc2Y + 1);
+        this.addInteractable(dc2X, dc2Y + 40, 'Cold Display', 'display2', '🧁 Manage cold display');
+
+        // Service counter + register
+        const scX = 620, scY = 210;
+        this.add.tileSprite(scX, scY, 300, 28, 'service_counter').setDepth(scY);
+        this.addCollider(scX, scY, 300, 20);
+        this.add.image(scX + 80, scY - 18, 'register').setDepth(scY - 1);
+        this.addInteractable(scX + 80, scY + 26, 'Cash Register', 'register', '💰 Open shop & serve customers');
+
+        // Bread shelves
+        const shelfY = R.y + 30;
+        const bs1 = this.add.image(120, shelfY + 55, 'bread_shelf');
+        bs1.setDisplaySize(100, 110); bs1.yDepth = shelfY + 55; this.depthGroup.add(bs1);
+        this.addCollider(120, shelfY + 55, 90, 30);
+        const bs2 = this.add.image(260, shelfY + 55, 'bread_shelf');
+        bs2.setDisplaySize(100, 110); bs2.yDepth = shelfY + 55; this.depthGroup.add(bs2);
+        this.addCollider(260, shelfY + 55, 90, 30);
+        this.addInteractable(190, shelfY + 110, 'Bread Display', 'bread_shelf', '🍞 Restock bread shelves');
+
+        // Right-wall shelves
+        const rwX = R.w - 80;
+        for (let sy = R.y + 60; sy < R.y + R.h - 40; sy += 120) {
+            const sh = this.add.image(rwX, sy, 'bread_shelf');
+            sh.setDisplaySize(90, 110); sh.yDepth = sy; this.depthGroup.add(sh);
+            this.addCollider(rwX, sy, 80, 30);
+        }
+        const jarY = R.y + 200;
+        for (let jx = rwX - 50; jx <= rwX - 10; jx += 22) {
+            this.add.image(jx, jarY, 'jar').setDepth(jarY);
+        }
+        this.addInteractable(rwX, R.y + 180, 'Product Shelf', 'product_shelf', '🧴 Manage packaged goods');
+
+        // Wire baskets
+        [{ x: 300, y: 420 }, { x: 360, y: 430 }, { x: 680, y: 440 }].forEach(b => {
+            const bk = this.add.image(b.x, b.y, 'wire_basket');
+            bk.yDepth = b.y; this.depthGroup.add(bk);
+        });
+
+        // Freestanding shelf
+        const fsX = 1050, fsY = 350;
+        const fs = this.add.image(fsX, fsY, 'bread_shelf');
+        fs.setDisplaySize(80, 100); fs.yDepth = fsY; this.depthGroup.add(fs);
+        this.addCollider(fsX, fsY, 70, 30);
+
+        // Price board
+        const menuX = 950, menuY = 108;
+        this.add.rectangle(menuX, menuY, 130, 55, 0x2a1f14).setDepth(1).setStrokeStyle(2, 0x8b6914);
+        this.add.text(menuX, menuY - 16, '✦ PRICES ✦', {
+            fontFamily: 'Fredoka', fontSize: '11px', color: '#ffcc88'
+        }).setOrigin(0.5).setDepth(2);
+        ['Bread $3.50','Croissant $4.25','Cookie $2.00'].forEach((t,i) => {
+            this.add.text(menuX, menuY + i*13, t, {
+                fontFamily: 'Inter', fontSize: '9px', color: '#ccaa77'
+            }).setOrigin(0.5).setDepth(2);
+        });
+
+        // AC unit detail
+        this.add.rectangle(40, R.y + 12, 50, 16, 0xdddddd).setDepth(2).setStrokeStyle(1, 0xbbbbbb);
+
+        this.add.text(R.x + R.w/2, R.y + R.h - 20, 'SHOP FLOOR', {
+            fontFamily: 'Fredoka', fontSize: '18px', color: '#ffffff10'
+        }).setOrigin(0.5, 1).setDepth(BAKERY_WORLD.FLOOR_Y);
+    }
+
+    // ======== KITCHEN ========
+    buildKitchen() {
+        const R = BAKERY_WORLD.ROOMS.kitchen;
+        const kx = R.x, ky = R.y;
+        this.add.tileSprite(kx + R.w/2, ky + 8, R.w, 16, 'wall_kitchen').setDepth(ky);
+
+        // Oven
+        const ovenX = kx + 120, ovenY = ky + 80;
+        const oven = this.add.container(ovenX, ovenY);
+        const ovenBase = this.add.tileSprite(0, 0, 100, 60, 'brick_tile');
+        const ovenDome = this.add.graphics();
+        ovenDome.fillStyle(0xa34841);
+        ovenDome.beginPath(); ovenDome.arc(0, -30, 50, Math.PI, 0); ovenDome.fillPath();
+        ovenDome.lineStyle(2, 0xcccccc); ovenDome.strokePath();
+        const fireHole = this.add.graphics();
+        fireHole.fillStyle(0x110000); fireHole.fillRoundedRect(-25, -10, 50, 30, 10);
+        oven.add([ovenBase, ovenDome, fireHole]);
+        oven.yDepth = ovenY; this.depthGroup.add(oven);
+        this.addCollider(ovenX, ovenY, 100, 50);
+
+        this.add.particles(ovenX, ovenY - 15, 'glass_tile', {
+            speed: { min: 10, max: 35 }, angle: { min: 250, max: 290 },
+            scale: { start: 0.15, end: 0 }, alpha: { start: 0.7, end: 0 },
+            tint: [0xff0000, 0xff8800, 0xffff00], lifespan: 600, frequency: 80, blendMode: 'ADD'
+        }).setDepth(ovenY + 1);
+
+        this.addInteractable(ovenX, ovenY + 50, 'Use Oven', 'oven', '🍞 Bake products');
+
+        // Prep table
+        const prepX = kx + 280, prepY = ky + 200;
+        const prep = this.add.image(prepX, prepY, 'prep_table');
+        prep.setOrigin(0.5, 0.5); prep.yDepth = prepY; this.depthGroup.add(prep);
+        this.addCollider(prepX, prepY, 110, 30);
+        this.add.image(prepX - 30, prepY - 25, 'mixer').setDepth(prepY - 1);
+        this.addInteractable(prepX, prepY + 35, 'Prep Station', 'prep', '🥄 Mix & prepare dough');
+
+        // Counter
+        const ctrX = kx + R.w - 60, ctrY = ky + 150;
+        this.add.tileSprite(ctrX, ctrY, 30, 200, 'wood_tile').setDepth(ctrY);
+        this.addCollider(ctrX, ctrY, 30, 200);
+
+        // Storage shelf
+        const shX = kx + 100, shY = ky + 320;
+        const shelf = this.add.image(shX, shY, 'storage_shelf');
+        shelf.yDepth = shY; this.depthGroup.add(shelf);
+        this.addCollider(shX, shY, 70, 30);
+        this.add.image(shX + 50, shY + 40, 'flour_sack').setDepth(shY + 40);
+        this.add.image(shX + 75, shY + 50, 'flour_sack').setDepth(shY + 50);
+        this.addInteractable(shX, shY + 80, 'Storage', 'storage', '📦 View ingredient inventory');
+
+        // Crates
+        for (let i = 0; i < 3; i++) {
+            this.add.image(kx + 350 + i * 30, ky + 400, 'crate').setDepth(ky + 400);
+        }
+
+        this.add.text(kx + R.w/2, ky + 10, 'KITCHEN', {
+            fontFamily: 'Fredoka', fontSize: '16px', color: '#ffffff15'
+        }).setOrigin(0.5, 0).setDepth(ky + 1);
+    }
+
+    // ======== WALK-IN FRIDGE ========
+    buildWalkInFridge() {
+        const R = BAKERY_WORLD.ROOMS.walkin;
+        const fx = R.x, fy = R.y;
+        this.add.tileSprite(fx + R.w/2, fy + 8, R.w, 16, 'wall_walkin').setDepth(fy);
+
+        this.add.image(fx + 50, fy + 60, 'fridge_shelf').setDepth(fy + 60);
+        this.add.image(fx + 130, fy + 60, 'fridge_shelf').setDepth(fy + 60);
+        this.addCollider(fx + 50, fy + 60, 60, 30);
+        this.addCollider(fx + 130, fy + 60, 60, 30);
+
+        this.add.image(fx + 90, fy + 180, 'crate').setDepth(fy + 180);
+        this.add.image(fx + 120, fy + 190, 'crate').setDepth(fy + 190);
+
+        this.add.particles(fx + R.w/2, fy + R.h/2, 'glass_tile', {
+            speed: { min: 3, max: 10 }, angle: { min: 0, max: 360 },
+            scale: { start: 0.3, end: 0 }, alpha: { start: 0.15, end: 0 },
+            tint: 0xccddff, lifespan: 2000, frequency: 200
+        }).setDepth(fy + 10);
+
+        this.addInteractable(fx + R.w/2, fy + 130, 'Walk-in Fridge', 'fridge', '🧊 Check cold storage');
+
+        this.add.text(fx + R.w/2, fy + 10, 'WALK-IN\nFRIDGE', {
+            fontFamily: 'Fredoka', fontSize: '12px', color: '#ffffff15', align: 'center'
+        }).setOrigin(0.5, 0).setDepth(fy + 1);
+    }
+
+    // ======== OFFICE ========
+    buildOffice() {
+        const R = BAKERY_WORLD.ROOMS.office;
+        const ox = R.x, oy = R.y;
+        this.add.tileSprite(ox + R.w/2, oy + 8, R.w, 16, 'wall_office').setDepth(oy);
+
+        // Desk + computer
+        const deskX = ox + 140, deskY = oy + 150;
+        const desk = this.add.image(deskX, deskY, 'desk');
+        desk.yDepth = deskY; this.depthGroup.add(desk);
+        this.addCollider(deskX, deskY, 90, 25);
+        this.add.image(deskX + 10, deskY - 28, 'computer').setDepth(deskY - 1);
+        this.addInteractable(deskX, deskY + 40, 'Use Computer', 'computer', '💻 Buy supplies, finances, upgrades');
+
+        // Filing cabinet
+        const cabX = ox + 50, cabY = oy + 80;
+        this.add.rectangle(cabX, cabY, 36, 55, 0x444450).setStrokeStyle(1, 0x333340);
+        this.addCollider(cabX, cabY, 36, 30);
+        for (let d = -14; d <= 14; d += 14) {
+            this.add.rectangle(cabX, cabY + d, 16, 2, 0x888890).setDepth(cabY - 1);
+        }
+        this.addInteractable(cabX, cabY + 45, 'Records', 'records', '📋 Customer database');
+
+        // Bookshelf
+        const bx = ox + 220, by = oy + 70;
+        const bshelf = this.add.image(bx, by, 'storage_shelf').setScale(0.8);
+        bshelf.yDepth = by; this.depthGroup.add(bshelf);
+        this.addCollider(bx, by, 56, 25);
+        const bookColors = [0x8b0000, 0x006400, 0x00008b, 0x8b8b00, 0x4b0082];
+        for (let sy = by - 40; sy < by + 40; sy += 25) {
+            for (let bxx = -20; bxx <= 20; bxx += 10) {
+                this.add.rectangle(bx + bxx, sy, 7, 20,
+                    Phaser.Utils.Array.GetRandom(bookColors)).setDepth(by - 2);
+            }
+        }
+        this.addInteractable(bx, by + 80, 'Recipe Book', 'recipes', '📖 View recipes & strategy');
+
+        this.add.text(ox + R.w/2, oy + 10, 'OFFICE', {
+            fontFamily: 'Fredoka', fontSize: '14px', color: '#ffffff15'
+        }).setOrigin(0.5, 0).setDepth(oy + 1);
+    }
+
+    // ======== WC ========
+    buildWC() {
+        const R = BAKERY_WORLD.ROOMS.wc;
+        const wx = R.x, wy = R.y;
+        this.add.tileSprite(wx + R.w/2, wy + 8, R.w, 16, 'wall_wc').setDepth(wy);
+
+        this.add.image(wx + 80, wy + 100, 'toilet').setDepth(wy + 100);
+        this.addCollider(wx + 80, wy + 100, 28, 20);
+        this.add.image(wx + 220, wy + 100, 'toilet').setDepth(wy + 100);
+        this.addCollider(wx + 220, wy + 100, 28, 20);
+
+        this.add.rectangle(wx + 150, wy + 90, 8, 80, 0xbbbbbb).setDepth(wy + 90);
+        this.addCollider(wx + 150, wy + 90, 8, 80);
+
+        this.add.image(wx + 100, wy + 260, 'sink').setDepth(wy + 260);
+        this.add.image(wx + 200, wy + 260, 'sink').setDepth(wy + 260);
+        this.addCollider(wx + 100, wy + 260, 26, 14);
+        this.addCollider(wx + 200, wy + 260, 26, 14);
+
+        this.add.text(wx + R.w/2, wy + 10, 'WC', {
+            fontFamily: 'Fredoka', fontSize: '14px', color: '#ffffff15'
+        }).setOrigin(0.5, 0).setDepth(wy + 1);
+    }
+
+    // ======== INTERACTION SYSTEM ========
+    addInteractable(x, y, label, actionId, description) {
+        const ring = this.add.image(x, y, 'interact_ring');
+        ring.setAlpha(0.4); ring.setDepth(BAKERY_WORLD.FLOOR_Y + 2);
+        this.tweens.add({
+            targets: ring, alpha: 0.15, scale: 1.12, duration: 1100,
+            yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+        this.interactables.push({ x, y, label, actionId, description, ring, radius: 55 });
+    }
+
+    checkInteractions() {
+        const px = this.player.x, py = this.player.y;
+        let nearest = null, nearDist = Infinity;
+        for (const obj of this.interactables) {
+            const d = Phaser.Math.Distance.Between(px, py, obj.x, obj.y);
+            if (d < obj.radius && d < nearDist) { nearest = obj; nearDist = d; }
+        }
+        const prompt = document.getElementById('interact-prompt');
+        const lbl = document.getElementById('interact-label');
+        if (nearest) {
+            if (prompt) prompt.classList.add('visible');
+            if (lbl) lbl.textContent = nearest.label;
+            this.activeInteraction = nearest;
+            nearest.ring.setTint(0xffff00);
+            const mob = window._mobileInput || {};
+            const mobInteractJust = mob.interact && !this._prevMobInteract;
+            if (Phaser.Input.Keyboard.JustDown(this.interactKey) || mobInteractJust) this.executeInteraction(nearest);
+            this._prevMobInteract = mob.interact;
+        } else {
+            if (prompt) prompt.classList.remove('visible');
+            this.activeInteraction = null;
+            this._prevMobInteract = (window._mobileInput || {}).interact;
+        }
+        for (const obj of this.interactables) { if (obj !== nearest) obj.ring.clearTint(); }
+    }
+
+    executeInteraction(obj) {
+        const msg = this.add.text(obj.x, obj.y - 40, obj.description, {
+            fontFamily: 'Fredoka', fontSize: '13px', color: '#ffd700',
+            backgroundColor: '#000000aa', padding: { x: 6, y: 3 }, align: 'center'
+        }).setOrigin(0.5).setDepth(10000);
+        this.tweens.add({ targets: msg, y: obj.y - 90, alpha: 0, duration: 1800, ease: 'Power2', onComplete: () => msg.destroy() });
+        window.dispatchEvent(new CustomEvent('bakery:interact', { detail: { actionId: obj.actionId, description: obj.description } }));
+    }
+
+    // ======== STAFF VISUALIZATION ========
+    initStaffVisuals() {
+        this.syncStaffActorsFromGame();
+    }
+
+    syncStaffActorsFromGame() {
+        const manager = window.game?.staffManager;
+        let roster = [];
+        if (manager && typeof manager.getAllStaff === 'function') {
+            roster = manager.getAllStaff().filter(Boolean);
+        }
+
+        if (!roster.length) {
+            roster = [{ id: 'owner', name: 'You (Owner)', role: 'owner', face: '🧑‍🍳', isPlayer: true }];
+        }
+
+        const ids = new Set(roster.map(s => s.id));
+
+        roster.forEach((staff, idx) => {
+            if (!this.staffActors.has(staff.id)) {
+                const base = this.staffStations.floor;
+                const x = base.x - 120 + (idx * 30);
+                const y = base.y + 120;
+                const tex = 'baker';
+                const sprite = this.physics.add.sprite(x, y, tex);
+                sprite.setOrigin(0.5, 1);
+                sprite.setScale(staff.id === 'owner' ? 0.7 : 0.82);
+                sprite.setAlpha(0.95);
+                sprite.body.setAllowGravity(false);
+                sprite.body.setImmovable(true);
+                sprite.staffId = staff.id;
+                sprite.station = 'floor';
+                sprite.yDepth = y;
+                this.depthGroup.add(sprite);
+
+                const label = this.add.text(x, y - 72, `${staff.face || '🧑‍🍳'} ${staff.name}`, {
+                    fontFamily: 'Inter',
+                    fontSize: '11px',
+                    color: '#f4f6ff',
+                    backgroundColor: '#00000080',
+                    padding: { x: 4, y: 2 }
+                }).setOrigin(0.5, 1).setDepth(10003);
+
+                this.staffActors.set(staff.id, { sprite, label, info: staff });
+            } else {
+                const actor = this.staffActors.get(staff.id);
+                actor.info = staff;
+                actor.label.setText(`${staff.face || '🧑‍🍳'} ${staff.name}`);
+            }
+        });
+
+        Array.from(this.staffActors.keys()).forEach(id => {
+            if (!ids.has(id)) {
+                const actor = this.staffActors.get(id);
+                actor?.sprite?.destroy();
+                actor?.label?.destroy();
+                this.staffActors.delete(id);
+            }
+        });
+    }
+
+    routeStaffActor(payload = {}) {
+        const staffId = payload.staffId;
+        if (!staffId) return;
+
+        if (!this.staffActors.has(staffId)) {
+            this.syncStaffActorsFromGame();
+        }
+
+        const actor = this.staffActors.get(staffId);
+        if (!actor || !actor.sprite || !actor.label) return;
+
+        const station = payload.station || 'floor';
+        const target = this.staffStations[station] || this.staffStations.floor;
+        const duration = Math.max(280, payload.duration || 520);
+
+        actor.sprite.station = station;
+        this.tweens.add({
+            targets: actor.sprite,
+            x: target.x + Phaser.Math.Between(-12, 12),
+            y: target.y + Phaser.Math.Between(-8, 8),
+            duration,
+            ease: 'Sine.easeInOut',
+            onUpdate: () => {
+                actor.sprite.yDepth = actor.sprite.y;
+                actor.label.setPosition(actor.sprite.x, actor.sprite.y - 72);
+            }
+        });
+
+        const summary = payload.context ? `${payload.context}` : station;
+        actor.label.setText(`${payload.face || actor.info?.face || '🧑‍🍳'} ${payload.staffName || actor.info?.name || 'Staff'} • ${summary}`);
+
+        if (payload.holdMs && payload.holdMs > 0 && station !== 'floor') {
+            this.time.delayedCall(payload.holdMs, () => {
+                this.routeStaffActor({
+                    staffId,
+                    station: 'floor',
+                    context: 'idle',
+                    face: payload.face || actor.info?.face,
+                    staffName: payload.staffName || actor.info?.name,
+                    duration: 600
+                });
+            });
+        }
+    }
+
+    // ======== CUSTOMERS ========
+    spawnCustomer() {
+        if (this.customers.length >= 6) return;
+        const tex = Phaser.Utils.Array.GetRandom(['customer','customer1','customer2']);
+        const spawnX = 600 + Math.random() * 200;
+        const spawnY = BAKERY_WORLD.DIVIDER_Y - 10;
+        const cust = this.physics.add.sprite(spawnX, spawnY, tex);
+        cust.setOrigin(0.5, 1);
+        cust.body.setSize(22, 10); cust.body.setOffset(9, 54);
+
+        const browseSpots = [
+            { x: 420 + Math.random()*80, y: 350 + Math.random()*40 },
+            { x: 820 + Math.random()*60, y: 330 + Math.random()*40 },
+            { x: 150 + Math.random()*80, y: 240 + Math.random()*40 },
+            { x: 1050 + Math.random()*60, y: 380 + Math.random()*40 },
+            { x: 620 + Math.random()*60, y: 250 + Math.random()*30 },
+            { x: 300 + Math.random()*100, y: 400 + Math.random()*40 },
+        ];
+        const spot = Phaser.Utils.Array.GetRandom(browseSpots);
+        cust.customerState = 'walking';
+        this.customers.push(cust);
+        this.depthGroup.add(cust);
+
+        this.tweens.add({
+            targets: cust, x: spot.x, y: spot.y,
+            duration: 2000 + Math.random() * 1500, ease: 'Sine.easeInOut',
+            onComplete: () => {
+                cust.customerState = 'browsing';
+                this.time.delayedCall(3000 + Math.random() * 4000, () => {
+                    if (cust.customerState !== 'leaving') {
+                        const spot2 = Phaser.Utils.Array.GetRandom(browseSpots);
+                        this.tweens.add({
+                            targets: cust, x: spot2.x, y: spot2.y,
+                            duration: 1800 + Math.random() * 1200, ease: 'Sine.easeInOut',
+                            onComplete: () => {
+                                cust.customerState = 'waiting';
+                                this.time.delayedCall(4000 + Math.random() * 3000, () => {
+                                    if (!cust.scene) return;
+                                    this.removeCustomer(cust);
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    removeCustomer(cust) {
+        cust.customerState = 'leaving';
+        this.tweens.add({
+            targets: cust, x: 600 + Math.random() * 200, y: BAKERY_WORLD.DIVIDER_Y - 10,
+            duration: 2000, ease: 'Sine.easeIn',
+            onComplete: () => {
+                const i = this.customers.indexOf(cust);
+                if (i > -1) this.customers.splice(i, 1);
+                cust.destroy();
+            }
+        });
+    }
+
+    showWorldCustomerBubble(detail = {}) {
+        const actorTarget = detail.staffId && this.staffActors.has(detail.staffId)
+            ? this.staffActors.get(detail.staffId)?.sprite
+            : null;
+        const target = detail.target === 'player'
+            ? this.player
+            : (actorTarget || (this.customers.length > 0
+                ? Phaser.Utils.Array.GetRandom(this.customers)
+                : this.player));
+        if (!target) return;
+
+        const emoji = detail.emoji || '🙂';
+        const message = detail.message || 'Nice bakery!';
+        const tone = detail.tone || 'neutral';
+        const bubbleColor = tone === 'happy' ? '#d4ffd4' : tone === 'sad' ? '#ffd6d6' : '#fff6d6';
+        const textColor = tone === 'sad' ? '#7a1f1f' : '#2d1b0f';
+
+        const bubble = this.add.text(target.x, target.y - 74, `${emoji} ${message}`, {
+            fontFamily: 'Fredoka',
+            fontSize: '13px',
+            color: textColor,
+            backgroundColor: bubbleColor,
+            padding: { x: 8, y: 5 },
+            wordWrap: { width: 220 }
+        }).setOrigin(0.5, 1).setDepth(10002);
+
+        this.add.circle(target.x, target.y - 58, 4, 0xffffff, 0.95).setDepth(10001);
+
+        this.tweens.add({
+            targets: bubble,
+            y: bubble.y - 22,
+            alpha: 0,
+            duration: 2200,
+            ease: 'Sine.easeInOut',
+            onComplete: () => bubble.destroy()
+        });
+    }
+
+    updateInputLock() {
+        this.inputEnabled = !(this.overlayInputLock || this.checkoutInputLock);
+    }
+
+    applyCheckoutLock(detail = {}) {
+        this.checkoutInputLock = !!detail.locked;
+        this.updateInputLock();
+
+        if (this._checkoutLockFailsafe) {
+            this._checkoutLockFailsafe.remove(false);
+            this._checkoutLockFailsafe = null;
+        }
+
+        if (this.checkoutInputLock) {
+            this.player.setVelocity(0, 0);
+            this.showWorldCustomerBubble({
+                target: 'player',
+                emoji: '🧾',
+                message: detail.message || 'Processing checkout...',
+                tone: 'neutral',
+                staffId: detail.staffId || 'owner'
+            });
+
+            const etaMs = Math.max(1500, Number(detail.etaMs) || 0);
+            if (etaMs > 0) {
+                this._checkoutLockFailsafe = this.time.delayedCall(etaMs + 2200, () => {
+                    this.checkoutInputLock = false;
+                    this.updateInputLock();
+                    this._checkoutLockFailsafe = null;
+                });
+            }
+        }
+    }
+
+    showMoneyFloat(detail = {}) {
+        const amount = Number(detail.amount) || 0;
+        if (amount <= 0) return;
+
+        const staffSprite = detail.staffId && this.staffActors.has(detail.staffId)
+            ? this.staffActors.get(detail.staffId)?.sprite
+            : null;
+        const source = staffSprite || this.player;
+        const startX = source?.x || this.staffStations.counter.x;
+        const startY = source?.y || this.staffStations.counter.y;
+        const label = detail.label || `+$${amount.toFixed(2)}`;
+
+        const text = this.add.text(startX, startY - 82, label, {
+            fontFamily: 'Fredoka',
+            fontSize: '26px',
+            fontStyle: 'bold',
+            color: '#5CFF8D',
+            stroke: '#0a3d1f',
+            strokeThickness: 4,
+            shadow: { offsetX: 0, offsetY: 2, color: '#0f2917', blur: 6, stroke: false, fill: true }
+        }).setOrigin(0.5, 1).setDepth(10005);
+
+        this.tweens.add({
+            targets: text,
+            y: text.y - 52,
+            alpha: 0,
+            scale: 1.08,
+            duration: 1200,
+            ease: 'Sine.easeOut',
+            onComplete: () => text.destroy()
+        });
+    }
+
+    // ======== UPDATE ========
+    update(time) {
+        if (!this.inputEnabled) {
+            this.player.setVelocity(0, 0);
+            // Still do depth sorting + room label
+            this.depthGroup.getChildren().forEach(child => {
+                child.setDepth(child.yDepth !== undefined ? child.yDepth : child.y);
+            });
+            this.updateRoomLabel();
+            return;
+        }
+
+        const speed = 180;
+        const mob = window._mobileInput || {};
+        let vx = 0, vy = 0;
+        if (this.cursors.left.isDown  || this.wasd.left.isDown  || mob.left)  { vx = -speed; this.player.flipX = true; }
+        else if (this.cursors.right.isDown || this.wasd.right.isDown || mob.right) { vx = speed; this.player.flipX = false; }
+        if (this.cursors.up.isDown   || this.wasd.up.isDown   || mob.up)   vy = -speed;
+        else if (this.cursors.down.isDown  || this.wasd.down.isDown  || mob.down)  vy = speed;
+        if (vx && vy) { vx *= 0.7071; vy *= 0.7071; }
+        this.player.setVelocity(vx, vy);
+
+        if (vx || vy) this.player.setScale(1, 1 + Math.sin(time / 80) * 0.035);
+        else this.player.setScale(1, 1);
+
+        this.customers.forEach(c => {
+            if (c.customerState === 'waiting' || c.customerState === 'browsing')
+                c.setScale(1, 1 + Math.sin(time / 500 + c.x) * 0.012);
+        });
+
+        this.staffActors.forEach(actor => {
+            if (!actor?.sprite || !actor?.label) return;
+            actor.sprite.yDepth = actor.sprite.y;
+            actor.label.setPosition(actor.sprite.x, actor.sprite.y - 72);
+        });
+
+        this.depthGroup.getChildren().forEach(child => {
+            child.setDepth(child.yDepth !== undefined ? child.yDepth : child.y);
+        });
+
+        this.checkInteractions();
+        this.updateRoomLabel();
+    }
+
+    updateRoomLabel() {
+        const px = this.player.x, py = this.player.y;
+        const lbl = document.getElementById('hud-room-label');
+        if (!lbl) return;
+        for (const [, room] of Object.entries(BAKERY_WORLD.ROOMS)) {
+            if (px >= room.x && px < room.x + room.w && py >= room.y && py < room.y + room.h) {
+                lbl.textContent = room.label; return;
+            }
+        }
+        lbl.textContent = '🏪 Bakery';
+    }
+}

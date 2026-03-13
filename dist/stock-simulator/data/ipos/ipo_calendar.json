@@ -1,0 +1,137 @@
+[
+  {
+    "id": "IPO_2024_001",
+    "company": "CloudScale Technologies",
+    "ticker": "CLDS",
+    "filingDate": "2024-02-01",
+    "expectedDate": "2024-03-15",
+    "priceRange": {
+      "low": 22,
+      "high": 26
+    },
+    "sharesOffered": 12000000,
+    "useOfProceeds": "Expansion of cloud infrastructure and R&D investment",
+    "riskFactors": [
+      {
+        "category": "profitability",
+        "severity": "high",
+        "text": "We have incurred net losses in each year since inception. Our accumulated deficit as of December 31, 2023 was $234 million."
+      },
+      {
+        "category": "competition",
+        "severity": "medium",
+        "text": "We compete with established players including AWS, Azure, and Google Cloud who have significantly greater resources."
+      },
+      {
+        "category": "concentration",
+        "severity": "high",
+        "text": "Our top three customers represented 67% of our revenue in 2023."
+      }
+    ],
+    "financials": {
+      "revenue": 189000000,
+      "revenueGrowth": 0.78,
+      "grossMargin": 0.62,
+      "netLoss": -67000000,
+      "cashPosition": 145000000,
+      "burnRate": 8500000
+    },
+    "outcome": {
+      "finalPrice": 28,
+      "openPrice": 42,
+      "dayOneClose": 38.5,
+      "dayOneVolume": 45000000,
+      "oversubscription": 12.5
+    }
+  },
+  {
+    "id": "IPO_2024_002",
+    "company": "BioGenesis Therapeutics",
+    "ticker": "BGTX",
+    "filingDate": "2024-04-10",
+    "expectedDate": "2024-05-20",
+    "priceRange": {
+      "low": 16,
+      "high": 19
+    },
+    "sharesOffered": 8000000,
+    "useOfProceeds": "Phase 3 clinical trials and regulatory submissions",
+    "riskFactors": [
+      {
+        "category": "regulatory",
+        "severity": "high",
+        "text": "Our lead product candidate has not received FDA approval. Clinical trials may fail to demonstrate safety or efficacy."
+      },
+      {
+        "category": "profitability",
+        "severity": "high",
+        "text": "We have never generated revenue from product sales and may never achieve profitability."
+      },
+      {
+        "category": "dilution",
+        "severity": "medium",
+        "text": "We expect to issue additional equity to fund operations, which will dilute existing shareholders."
+      }
+    ],
+    "financials": {
+      "revenue": 0,
+      "revenueGrowth": 0,
+      "grossMargin": 0,
+      "netLoss": -89000000,
+      "cashPosition": 78000000,
+      "burnRate": 12000000
+    },
+    "outcome": {
+      "finalPrice": 15,
+      "openPrice": 14.25,
+      "dayOneClose": 12.8,
+      "dayOneVolume": 12000000,
+      "oversubscription": 0.8
+    }
+  },
+  {
+    "id": "IPO_2024_003",
+    "company": "ElectroMotive Systems",
+    "ticker": "EMOT",
+    "filingDate": "2024-06-05",
+    "expectedDate": "2024-07-18",
+    "priceRange": {
+      "low": 32,
+      "high": 38
+    },
+    "sharesOffered": 20000000,
+    "useOfProceeds": "Manufacturing facility expansion and supply chain development",
+    "riskFactors": [
+      {
+        "category": "execution",
+        "severity": "medium",
+        "text": "We have limited manufacturing experience at scale. Production delays could materially impact our business."
+      },
+      {
+        "category": "competition",
+        "severity": "high",
+        "text": "The EV market is intensely competitive with well-funded incumbents including Tesla, Ford, and GM."
+      },
+      {
+        "category": "supply_chain",
+        "severity": "medium",
+        "text": "We depend on a limited number of suppliers for battery cells and semiconductor components."
+      }
+    ],
+    "financials": {
+      "revenue": 456000000,
+      "revenueGrowth": 1.23,
+      "grossMargin": 0.18,
+      "netLoss": -156000000,
+      "cashPosition": 890000000,
+      "burnRate": 45000000
+    },
+    "outcome": {
+      "finalPrice": 36,
+      "openPrice": 52,
+      "dayOneClose": 48.75,
+      "dayOneVolume": 78000000,
+      "oversubscription": 18.3
+    }
+  }
+]

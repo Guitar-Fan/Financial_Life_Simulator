@@ -1,0 +1,45 @@
+{
+  "id": "IPO_2024_002",
+  "company": "BioGenesis Therapeutics",
+  "ticker": "BGTX",
+  "filingDate": "2024-04-10",
+  "expectedDate": "2024-05-20",
+  "priceRange": {
+    "low": 16,
+    "high": 19
+  },
+  "sharesOffered": 8000000,
+  "useOfProceeds": "Phase 3 clinical trials and regulatory submissions",
+  "riskFactors": [
+    {
+      "category": "regulatory",
+      "severity": "high",
+      "text": "Our lead product candidate has not received FDA approval. Clinical trials may fail to demonstrate safety or efficacy."
+    },
+    {
+      "category": "profitability",
+      "severity": "high",
+      "text": "We have never generated revenue from product sales and may never achieve profitability."
+    },
+    {
+      "category": "dilution",
+      "severity": "medium",
+      "text": "We expect to issue additional equity to fund operations, which will dilute existing shareholders."
+    }
+  ],
+  "financials": {
+    "revenue": 0,
+    "revenueGrowth": 0,
+    "grossMargin": 0,
+    "netLoss": -89000000,
+    "cashPosition": 78000000,
+    "burnRate": 12000000
+  },
+  "outcome": {
+    "finalPrice": 15,
+    "openPrice": 14.25,
+    "dayOneClose": 12.8,
+    "dayOneVolume": 12000000,
+    "oversubscription": 0.8
+  }
+}

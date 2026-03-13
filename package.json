@@ -1,0 +1,11 @@
+{
+  "name": "financial-life-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo build entry for deploying Financial Life Simulator projects from repo root.",
+  "scripts": {
+    "build": "node scripts/build-all.mjs",
+    "build:stock": "npm --prefix stock-simulator ci --no-audit --no-fund && npm --prefix stock-simulator run build",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  }
+}

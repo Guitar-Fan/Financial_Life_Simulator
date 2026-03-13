@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <rect x="16" y="14" width="16" height="28" rx="2" fill="#8b4513" stroke="#5a2a0a" stroke-width="1"/>
+  <ellipse cx="24" cy="14" rx="8" ry="3" fill="#a0522d"/>
+  <rect x="16" y="18" width="16" height="20" fill="#6a3410" opacity="0.6"/>
+  <text x="24" y="30" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#ffd700">VANILLA</text>
+  <circle cx="24" cy="10" r="2" fill="#4a2a0a"/>
+  <circle cx="24" cy="10" r="1" fill="#8b4513"/>
+</svg>

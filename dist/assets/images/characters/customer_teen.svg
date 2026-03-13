@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="80" viewBox="0 0 60 80">
+  <defs>
+    <linearGradient id="skin-teen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd4b2"/>
+      <stop offset="100%" stop-color="#f0c19a"/>
+    </linearGradient>
+    <linearGradient id="shirt-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="30" cy="75" rx="12" ry="4" fill="#1e3a8a" opacity="0.3"/>
+  <rect x="22" y="60" width="7" height="16" fill="#1e3a8a"/>
+  <rect x="31" y="60" width="7" height="16" fill="#1e3a8a"/>
+  <ellipse cx="30" cy="45" rx="14" ry="18" fill="url(#shirt-blue)"/>
+  <circle cx="30" cy="20" r="12" fill="url(#skin-teen)"/>
+  <circle cx="27" cy="19" r="2" fill="#3a2a1a"/>
+  <circle cx="33" cy="19" r="2" fill="#3a2a1a"/>
+  <path d="M27 24 Q30 26 33 24" stroke="#c97a6a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M20 18 Q22 15 25 16" stroke="#5a4a3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M35 16 Q38 15 40 18" stroke="#5a4a3a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="16" cy="48" rx="6" ry="12" fill="url(#skin-teen)"/>
+  <ellipse cx="44" cy="48" rx="6" ry="12" fill="url(#skin-teen)"/>
+  <ellipse cx="24" cy="20" rx="3" ry="5" fill="#5a4a3a"/>
+  <ellipse cx="36" cy="20" rx="3" ry="5" fill="#5a4a3a"/>
+</svg>

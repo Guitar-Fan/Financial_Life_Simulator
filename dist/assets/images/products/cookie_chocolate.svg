@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="cookie-grad">
+      <stop offset="0%" stop-color="#d4a574"/>
+      <stop offset="100%" stop-color="#a67c52"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="38" rx="24" ry="6" fill="#8b6f47" opacity="0.3"/>
+  <circle cx="32" cy="32" r="22" fill="url(#cookie-grad)"/>
+  <circle cx="24" cy="28" r="3" fill="#4a2c1a"/>
+  <circle cx="38" cy="26" r="3" fill="#4a2c1a"/>
+  <circle cx="30" cy="36" r="3" fill="#4a2c1a"/>
+  <circle cx="40" cy="34" r="2.5" fill="#4a2c1a"/>
+  <circle cx="32" cy="24" r="2" fill="#4a2c1a"/>
+  <circle cx="26" cy="38" r="2" fill="#4a2c1a"/>
+  <circle cx="44" cy="30" r="2" fill="#4a2c1a"/>
+  <circle cx="20" cy="32" r="1.5" fill="#9d7a54"/>
+  <circle cx="36" cy="38" r="1.5" fill="#9d7a54"/>
+</svg>

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80">
+  <defs>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd4b2"/>
+      <stop offset="100%" stop-color="#f0c19a"/>
+    </linearGradient>
+    <linearGradient id="apron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff7a5c"/>
+      <stop offset="50%" stop-color="#ff6347"/>
+      <stop offset="100%" stop-color="#e84a36"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f0f0"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="75" rx="12" ry="4" fill="#000" opacity="0.2"/>
+  <!-- Back leg -->
+  <rect x="27" y="52" width="7" height="24" rx="3" fill="#4a4a4a"/>
+  <ellipse cx="31" cy="76" rx="5" ry="3" fill="#2a2a2a"/>
+  <!-- Body/Shirt -->
+  <ellipse cx="34" cy="38" rx="12" ry="16" fill="url(#shirt)"/>
+  <!-- Apron side view -->
+  <path d="M40 34 Q42 38 42 44 L42 56 Q40 56 38 56 L38 36 Z" fill="url(#apron)"/>
+  <rect x="32" y="42" width="8" height="10" rx="2" fill="#ff4433"/>
+  <!-- Back arm -->
+  <ellipse cx="26" cy="42" rx="4" ry="10" fill="url(#skin)" transform="rotate(10 26 42)"/>
+  <ellipse cx="24" cy="50" rx="3.5" ry="4.5" fill="#ffc9a8"/>
+  <!-- Front leg -->
+  <rect x="33" y="52" width="7" height="24" rx="3" fill="#4a4a4a"/>
+  <ellipse cx="37" cy="76" rx="5" ry="3" fill="#2a2a2a"/>
+  <!-- Front arm -->
+  <ellipse cx="44" cy="40" rx="4" ry="11" fill="url(#skin)" transform="rotate(-5 44 40)"/>
+  <ellipse cx="46" cy="49" rx="3.5" ry="4.5" fill="#ffc9a8"/>
+  <!-- Neck -->
+  <ellipse cx="34" cy="24" rx="5" ry="8" fill="url(#skin)"/>
+  <!-- Head (side view) -->
+  <ellipse cx="36" cy="16" rx="10" ry="12" fill="url(#skin)"/>
+  <!-- Ear -->
+  <ellipse cx="44" cy="16" rx="3" ry="5" fill="#f0b896"/>
+  <ellipse cx="43" cy="16" rx="1.5" ry="3" fill="#ffccaa"/>
+  <!-- Hair -->
+  <path d="M44 12 Q46 8 42 6 Q38 4 34 5 Q30 6 28 10 L28 18 Q32 20 36 20 Q40 19 44 16 Z" fill="#8b6f47"/>
+  <!-- Chef hat side -->
+  <ellipse cx="36" cy="8" rx="12" ry="4" fill="#ffffff"/>
+  <circle cx="30" cy="5" r="5" fill="#ffffff"/>
+  <circle cx="34" cy="2" r="7" fill="#ffffff"/>
+  <circle cx="40" cy="4" r="6" fill="#ffffff"/>
+  <!-- Eye -->
+  <circle cx="40" cy="15" r="2" fill="#3a2a1a"/>
+  <circle cx="39" cy="14" r="1" fill="#ffffff"/>
+  <!-- Nose -->
+  <ellipse cx="44" cy="18" rx="2" ry="3" fill="#f0a885"/>
+  <!-- Mouth -->
+  <path d="M42 21 Q40 22 38 21" stroke="#c97a6a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</svg>

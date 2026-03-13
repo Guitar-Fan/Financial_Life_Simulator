@@ -14,7 +14,7 @@ Instead of reading long theory first, you can jump into different scenarios and 
 - What it teaches: cash flow pressure, margins, and day-to-day business tradeoffs
 
 ### 2) Stock Simulator (React)
-- Entry: [stock-simulator/dist/index.html](stock-simulator/dist/index.html)
+- Entry: [stock-simulator/index.html](stock-simulator/index.html) in deployed output, or [stock-simulator/dist/index.html](stock-simulator/dist/index.html) when running locally
 - Source app: [stock-simulator](stock-simulator)
 - Focus: market decisions, volatility, and portfolio discipline
 - What it teaches: risk management, timing, and emotional control when prices move
@@ -60,12 +60,30 @@ npm run build
 
 Then open [stock-simulator/dist/index.html](stock-simulator/dist/index.html).
 
+## Deploy All Projects From Repo Root
+
+This repo now supports a single root build that packages the static pages and the Stock Simulator build into one deploy folder.
+
+```bash
+npm install
+npm run build
+```
+
+Deploy output directory:
+- [dist](dist)
+
+Recommended Cloudflare Pages settings:
+- Root directory: `/`
+- Build command: `npm run build`
+- Build output directory: `dist`
+
 ## Project Layout (High Level)
 
 - [index.html](index.html): main hub / launcher page
 - [main.html](main.html): bakery game entry
 - [INVESTORPOLY.html](INVESTORPOLY.html): Investnopoly entry
 - [stock-simulator](stock-simulator): React stock simulator app
+- [scripts/build-all.mjs](scripts/build-all.mjs): root deployment bundler for all static projects
 - [js](js): core JavaScript systems for game logic and scenes
 - [assets](assets): shared images and art resources
 

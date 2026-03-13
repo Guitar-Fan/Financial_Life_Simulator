@@ -1,0 +1,3305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Detailed City Map - 1 Square Mile</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0f0f1a;
+            overflow: hidden;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .panel {
+            background: rgba(15, 15, 26, 0.95);
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+        
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            padding: 24px;
+            color: #fff;
+        }
+        
+        #control-panel h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #64b5f6, #42a5f5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        #control-panel .subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #64b5f6;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            margin: 6px 0;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #64b5f6, #1e88e5);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(100, 181, 246, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+        
+        .btn-active {
+            background: linear-gradient(135deg, #66bb6a, #43a047) !important;
+        }
+        
+        .controls-help {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 11px;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .controls-help strong {
+            color: #888;
+        }
+        
+        #zoom-controls {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+        }
+        
+        .zoom-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(15, 15, 26, 0.95);
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .zoom-btn:hover {
+            background: rgba(100, 181, 246, 0.2);
+            border-color: #64b5f6;
+            transform: scale(1.05);
+        }
+        
+        #minimap {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            width: 220px;
+            height: 220px;
+            padding: 10px;
+        }
+        
+        #minimap-canvas {
+            width: 200px;
+            height: 200px;
+            border-radius: 8px;
+        }
+        
+        #tooltip {
+            position: fixed;
+            background: rgba(15, 15, 26, 0.98);
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            color: #fff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            max-width: 280px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        #tooltip.visible {
+            opacity: 1;
+        }
+        
+        .tooltip-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .tooltip-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .tooltip-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .tooltip-type {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .tooltip-details {
+            font-size: 12px;
+            color: #aaa;
+            line-height: 1.6;
+        }
+        
+        .tooltip-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .tooltip-detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        #motorcycle-hud {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 30px;
+            padding: 20px 40px;
+        }
+        
+        #motorcycle-hud.visible {
+            display: flex;
+        }
+        
+        .hud-gauge {
+            text-align: center;
+            min-width: 80px;
+        }
+        
+        .hud-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #64b5f6;
+            line-height: 1;
+        }
+        
+        .hud-unit {
+            font-size: 12px;
+            color: #888;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        #legend {
+            position: absolute;
+            bottom: 260px;
+            right: 24px;
+            padding: 16px;
+            width: 220px;
+        }
+        
+        #legend h4 {
+            font-size: 11px;
+            color: #64b5f6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+        }
+        
+        #search-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: auto;
+        }
+        
+        #search-input {
+            width: 450px;
+            padding: 16px 24px;
+            padding-left: 48px;
+            border-radius: 50px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            background: rgba(15, 15, 26, 0.95);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            backdrop-filter: blur(20px);
+            transition: all 0.2s ease;
+        }
+        
+        #search-input::placeholder {
+            color: #555;
+        }
+        
+        #search-input:focus {
+            border-color: #64b5f6;
+            box-shadow: 0 0 30px rgba(100, 181, 246, 0.2);
+        }
+        
+        #search-icon {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            opacity: 0.5;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f0f1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        #loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loader {
+            width: 80px;
+            height: 80px;
+            border: 3px solid rgba(100, 181, 246, 0.1);
+            border-top-color: #64b5f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 24px;
+            color: #64b5f6;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .loading-progress {
+            width: 300px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+        
+        .loading-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #64b5f6, #1e88e5);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        #coordinates {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #888;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div class="ui-overlay">
+        <div id="loading">
+            <div class="loader"></div>
+            <div class="loading-text">Generating City...</div>
+            <div class="loading-progress">
+                <div class="loading-bar" id="loading-bar"></div>
+            </div>
+        </div>
+        
+        <div id="search-container">
+            <span id="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search addresses, buildings, landmarks...">
+        </div>
+        
+        <div id="control-panel" class="panel">
+            <h1>🏙️ Metro City</h1>
+            <div class="subtitle">1 Square Mile • Ultra Detail</div>
+            
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="zoom-value">1.0x</div>
+                    <div class="stat-label">Zoom</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="buildings-count">0</div>
+                    <div class="stat-label">Buildings</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="position-x">0</div>
+                    <div class="stat-label">Position X</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="position-y">0</div>
+                    <div class="stat-label">Position Y</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="btn-motorcycle">
+                <span>🏍️</span> Motorcycle Mode
+            </button>
+            <button class="btn btn-secondary" id="btn-reset">
+                <span>🎯</span> Reset View
+            </button>
+            <button class="btn btn-secondary" id="btn-downtown">
+                <span>🏙️</span> Go to Downtown
+            </button>
+            
+            <div class="controls-help">
+                <strong>Navigation:</strong> Drag to pan, Scroll to zoom<br>
+                <strong>Motorcycle:</strong> WASD or Arrows to drive<br>
+                <strong>Brake:</strong> Spacebar • <strong>Exit:</strong> ESC
+            </div>
+        </div>
+        
+        <div id="zoom-controls">
+            <button class="zoom-btn" id="btn-zoom-in">+</button>
+            <button class="zoom-btn" id="btn-zoom-out">−</button>
+        </div>
+        
+        <div id="legend" class="panel">
+            <h4>Map Legend</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #1e3a5f, #2563eb);"></div>
+                <span>Downtown / High-rise</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #7c3aed, #a855f7);"></div>
+                <span>Commercial</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #059669, #10b981);"></div>
+                <span>Residential</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #475569, #64748b);"></div>
+                <span>Industrial</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #166534, #22c55e);"></div>
+                <span>Parks & Green</span>
+            </div>
+        </div>
+        
+        <div id="minimap" class="panel">
+            <canvas id="minimap-canvas" width="200" height="200"></canvas>
+        </div>
+        
+        <div id="coordinates" class="panel">
+            <span id="coord-display">0.00 ft, 0.00 ft</span>
+        </div>
+        
+        <div id="tooltip">
+            <div class="tooltip-header">
+                <div class="tooltip-icon" id="tooltip-icon">🏢</div>
+                <div>
+                    <div class="tooltip-title" id="tooltip-title">Building Name</div>
+                    <div class="tooltip-type" id="tooltip-type">Type</div>
+                </div>
+            </div>
+            <div class="tooltip-details" id="tooltip-details"></div>
+        </div>
+        
+        <div id="motorcycle-hud" class="panel">
+            <div class="hud-gauge">
+                <div class="hud-value" id="hud-speed">0</div>
+                <div class="hud-unit">MPH</div>
+            </div>
+            <div class="hud-gauge">
+                <div class="hud-value" id="hud-rpm">0</div>
+                <div class="hud-unit">RPM</div>
+            </div>
+            <div class="hud-gauge">
+                <div class="hud-value" id="hud-gear">N</div>
+                <div class="hud-unit">Gear</div>
+            </div>
+            <div class="hud-gauge">
+                <div class="hud-value" id="hud-distance">0.00</div>
+                <div class="hud-unit">Miles</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+const CONFIG = {
+    // 1 mile = 5280 feet, 1 pixel = 1 foot
+    WORLD_SIZE: 5280,
+    CHUNK_SIZE: 264, // 20 chunks across
+    
+    // Zoom limits
+    MIN_ZOOM: 0.1,
+    MAX_ZOOM: 8,
+    
+    // Road configuration
+    HIGHWAY_WIDTH: 80,
+    MAJOR_ROAD_WIDTH: 50,
+    MINOR_ROAD_WIDTH: 30,
+    ALLEY_WIDTH: 15,
+    
+    // Block sizes
+    MAJOR_BLOCK_SIZE: 660, // ~1/8 mile
+    MINOR_BLOCK_SIZE: 330,
+    
+    // Colors
+    COLORS: {
+        GRASS: 0x2d5016,
+        GRASS_DARK: 0x1f3d0f,
+        ROAD: 0x2a2a2a,
+        ROAD_MARKING: 0xffffff,
+        SIDEWALK: 0x7a7a7a,
+        CURB: 0x5a5a5a,
+        CROSSWALK: 0xffffff,
+        
+        // Building zones
+        DOWNTOWN: [0x1e3a5f, 0x1e4976, 0x234e8c, 0x2563eb],
+        COMMERCIAL: [0x7c3aed, 0x8b5cf6, 0x6d28d9, 0xa855f7],
+        RESIDENTIAL: [0x854d0e, 0x92400e, 0x78350f, 0xa16207, 0x713f12],
+        INDUSTRIAL: [0x475569, 0x64748b, 0x334155, 0x1e293b],
+        PARK: 0x166534,
+        
+        // Details
+        WINDOW_LIT: 0xfef3c7,
+        WINDOW_DARK: 0x1e3a5f,
+        DOOR: 0x451a03,
+        ROOF: [0x44403c, 0x292524, 0x1c1917, 0x78350f],
+        POOL: 0x0ea5e9,
+        PARKING: 0x1f2937,
+        
+        // Vehicles
+        CAR_COLORS: [0xef4444, 0x3b82f6, 0x22c55e, 0xfacc15, 0xf8fafc, 0x1f2937, 0x6b7280],
+        
+        // Nature
+        TREE_TRUNK: 0x451a03,
+        TREE_LEAVES: [0x166534, 0x15803d, 0x14532d, 0x22c55e],
+        WATER: 0x0284c7
+    }
+};
+
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const MAP_MODE = URL_PARAMS.get('mode') || 'explore';
+
+const SETUP_PROFILES = {
+    downtown: {
+        district: 'Downtown Core',
+        icon: '🏙️',
+        rentRange: [280, 420],
+        taxRange: [520, 880],
+        trafficRange: [1.45, 1.95],
+        ingredientRange: [1.08, 1.18],
+        permitRange: [1700, 2800],
+        parkingRange: [4, 12],
+        exteriorStyle: 'modern_glass'
+    },
+    commercial: {
+        district: 'Commercial Corridor',
+        icon: '🏬',
+        rentRange: [190, 320],
+        taxRange: [380, 640],
+        trafficRange: [1.2, 1.55],
+        ingredientRange: [1.03, 1.11],
+        permitRange: [1300, 2200],
+        parkingRange: [8, 22],
+        exteriorStyle: 'warm_classic'
+    },
+    residential: {
+        district: 'Neighborhood Edge',
+        icon: '🏘️',
+        rentRange: [120, 210],
+        taxRange: [220, 420],
+        trafficRange: [0.82, 1.2],
+        ingredientRange: [0.96, 1.05],
+        permitRange: [900, 1600],
+        parkingRange: [6, 16],
+        exteriorStyle: 'neighborhood_cozy'
+    },
+    industrial: {
+        district: 'Light Industrial Belt',
+        icon: '🏭',
+        rentRange: [90, 170],
+        taxRange: [180, 360],
+        trafficRange: [0.65, 0.95],
+        ingredientRange: [0.93, 1.02],
+        permitRange: [750, 1400],
+        parkingRange: [14, 34],
+        exteriorStyle: 'industrial_minimal'
+    }
+};
+
+// ============================================================================
+// SEEDED RANDOM
+// ============================================================================
+class Random {
+    constructor(seed = 12345) {
+        this.seed = seed;
+        this.original = seed;
+    }
+    
+    reset() {
+        this.seed = this.original;
+    }
+    
+    next() {
+        this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
+        return this.seed / 0x7fffffff;
+    }
+    
+    range(min, max) {
+        return min + this.next() * (max - min);
+    }
+    
+    int(min, max) {
+        return Math.floor(this.range(min, max + 1));
+    }
+    
+    pick(arr) {
+        return arr[Math.floor(this.next() * arr.length)];
+    }
+    
+    chance(probability) {
+        return this.next() < probability;
+    }
+    
+    shuffle(arr) {
+        const result = [...arr];
+        for (let i = result.length - 1; i > 0; i--) {
+            const j = Math.floor(this.next() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+    }
+}
+
+// ============================================================================
+// SIMPLEX NOISE
+// ============================================================================
+class SimplexNoise {
+    constructor(seed = 1) {
+        this.p = new Uint8Array(512);
+        const perm = new Uint8Array(256);
+        for (let i = 0; i < 256; i++) perm[i] = i;
+        
+        const rng = new Random(seed);
+        for (let i = 255; i > 0; i--) {
+            const j = Math.floor(rng.next() * (i + 1));
+            [perm[i], perm[j]] = [perm[j], perm[i]];
+        }
+        
+        for (let i = 0; i < 512; i++) this.p[i] = perm[i & 255];
+    }
+    
+    noise2D(x, y) {
+        const F2 = 0.5 * (Math.sqrt(3) - 1);
+        const G2 = (3 - Math.sqrt(3)) / 6;
+        
+        const s = (x + y) * F2;
+        const i = Math.floor(x + s);
+        const j = Math.floor(y + s);
+        const t = (i + j) * G2;
+        
+        const x0 = x - (i - t);
+        const y0 = y - (j - t);
+        
+        const i1 = x0 > y0 ? 1 : 0;
+        const j1 = x0 > y0 ? 0 : 1;
+        
+        const x1 = x0 - i1 + G2;
+        const y1 = y0 - j1 + G2;
+        const x2 = x0 - 1 + 2 * G2;
+        const y2 = y0 - 1 + 2 * G2;
+        
+        const ii = i & 255;
+        const jj = j & 255;
+        
+        const grad = (hash, x, y) => {
+            const h = hash & 7;
+            const u = h < 4 ? x : y;
+            const v = h < 4 ? y : x;
+            return ((h & 1) ? -u : u) + ((h & 2) ? -2 * v : 2 * v);
+        };
+        
+        let n0 = 0, n1 = 0, n2 = 0;
+        
+        let t0 = 0.5 - x0 * x0 - y0 * y0;
+        if (t0 >= 0) {
+            t0 *= t0;
+            n0 = t0 * t0 * grad(this.p[ii + this.p[jj]], x0, y0);
+        }
+        
+        let t1 = 0.5 - x1 * x1 - y1 * y1;
+        if (t1 >= 0) {
+            t1 *= t1;
+            n1 = t1 * t1 * grad(this.p[ii + i1 + this.p[jj + j1]], x1, y1);
+        }
+        
+        let t2 = 0.5 - x2 * x2 - y2 * y2;
+        if (t2 >= 0) {
+            t2 *= t2;
+            n2 = t2 * t2 * grad(this.p[ii + 1 + this.p[jj + 1]], x2, y2);
+        }
+        
+        return 70 * (n0 + n1 + n2);
+    }
+    
+    fbm(x, y, octaves = 4, lacunarity = 2, gain = 0.5) {
+        let sum = 0;
+        let amp = 1;
+        let freq = 1;
+        let max = 0;
+        
+        for (let i = 0; i < octaves; i++) {
+            sum += this.noise2D(x * freq, y * freq) * amp;
+            max += amp;
+            amp *= gain;
+            freq *= lacunarity;
+        }
+        
+        return sum / max;
+    }
+}
+
+// ============================================================================
+// NAME GENERATOR
+// ============================================================================
+const NAMES = {
+    streets: {
+        prefixes: ['North', 'South', 'East', 'West', 'Upper', 'Lower', 'Old', 'New'],
+        names: ['Main', 'Oak', 'Maple', 'Cedar', 'Pine', 'Elm', 'Washington', 'Lincoln', 
+                'Park', 'Lake', 'River', 'Hill', 'Valley', 'Forest', 'Meadow', 'Spring',
+                'Church', 'School', 'Market', 'Center', 'Broadway', 'Highland', 'Sunset'],
+        suffixes: ['Street', 'Avenue', 'Boulevard', 'Drive', 'Road', 'Lane', 'Way', 'Court', 'Place']
+    },
+    commercial: {
+        prefixes: ['Metro', 'City', 'Urban', 'Prime', 'Elite', 'Grand', 'Royal', 'Pacific', 'Central', 'First'],
+        types: ['Plaza', 'Center', 'Tower', 'Square', 'Building', 'Complex', 'Place'],
+        businesses: ['Bank', 'Cafe', 'Restaurant', 'Pharmacy', 'Grocery', 'Gym', 'Salon', 
+                    'Bookstore', 'Electronics', 'Fashion', 'Dental', 'Law Office', 'Insurance',
+                    'Real Estate', 'Medical', 'Accounting', 'Tech Hub', 'Co-Working']
+    },
+    residential: {
+        types: ['House', 'Home', 'Residence', 'Manor', 'Villa', 'Cottage', 'Bungalow'],
+        apartments: ['Apartments', 'Condos', 'Lofts', 'Suites', 'Residences', 'Living']
+    },
+    landmarks: ['City Hall', 'Central Park', 'Public Library', 'Post Office', 'Fire Station', 
+                'Police Station', 'Hospital', 'School', 'Church', 'Museum', 'Theater']
+};
+
+function generateStreetName(rng) {
+    let name = '';
+    if (rng.chance(0.3)) name += rng.pick(NAMES.streets.prefixes) + ' ';
+    name += rng.pick(NAMES.streets.names) + ' ';
+    name += rng.pick(NAMES.streets.suffixes);
+    return name;
+}
+
+function generateBuildingName(zone, rng) {
+    switch (zone) {
+        case 'downtown':
+            return `${rng.pick(NAMES.commercial.prefixes)} ${rng.pick(NAMES.commercial.types)}`;
+        case 'commercial':
+            return `${rng.pick(NAMES.commercial.prefixes)} ${rng.pick(NAMES.commercial.businesses)}`;
+        case 'residential':
+            if (rng.chance(0.3)) {
+                return `${rng.pick(NAMES.streets.names)} ${rng.pick(NAMES.residential.apartments)}`;
+            }
+            return `${rng.int(100, 9999)} ${rng.pick(NAMES.streets.names)} ${rng.pick(NAMES.streets.suffixes)}`;
+        case 'industrial':
+            return `${rng.pick(NAMES.commercial.prefixes)} Industrial`;
+        default:
+            return 'Building';
+    }
+}
+
+// ============================================================================
+// CITY GENERATOR
+// ============================================================================
+class CityGenerator {
+    constructor(seed = 42) {
+        this.rng = new Random(seed);
+        this.noise = new SimplexNoise(seed);
+        this.noiseZone = new SimplexNoise(seed + 100);
+        
+        this.buildings = [];
+        this.roads = [];
+        this.trees = [];
+        this.vehicles = [];
+        this.streetFurniture = [];
+        this.parks = [];
+        this.openLots = [];
+        this.parkingLots = [];
+        
+        this.worldCenter = CONFIG.WORLD_SIZE / 2;
+    }
+    
+    getZoneAt(x, y) {
+        const dx = x - this.worldCenter;
+        const dy = y - this.worldCenter;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDist = CONFIG.WORLD_SIZE / 2;
+        const normalizedDist = dist / maxDist;
+        
+        // Downtown in center
+        if (normalizedDist < 0.15) return 'downtown';
+        
+        // Use noise for zone variation
+        const zoneValue = this.noiseZone.fbm(x / 800, y / 800, 3);
+        
+        // Commercial near major roads
+        const nearMajorRoadX = (x % CONFIG.MAJOR_BLOCK_SIZE) < 100 || (x % CONFIG.MAJOR_BLOCK_SIZE) > CONFIG.MAJOR_BLOCK_SIZE - 100;
+        const nearMajorRoadY = (y % CONFIG.MAJOR_BLOCK_SIZE) < 100 || (y % CONFIG.MAJOR_BLOCK_SIZE) > CONFIG.MAJOR_BLOCK_SIZE - 100;
+        
+        if ((nearMajorRoadX || nearMajorRoadY) && normalizedDist < 0.5) {
+            return 'commercial';
+        }
+        
+        // Parks
+        if (zoneValue > 0.5 && normalizedDist > 0.2 && normalizedDist < 0.7) return 'park';
+        
+        // Industrial on edges
+        if (normalizedDist > 0.75 && zoneValue < -0.2) return 'industrial';
+        
+        // Commercial clusters
+        if (zoneValue > 0.3 && normalizedDist < 0.6) return 'commercial';
+        
+        return 'residential';
+    }
+    
+    isOnRoad(x, y) {
+        // Major roads
+        const majorX = x % CONFIG.MAJOR_BLOCK_SIZE;
+        const majorY = y % CONFIG.MAJOR_BLOCK_SIZE;
+        const halfMajor = CONFIG.MAJOR_ROAD_WIDTH / 2;
+        
+        if (majorX < halfMajor || majorX > CONFIG.MAJOR_BLOCK_SIZE - halfMajor) return true;
+        if (majorY < halfMajor || majorY > CONFIG.MAJOR_BLOCK_SIZE - halfMajor) return true;
+        
+        // Minor roads
+        const minorX = x % CONFIG.MINOR_BLOCK_SIZE;
+        const minorY = y % CONFIG.MINOR_BLOCK_SIZE;
+        const halfMinor = CONFIG.MINOR_ROAD_WIDTH / 2;
+        
+        if (minorX < halfMinor || minorX > CONFIG.MINOR_BLOCK_SIZE - halfMinor) return true;
+        if (minorY < halfMinor || minorY > CONFIG.MINOR_BLOCK_SIZE - halfMinor) return true;
+        
+        return false;
+    }
+    
+    generate(progressCallback) {
+        const totalSteps = 6;
+        let currentStep = 0;
+        
+        // Step 1: Generate roads
+        this.generateRoads();
+        progressCallback(++currentStep / totalSteps);
+        
+        // Step 2: Generate buildings
+        this.generateBuildings();
+        progressCallback(++currentStep / totalSteps);
+        
+        // Step 3: Generate trees and vegetation
+        this.generateVegetation();
+        progressCallback(++currentStep / totalSteps);
+        
+        // Step 4: Reserve open business lots and parking opportunities
+        this.generateBusinessLots();
+        progressCallback(++currentStep / totalSteps);
+
+        // Step 5: Generate parked vehicles
+        this.generateVehicles();
+        progressCallback(++currentStep / totalSteps);
+        
+        // Step 6: Generate street furniture
+        this.generateStreetFurniture();
+        progressCallback(++currentStep / totalSteps);
+    }
+    
+    generateRoads() {
+        // Major roads (every MAJOR_BLOCK_SIZE)
+        for (let x = 0; x <= CONFIG.WORLD_SIZE; x += CONFIG.MAJOR_BLOCK_SIZE) {
+            this.roads.push({
+                type: 'major',
+                orientation: 'vertical',
+                position: x,
+                width: CONFIG.MAJOR_ROAD_WIDTH,
+                name: generateStreetName(this.rng)
+            });
+        }
+        
+        for (let y = 0; y <= CONFIG.WORLD_SIZE; y += CONFIG.MAJOR_BLOCK_SIZE) {
+            this.roads.push({
+                type: 'major',
+                orientation: 'horizontal',
+                position: y,
+                width: CONFIG.MAJOR_ROAD_WIDTH,
+                name: generateStreetName(this.rng)
+            });
+        }
+        
+        // Minor roads
+        for (let x = CONFIG.MINOR_BLOCK_SIZE; x < CONFIG.WORLD_SIZE; x += CONFIG.MINOR_BLOCK_SIZE) {
+            if (x % CONFIG.MAJOR_BLOCK_SIZE !== 0) {
+                this.roads.push({
+                    type: 'minor',
+                    orientation: 'vertical',
+                    position: x,
+                    width: CONFIG.MINOR_ROAD_WIDTH,
+                    name: generateStreetName(this.rng)
+                });
+            }
+        }
+        
+        for (let y = CONFIG.MINOR_BLOCK_SIZE; y < CONFIG.WORLD_SIZE; y += CONFIG.MINOR_BLOCK_SIZE) {
+            if (y % CONFIG.MAJOR_BLOCK_SIZE !== 0) {
+                this.roads.push({
+                    type: 'minor',
+                    orientation: 'horizontal',
+                    position: y,
+                    width: CONFIG.MINOR_ROAD_WIDTH,
+                    name: generateStreetName(this.rng)
+                });
+            }
+        }
+    }
+    
+    generateBuildings() {
+        const blockSize = CONFIG.MINOR_BLOCK_SIZE;
+        const roadMargin = CONFIG.MINOR_ROAD_WIDTH / 2 + 8;
+        
+        for (let blockX = 0; blockX < CONFIG.WORLD_SIZE; blockX += blockSize) {
+            for (let blockY = 0; blockY < CONFIG.WORLD_SIZE; blockY += blockSize) {
+                const zone = this.getZoneAt(blockX + blockSize / 2, blockY + blockSize / 2);
+                
+                if (zone === 'park') {
+                    this.generatePark(blockX, blockY, blockSize);
+                    continue;
+                }
+                
+                const blockRng = new Random(blockX * 73856093 + blockY * 19349663);
+                const buildableSize = blockSize - roadMargin * 2;
+                
+                this.generateBuildingsInBlock(blockX + roadMargin, blockY + roadMargin, 
+                                              buildableSize, buildableSize, zone, blockRng);
+            }
+        }
+    }
+    
+    generateBuildingsInBlock(startX, startY, width, height, zone, rng) {
+        let buildings = [];
+        
+        switch (zone) {
+            case 'downtown':
+                // Large skyscrapers
+                const numSkyscrapers = rng.int(1, 3);
+                const skyscraperSize = width / numSkyscrapers;
+                
+                for (let i = 0; i < numSkyscrapers; i++) {
+                    const bx = startX + i * skyscraperSize + rng.range(5, 15);
+                    const by = startY + rng.range(5, 15);
+                    const bw = skyscraperSize - rng.range(15, 30);
+                    const bh = height - rng.range(15, 30);
+                    
+                    buildings.push(this.createBuilding(bx, by, bw, bh, 'downtown', rng));
+                }
+                break;
+                
+            case 'commercial':
+                // Medium commercial buildings
+                const numCommercial = rng.int(2, 5);
+                const cols = Math.ceil(Math.sqrt(numCommercial));
+                const rows = Math.ceil(numCommercial / cols);
+                
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        if (buildings.length >= numCommercial) break;
+                        
+                        const cellW = width / cols;
+                        const cellH = height / rows;
+                        const margin = 8;
+                        
+                        const bx = startX + col * cellW + margin;
+                        const by = startY + row * cellH + margin;
+                        const bw = cellW - margin * 2;
+                        const bh = cellH - margin * 2;
+                        
+                        buildings.push(this.createBuilding(bx, by, bw, bh, 'commercial', rng));
+                    }
+                }
+                break;
+                
+            case 'residential':
+                // Houses or apartments
+                const isApartmentBlock = rng.chance(0.25);
+                
+                if (isApartmentBlock) {
+                    // One large apartment building
+                    buildings.push(this.createBuilding(
+                        startX + 15, startY + 15, 
+                        width - 30, height - 30, 
+                        'apartment', rng
+                    ));
+                } else {
+                    // Multiple houses
+                    const housesPerSide = rng.int(2, 4);
+                    const houseSize = Math.min(width, height) / housesPerSide;
+                    
+                    for (let row = 0; row < housesPerSide; row++) {
+                        for (let col = 0; col < housesPerSide; col++) {
+                            const margin = 12;
+                            const hx = startX + col * houseSize + margin;
+                            const hy = startY + row * houseSize + margin;
+                            const hw = houseSize - margin * 2;
+                            const hh = houseSize - margin * 2;
+                            
+                            if (rng.chance(0.9)) {
+                                buildings.push(this.createBuilding(hx, hy, hw, hh, 'house', rng));
+                            }
+                        }
+                    }
+                }
+                break;
+                
+            case 'industrial':
+                // Large warehouses
+                const numWarehouses = rng.int(1, 2);
+                const warehouseWidth = width / numWarehouses;
+                
+                for (let i = 0; i < numWarehouses; i++) {
+                    const bx = startX + i * warehouseWidth + 10;
+                    const by = startY + 10;
+                    const bw = warehouseWidth - 20;
+                    const bh = height - 20;
+                    
+                    buildings.push(this.createBuilding(bx, by, bw, bh, 'industrial', rng));
+                }
+                break;
+        }
+        
+        this.buildings.push(...buildings);
+    }
+    
+    createBuilding(x, y, width, height, type, rng) {
+        const building = {
+            x, y, width, height, type,
+            id: `${Math.floor(x)}_${Math.floor(y)}`,
+            name: generateBuildingName(type, rng),
+            color: this.getBuildingColor(type, rng),
+            details: {}
+        };
+        
+        switch (type) {
+            case 'downtown':
+                building.floors = rng.int(15, 45);
+                building.details = {
+                    hasAntenna: rng.chance(0.4),
+                    hasHelipad: rng.chance(0.2),
+                    glassType: rng.pick(['blue', 'silver', 'gold']),
+                    setbacks: rng.int(0, 3) // Number of setbacks
+                };
+                break;
+                
+            case 'commercial':
+                building.floors = rng.int(2, 8);
+                building.details = {
+                    hasAwning: rng.chance(0.6),
+                    awningColor: rng.pick([0xe11d48, 0x2563eb, 0x16a34a, 0xeab308]),
+                    hasSign: true,
+                    business: rng.pick(NAMES.commercial.businesses)
+                };
+                break;
+                
+            case 'house':
+                building.floors = rng.int(1, 2);
+                building.details = {
+                    roofType: rng.pick(['gable', 'hip', 'flat']),
+                    roofColor: rng.pick(CONFIG.COLORS.ROOF),
+                    hasGarage: rng.chance(0.7),
+                    garagePosition: rng.pick(['left', 'right']),
+                    hasPool: rng.chance(0.15),
+                    hasDeck: rng.chance(0.4),
+                    fenceType: rng.pick(['none', 'wood', 'metal']),
+                    yardTrees: rng.int(0, 4),
+                    hasDriveway: rng.chance(0.8)
+                };
+                break;
+                
+            case 'apartment':
+                building.floors = rng.int(3, 8);
+                building.details = {
+                    hasBalconies: rng.chance(0.7),
+                    entranceType: rng.pick(['center', 'corner']),
+                    parkingLot: rng.chance(0.8)
+                };
+                break;
+                
+            case 'industrial':
+                building.floors = rng.int(1, 2);
+                building.details = {
+                    hasLoadingDock: rng.chance(0.8),
+                    hasSmokestack: rng.chance(0.3),
+                    hasTanks: rng.chance(0.2),
+                    parkingLot: true
+                };
+                break;
+        }
+        
+        return building;
+    }
+    
+    getBuildingColor(type, rng) {
+        switch (type) {
+            case 'downtown':
+                return rng.pick(CONFIG.COLORS.DOWNTOWN);
+            case 'commercial':
+                return rng.pick(CONFIG.COLORS.COMMERCIAL);
+            case 'house':
+            case 'apartment':
+            case 'residential':
+                return rng.pick(CONFIG.COLORS.RESIDENTIAL);
+            case 'industrial':
+                return rng.pick(CONFIG.COLORS.INDUSTRIAL);
+            default:
+                return 0x888888;
+        }
+    }
+    
+    generatePark(x, y, size) {
+        const parkRng = new Random(x * 12345 + y * 67890);
+        const margin = CONFIG.MINOR_ROAD_WIDTH / 2 + 5;
+        
+        const park = {
+            x: x + margin,
+            y: y + margin,
+            width: size - margin * 2,
+            height: size - margin * 2,
+            name: `${parkRng.pick(NAMES.streets.names)} Park`,
+            features: []
+        };
+        
+        // Add trees
+        const numTrees = parkRng.int(15, 40);
+        for (let i = 0; i < numTrees; i++) {
+            park.features.push({
+                type: 'tree',
+                x: parkRng.range(0.05, 0.95),
+                y: parkRng.range(0.05, 0.95),
+                size: parkRng.range(8, 18)
+            });
+        }
+        
+        // Add paths
+        if (parkRng.chance(0.8)) {
+            park.features.push({
+                type: 'path',
+                pattern: parkRng.pick(['cross', 'diagonal', 'perimeter'])
+            });
+        }
+        
+        // Add pond
+        if (parkRng.chance(0.4)) {
+            park.features.push({
+                type: 'pond',
+                x: parkRng.range(0.3, 0.7),
+                y: parkRng.range(0.3, 0.7),
+                width: parkRng.range(0.15, 0.3),
+                height: parkRng.range(0.1, 0.2)
+            });
+        }
+        
+        // Add playground
+        if (parkRng.chance(0.5)) {
+            park.features.push({
+                type: 'playground',
+                x: parkRng.range(0.2, 0.8),
+                y: parkRng.range(0.2, 0.8)
+            });
+        }
+        
+        // Add benches
+        const numBenches = parkRng.int(4, 12);
+        for (let i = 0; i < numBenches; i++) {
+            park.features.push({
+                type: 'bench',
+                x: parkRng.range(0.1, 0.9),
+                y: parkRng.range(0.1, 0.9),
+                rotation: parkRng.range(0, Math.PI * 2)
+            });
+        }
+        
+        this.parks.push(park);
+    }
+    
+    generateVegetation() {
+        // Street trees
+        for (const road of this.roads) {
+            if (road.type !== 'major') continue;
+            
+            const treeSpacing = 80;
+            const offsetFromRoad = road.width / 2 + 15;
+            
+            if (road.orientation === 'vertical') {
+                for (let y = treeSpacing; y < CONFIG.WORLD_SIZE; y += treeSpacing) {
+                    if (this.rng.chance(0.7)) {
+                        this.trees.push({
+                            x: road.position - offsetFromRoad,
+                            y: y + this.rng.range(-10, 10),
+                            size: this.rng.range(10, 16),
+                            type: 'street'
+                        });
+                    }
+                    if (this.rng.chance(0.7)) {
+                        this.trees.push({
+                            x: road.position + offsetFromRoad,
+                            y: y + this.rng.range(-10, 10),
+                            size: this.rng.range(10, 16),
+                            type: 'street'
+                        });
+                    }
+                }
+            } else {
+                for (let x = treeSpacing; x < CONFIG.WORLD_SIZE; x += treeSpacing) {
+                    if (this.rng.chance(0.7)) {
+                        this.trees.push({
+                            x: x + this.rng.range(-10, 10),
+                            y: road.position - offsetFromRoad,
+                            size: this.rng.range(10, 16),
+                            type: 'street'
+                        });
+                    }
+                    if (this.rng.chance(0.7)) {
+                        this.trees.push({
+                            x: x + this.rng.range(-10, 10),
+                            y: road.position + offsetFromRoad,
+                            size: this.rng.range(10, 16),
+                            type: 'street'
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    generateVehicles() {
+        // Parked cars along streets
+        for (const road of this.roads) {
+            if (road.type !== 'minor') continue;
+            
+            const carSpacing = 35;
+            const parkingOffset = road.width / 2 - 8;
+            
+            if (road.orientation === 'vertical') {
+                for (let y = 50; y < CONFIG.WORLD_SIZE - 50; y += carSpacing) {
+                    if (this.rng.chance(0.3)) {
+                        this.vehicles.push({
+                            x: road.position - parkingOffset,
+                            y: y,
+                            rotation: Math.PI / 2,
+                            color: this.rng.pick(CONFIG.COLORS.CAR_COLORS),
+                            type: this.rng.pick(['sedan', 'suv', 'truck'])
+                        });
+                    }
+                    if (this.rng.chance(0.3)) {
+                        this.vehicles.push({
+                            x: road.position + parkingOffset,
+                            y: y,
+                            rotation: -Math.PI / 2,
+                            color: this.rng.pick(CONFIG.COLORS.CAR_COLORS),
+                            type: this.rng.pick(['sedan', 'suv', 'truck'])
+                        });
+                    }
+                }
+            } else {
+                for (let x = 50; x < CONFIG.WORLD_SIZE - 50; x += carSpacing) {
+                    if (this.rng.chance(0.3)) {
+                        this.vehicles.push({
+                            x: x,
+                            y: road.position - parkingOffset,
+                            rotation: 0,
+                            color: this.rng.pick(CONFIG.COLORS.CAR_COLORS),
+                            type: this.rng.pick(['sedan', 'suv', 'truck'])
+                        });
+                    }
+                    if (this.rng.chance(0.3)) {
+                        this.vehicles.push({
+                            x: x,
+                            y: road.position + parkingOffset,
+                            rotation: Math.PI,
+                            color: this.rng.pick(CONFIG.COLORS.CAR_COLORS),
+                            type: this.rng.pick(['sedan', 'suv', 'truck'])
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    generateStreetFurniture() {
+        // Traffic lights at major intersections
+        for (let x = 0; x <= CONFIG.WORLD_SIZE; x += CONFIG.MAJOR_BLOCK_SIZE) {
+            for (let y = 0; y <= CONFIG.WORLD_SIZE; y += CONFIG.MAJOR_BLOCK_SIZE) {
+                const offset = CONFIG.MAJOR_ROAD_WIDTH / 2 + 5;
+                
+                this.streetFurniture.push({ type: 'traffic_light', x: x - offset, y: y - offset });
+                this.streetFurniture.push({ type: 'traffic_light', x: x + offset, y: y - offset });
+                this.streetFurniture.push({ type: 'traffic_light', x: x - offset, y: y + offset });
+                this.streetFurniture.push({ type: 'traffic_light', x: x + offset, y: y + offset });
+            }
+        }
+        
+        // Street lights
+        for (const road of this.roads) {
+            const spacing = road.type === 'major' ? 100 : 150;
+            const offset = road.width / 2 + 8;
+            
+            if (road.orientation === 'vertical') {
+                for (let y = spacing / 2; y < CONFIG.WORLD_SIZE; y += spacing) {
+                    this.streetFurniture.push({ type: 'street_light', x: road.position - offset, y });
+                    this.streetFurniture.push({ type: 'street_light', x: road.position + offset, y });
+                }
+            } else {
+                for (let x = spacing / 2; x < CONFIG.WORLD_SIZE; x += spacing) {
+                    this.streetFurniture.push({ type: 'street_light', x, y: road.position - offset });
+                    this.streetFurniture.push({ type: 'street_light', x, y: road.position + offset });
+                }
+            }
+        }
+        
+        // Fire hydrants
+        for (let i = 0; i < 200; i++) {
+            this.streetFurniture.push({
+                type: 'fire_hydrant',
+                x: this.rng.range(100, CONFIG.WORLD_SIZE - 100),
+                y: this.rng.range(100, CONFIG.WORLD_SIZE - 100)
+            });
+        }
+    }
+
+    generateBusinessLots() {
+        const targetLots = 18;
+        const used = new Set();
+
+        for (let i = 0; i < targetLots * 8 && this.openLots.length < targetLots; i++) {
+            const blockX = this.rng.int(0, Math.floor(CONFIG.WORLD_SIZE / CONFIG.MINOR_BLOCK_SIZE) - 1) * CONFIG.MINOR_BLOCK_SIZE;
+            const blockY = this.rng.int(0, Math.floor(CONFIG.WORLD_SIZE / CONFIG.MINOR_BLOCK_SIZE) - 1) * CONFIG.MINOR_BLOCK_SIZE;
+            const key = `${blockX}:${blockY}`;
+            if (used.has(key)) continue;
+            used.add(key);
+
+            const centerX = blockX + CONFIG.MINOR_BLOCK_SIZE / 2;
+            const centerY = blockY + CONFIG.MINOR_BLOCK_SIZE / 2;
+            const zone = this.getZoneAt(centerX, centerY);
+            if (zone === 'park') continue;
+
+            const profile = SETUP_PROFILES[zone] || SETUP_PROFILES.residential;
+            const lotMargin = CONFIG.MINOR_ROAD_WIDTH / 2 + 24;
+            const lotWidth = this.rng.range(90, 165);
+            const lotHeight = this.rng.range(80, 145);
+            const x = blockX + lotMargin + this.rng.range(0, Math.max(10, CONFIG.MINOR_BLOCK_SIZE - lotMargin * 2 - lotWidth));
+            const y = blockY + lotMargin + this.rng.range(0, Math.max(10, CONFIG.MINOR_BLOCK_SIZE - lotMargin * 2 - lotHeight));
+
+            const rentDaily = Math.round(this.rng.range(profile.rentRange[0], profile.rentRange[1]));
+            const monthlyPropertyTax = Math.round(this.rng.range(profile.taxRange[0], profile.taxRange[1]));
+            const trafficMultiplier = Number(this.rng.range(profile.trafficRange[0], profile.trafficRange[1]).toFixed(2));
+            const ingredientCostMultiplier = Number(this.rng.range(profile.ingredientRange[0], profile.ingredientRange[1]).toFixed(2));
+            const permitFees = Math.round(this.rng.range(profile.permitRange[0], profile.permitRange[1]));
+            const parkingSpaces = this.rng.int(profile.parkingRange[0], profile.parkingRange[1]);
+
+            this.openLots.push({
+                id: `lot_${this.openLots.length + 1}`,
+                x,
+                y,
+                width: lotWidth,
+                height: lotHeight,
+                zone,
+                type: 'open_lot',
+                name: `${profile.district} Lot ${this.openLots.length + 1}`,
+                district: profile.district,
+                icon: profile.icon,
+                rentDaily,
+                monthlyPropertyTax,
+                trafficMultiplier,
+                ingredientCostMultiplier,
+                permitFees,
+                parkingSpaces,
+                exteriorStyle: profile.exteriorStyle
+            });
+
+            if (this.rng.chance(0.65)) {
+                this.parkingLots.push({
+                    id: `parking_${this.parkingLots.length + 1}`,
+                    x: x + lotWidth + this.rng.range(14, 42),
+                    y: y + this.rng.range(-8, 18),
+                    width: this.rng.range(40, 75),
+                    height: this.rng.range(28, 52),
+                    stalls: this.rng.int(5, 14),
+                    type: 'parking_lot',
+                    zone
+                });
+            }
+        }
+    }
+}
+
+// ============================================================================
+// RENDERER
+// ============================================================================
+class CityRenderer {
+    constructor(app, cityGenerator) {
+        this.app = app;
+        this.city = cityGenerator;
+        
+        // Layers
+        this.groundLayer = new PIXI.Container();
+        this.roadLayer = new PIXI.Container();
+        this.parkLayer = new PIXI.Container();
+        this.lotLayer = new PIXI.Container();
+        this.buildingLayer = new PIXI.Container();
+        this.detailLayer = new PIXI.Container();
+        this.vehicleLayer = new PIXI.Container();
+        this.treeLayer = new PIXI.Container();
+        this.furnitureLayer = new PIXI.Container();
+        this.motorcycleLayer = new PIXI.Container();
+        
+        // Main container
+        this.world = new PIXI.Container();
+        this.world.addChild(this.groundLayer);
+        this.world.addChild(this.roadLayer);
+        this.world.addChild(this.parkLayer);
+        this.world.addChild(this.lotLayer);
+        this.world.addChild(this.buildingLayer);
+        this.world.addChild(this.detailLayer);
+        this.world.addChild(this.vehicleLayer);
+        this.world.addChild(this.treeLayer);
+        this.world.addChild(this.furnitureLayer);
+        this.world.addChild(this.motorcycleLayer);
+        
+        this.app.stage.addChild(this.world);
+        
+        // Interaction state
+        this.buildingSprites = [];
+    }
+    
+    render() {
+        this.renderGround();
+        this.renderRoads();
+        this.renderParks();
+        this.renderOpenLots();
+        this.renderBuildings();
+        this.renderVehicles();
+        this.renderTrees();
+        this.renderStreetFurniture();
+    }
+
+    renderOpenLots() {
+        for (const lot of this.city.openLots) {
+            const g = new PIXI.Graphics();
+            lot.hitPadding = MAP_MODE === 'setup' ? 36 : 10;
+
+            g.beginFill(0x0b4f3a, 0.45);
+            g.drawRoundedRect(lot.x, lot.y, lot.width, lot.height, 6);
+            g.endFill();
+            g.lineStyle(2, 0x95f9d8, 0.95);
+            g.drawRoundedRect(lot.x, lot.y, lot.width, lot.height, 6);
+            g.lineStyle(0);
+
+            const signW = Math.min(96, lot.width - 10);
+            g.beginFill(0x113f67, 0.9);
+            g.drawRoundedRect(lot.x + 6, lot.y + 6, signW, 18, 4);
+            g.endFill();
+
+            if (MAP_MODE === 'setup') {
+                const cx = lot.x + lot.width / 2;
+                const pointerY = lot.y - 36;
+
+                // Red pointer pin to highlight selectable locations.
+                g.beginFill(0xff2d2d, 0.95);
+                g.drawCircle(cx, pointerY, 18);
+                g.endFill();
+                g.beginFill(0xff2d2d, 0.9);
+                g.drawPolygon([
+                    cx - 10, pointerY + 10,
+                    cx + 10, pointerY + 10,
+                    cx, pointerY + 34
+                ]);
+                g.endFill();
+
+                g.lineStyle(4, 0xff6a6a, 0.85);
+                g.drawCircle(cx, pointerY, 30);
+                g.lineStyle(3, 0xff9a9a, 0.7);
+                g.drawCircle(cx, pointerY, 44);
+                g.lineStyle(2, 0xffb0b0, 0.55);
+                g.drawCircle(cx, pointerY, 58);
+                g.lineStyle(0);
+            }
+
+            this.lotLayer.addChild(g);
+
+            const hitArea = new PIXI.Graphics();
+            hitArea.beginFill(0xffffff, 0.001);
+            hitArea.drawRect(lot.x, lot.y, lot.width, lot.height);
+            hitArea.endFill();
+            hitArea.eventMode = 'static';
+            hitArea.cursor = 'pointer';
+            hitArea.buildingData = lot;
+            this.lotLayer.addChild(hitArea);
+            this.buildingSprites.push(hitArea);
+        }
+
+        for (const parking of this.city.parkingLots) {
+            const g = new PIXI.Graphics();
+            g.beginFill(0x1f2937, 0.55);
+            g.drawRect(parking.x, parking.y, parking.width, parking.height);
+            g.endFill();
+            g.lineStyle(1, 0xe5e7eb, 0.35);
+            const laneGap = Math.max(7, Math.floor(parking.width / Math.max(3, parking.stalls / 2)));
+            for (let dx = 4; dx < parking.width - 2; dx += laneGap) {
+                g.moveTo(parking.x + dx, parking.y + 2);
+                g.lineTo(parking.x + dx, parking.y + parking.height - 2);
+            }
+            g.lineStyle(0);
+            this.lotLayer.addChild(g);
+
+            const hitArea = new PIXI.Graphics();
+            hitArea.beginFill(0xffffff, 0.001);
+            hitArea.drawRect(parking.x, parking.y, parking.width, parking.height);
+            hitArea.endFill();
+            hitArea.eventMode = 'static';
+            hitArea.cursor = 'pointer';
+            hitArea.buildingData = {
+                type: 'parking_lot',
+                name: `Parking Parcel ${parking.id.split('_')[1]}`,
+                details: {
+                    stalls: parking.stalls,
+                    zone: parking.zone
+                }
+            };
+            this.lotLayer.addChild(hitArea);
+            this.buildingSprites.push(hitArea);
+        }
+    }
+    
+    renderGround() {
+        const g = new PIXI.Graphics();
+        
+        // Base grass
+        g.beginFill(CONFIG.COLORS.GRASS);
+        g.drawRect(0, 0, CONFIG.WORLD_SIZE, CONFIG.WORLD_SIZE);
+        g.endFill();
+        
+        // Grass texture variation
+        const noise = this.city.noise;
+        for (let x = 0; x < CONFIG.WORLD_SIZE; x += 50) {
+            for (let y = 0; y < CONFIG.WORLD_SIZE; y += 50) {
+                const n = noise.fbm(x / 200, y / 200, 2);
+                if (n > 0.2) {
+                    g.beginFill(CONFIG.COLORS.GRASS_DARK, 0.3);
+                    g.drawRect(x, y, 50, 50);
+                    g.endFill();
+                }
+            }
+        }
+        
+        this.groundLayer.addChild(g);
+    }
+    
+    renderRoads() {
+        const g = new PIXI.Graphics();
+        
+        for (const road of this.city.roads) {
+            const isMajor = road.type === 'major';
+            
+            // Sidewalks first
+            g.beginFill(CONFIG.COLORS.SIDEWALK);
+            if (road.orientation === 'vertical') {
+                g.drawRect(road.position - road.width / 2 - 10, 0, 10, CONFIG.WORLD_SIZE);
+                g.drawRect(road.position + road.width / 2, 0, 10, CONFIG.WORLD_SIZE);
+            } else {
+                g.drawRect(0, road.position - road.width / 2 - 10, CONFIG.WORLD_SIZE, 10);
+                g.drawRect(0, road.position + road.width / 2, CONFIG.WORLD_SIZE, 10);
+            }
+            g.endFill();
+            
+            // Road surface
+            g.beginFill(CONFIG.COLORS.ROAD);
+            if (road.orientation === 'vertical') {
+                g.drawRect(road.position - road.width / 2, 0, road.width, CONFIG.WORLD_SIZE);
+            } else {
+                g.drawRect(0, road.position - road.width / 2, CONFIG.WORLD_SIZE, road.width);
+            }
+            g.endFill();
+            
+            // Road markings
+            g.beginFill(CONFIG.COLORS.ROAD_MARKING);
+            
+            if (road.orientation === 'vertical') {
+                // Center line (dashed for minor, solid for major)
+                if (isMajor) {
+                    g.drawRect(road.position - 1.5, 0, 3, CONFIG.WORLD_SIZE);
+                } else {
+                    for (let y = 0; y < CONFIG.WORLD_SIZE; y += 30) {
+                        g.drawRect(road.position - 1, y, 2, 15);
+                    }
+                }
+                
+                // Edge lines
+                g.drawRect(road.position - road.width / 2 + 3, 0, 2, CONFIG.WORLD_SIZE);
+                g.drawRect(road.position + road.width / 2 - 5, 0, 2, CONFIG.WORLD_SIZE);
+            } else {
+                if (isMajor) {
+                    g.drawRect(0, road.position - 1.5, CONFIG.WORLD_SIZE, 3);
+                } else {
+                    for (let x = 0; x < CONFIG.WORLD_SIZE; x += 30) {
+                        g.drawRect(x, road.position - 1, 15, 2);
+                    }
+                }
+                
+                g.drawRect(0, road.position - road.width / 2 + 3, CONFIG.WORLD_SIZE, 2);
+                g.drawRect(0, road.position + road.width / 2 - 5, CONFIG.WORLD_SIZE, 2);
+            }
+            g.endFill();
+        }
+        
+        // Crosswalks at intersections
+        this.renderCrosswalks(g);
+        
+        this.roadLayer.addChild(g);
+    }
+    
+    renderCrosswalks(g) {
+        g.beginFill(CONFIG.COLORS.CROSSWALK);
+        
+        for (let x = 0; x <= CONFIG.WORLD_SIZE; x += CONFIG.MAJOR_BLOCK_SIZE) {
+            for (let y = 0; y <= CONFIG.WORLD_SIZE; y += CONFIG.MAJOR_BLOCK_SIZE) {
+                const roadWidth = CONFIG.MAJOR_ROAD_WIDTH;
+                const stripeWidth = 4;
+                const stripeGap = 6;
+                const crosswalkLength = 25;
+                
+                // Horizontal crosswalks
+                for (let stripe = -roadWidth / 2 + 8; stripe < roadWidth / 2 - 8; stripe += stripeWidth + stripeGap) {
+                    // Top
+                    g.drawRect(x + stripe, y - roadWidth / 2 - crosswalkLength, stripeWidth, crosswalkLength);
+                    // Bottom
+                    g.drawRect(x + stripe, y + roadWidth / 2, stripeWidth, crosswalkLength);
+                }
+                
+                // Vertical crosswalks
+                for (let stripe = -roadWidth / 2 + 8; stripe < roadWidth / 2 - 8; stripe += stripeWidth + stripeGap) {
+                    // Left
+                    g.drawRect(x - roadWidth / 2 - crosswalkLength, y + stripe, crosswalkLength, stripeWidth);
+                    // Right
+                    g.drawRect(x + roadWidth / 2, y + stripe, crosswalkLength, stripeWidth);
+                }
+            }
+        }
+        
+        g.endFill();
+    }
+    
+    renderParks() {
+        for (const park of this.city.parks) {
+            const g = new PIXI.Graphics();
+            
+            // Park grass
+            g.beginFill(CONFIG.COLORS.PARK);
+            g.drawRect(park.x, park.y, park.width, park.height);
+            g.endFill();
+            
+            // Render features
+            for (const feature of park.features) {
+                const fx = park.x + feature.x * park.width;
+                const fy = park.y + feature.y * park.height;
+                
+                switch (feature.type) {
+                    case 'path':
+                        g.beginFill(0xd4a574, 0.8);
+                        if (feature.pattern === 'cross') {
+                            g.drawRect(park.x + park.width * 0.45, park.y, park.width * 0.1, park.height);
+                            g.drawRect(park.x, park.y + park.height * 0.45, park.width, park.height * 0.1);
+                        } else if (feature.pattern === 'diagonal') {
+                            // Simplified diagonal
+                            g.drawRect(park.x, park.y + park.height * 0.45, park.width, park.height * 0.1);
+                        } else {
+                            // Perimeter
+                            g.drawRect(park.x + 10, park.y + 10, park.width - 20, 8);
+                            g.drawRect(park.x + 10, park.y + park.height - 18, park.width - 20, 8);
+                            g.drawRect(park.x + 10, park.y + 10, 8, park.height - 20);
+                            g.drawRect(park.x + park.width - 18, park.y + 10, 8, park.height - 20);
+                        }
+                        g.endFill();
+                        break;
+                        
+                    case 'pond':
+                        const pw = feature.width * park.width;
+                        const ph = feature.height * park.height;
+                        g.beginFill(CONFIG.COLORS.WATER);
+                        g.drawEllipse(fx, fy, pw / 2, ph / 2);
+                        g.endFill();
+                        // Shore
+                        g.lineStyle(3, 0x92400e);
+                        g.drawEllipse(fx, fy, pw / 2 + 2, ph / 2 + 2);
+                        g.lineStyle(0);
+                        break;
+                        
+                    case 'playground':
+                        // Play area
+                        g.beginFill(0xfbbf24);
+                        g.drawRoundedRect(fx - 25, fy - 25, 50, 50, 5);
+                        g.endFill();
+                        // Equipment
+                        g.beginFill(0xef4444);
+                        g.drawRect(fx - 15, fy - 15, 10, 10);
+                        g.drawRect(fx + 5, fy - 15, 10, 10);
+                        g.drawRect(fx - 5, fy + 5, 10, 10);
+                        g.endFill();
+                        break;
+                        
+                    case 'bench':
+                        g.beginFill(0x78350f);
+                        g.drawRect(fx - 8, fy - 3, 16, 6);
+                        g.endFill();
+                        break;
+                        
+                    case 'tree':
+                        // Shadow
+                        g.beginFill(0x000000, 0.15);
+                        g.drawEllipse(fx + 3, fy + 3, feature.size * 0.8, feature.size * 0.5);
+                        g.endFill();
+                        // Trunk
+                        g.beginFill(CONFIG.COLORS.TREE_TRUNK);
+                        g.drawRect(fx - 2, fy - 2, 4, 6);
+                        g.endFill();
+                        // Leaves
+                        g.beginFill(this.city.rng.pick(CONFIG.COLORS.TREE_LEAVES));
+                        g.drawCircle(fx, fy - feature.size / 2, feature.size);
+                        g.endFill();
+                        break;
+                }
+            }
+            
+            this.parkLayer.addChild(g);
+            
+            // Make park interactive
+            const hitArea = new PIXI.Graphics();
+            hitArea.beginFill(0xffffff, 0.001);
+            hitArea.drawRect(park.x, park.y, park.width, park.height);
+            hitArea.endFill();
+            hitArea.eventMode = 'static';
+            hitArea.cursor = 'pointer';
+            hitArea.buildingData = {
+                name: park.name,
+                type: 'park',
+                details: { features: park.features.map(f => f.type).join(', ') }
+            };
+            this.buildingSprites.push(hitArea);
+            this.parkLayer.addChild(hitArea);
+        }
+    }
+    
+    renderBuildings() {
+        for (const building of this.city.buildings) {
+            const container = new PIXI.Container();
+            container.x = building.x;
+            container.y = building.y;
+            
+            const g = new PIXI.Graphics();
+            
+            // Shadow
+            g.beginFill(0x000000, 0.2);
+            const shadowOffset = Math.min(building.floors || 1, 20) * 1.5;
+            g.drawRect(shadowOffset, shadowOffset, building.width, building.height);
+            g.endFill();
+            
+            // Main building
+            this.drawBuilding(g, building);
+            
+            container.addChild(g);
+            this.buildingLayer.addChild(container);
+            
+            // Interactive area
+            const hitArea = new PIXI.Graphics();
+            hitArea.beginFill(0xffffff, 0.001);
+            hitArea.drawRect(0, 0, building.width, building.height);
+            hitArea.endFill();
+            hitArea.eventMode = 'static';
+            hitArea.cursor = 'pointer';
+            hitArea.buildingData = building;
+            container.addChild(hitArea);
+            this.buildingSprites.push(hitArea);
+        }
+    }
+    
+    drawBuilding(g, b) {
+        const w = b.width;
+        const h = b.height;
+        
+        switch (b.type) {
+            case 'downtown':
+                this.drawSkyscraper(g, b);
+                break;
+            case 'commercial':
+                this.drawCommercialBuilding(g, b);
+                break;
+            case 'house':
+                this.drawHouse(g, b);
+                break;
+            case 'apartment':
+                this.drawApartment(g, b);
+                break;
+            case 'industrial':
+                this.drawIndustrial(g, b);
+                break;
+            default:
+                g.beginFill(b.color);
+                g.drawRect(0, 0, w, h);
+                g.endFill();
+        }
+    }
+    
+    drawSkyscraper(g, b) {
+        const w = b.width;
+        const h = b.height;
+        const details = b.details;
+        
+        // Main structure with setbacks
+        let currentWidth = w;
+        let currentX = 0;
+        const setbackHeight = h / (details.setbacks + 1);
+        
+        for (let i = 0; i <= details.setbacks; i++) {
+            const setbackY = i * setbackHeight;
+            const setbackW = currentWidth - i * (w * 0.1);
+            const setbackX = (w - setbackW) / 2;
+            
+            // Building section
+            g.beginFill(b.color);
+            g.drawRect(setbackX, setbackY, setbackW, setbackHeight);
+            g.endFill();
+            
+            // Windows
+            const windowSize = 4;
+            const windowGap = 8;
+            g.beginFill(CONFIG.COLORS.WINDOW_LIT, 0.8);
+            
+            for (let wx = setbackX + 6; wx < setbackX + setbackW - 6; wx += windowGap) {
+                for (let wy = setbackY + 6; wy < setbackY + setbackHeight - 6; wy += windowGap) {
+                    if (Math.random() > 0.2) {
+                        g.drawRect(wx, wy, windowSize, windowSize);
+                    }
+                }
+            }
+            g.endFill();
+        }
+        
+        // Rooftop features
+        if (details.hasHelipad) {
+            g.beginFill(0x444444);
+            g.drawCircle(w / 2, h / 2, Math.min(w, h) * 0.2);
+            g.endFill();
+            g.lineStyle(2, 0xffffff);
+            g.drawCircle(w / 2, h / 2, Math.min(w, h) * 0.15);
+            g.lineStyle(0);
+            // H
+            g.beginFill(0xffffff);
+            g.drawRect(w / 2 - 8, h / 2 - 6, 3, 12);
+            g.drawRect(w / 2 + 5, h / 2 - 6, 3, 12);
+            g.drawRect(w / 2 - 5, h / 2 - 1, 10, 2);
+            g.endFill();
+        }
+        
+        if (details.hasAntenna) {
+            g.beginFill(0x666666);
+            g.drawRect(w / 2 - 2, -15, 4, 20);
+            g.endFill();
+            g.beginFill(0xff0000);
+            g.drawCircle(w / 2, -15, 3);
+            g.endFill();
+        }
+        
+        // Outline
+        g.lineStyle(1, 0x000000, 0.3);
+        g.drawRect(0, 0, w, h);
+        g.lineStyle(0);
+    }
+    
+    drawCommercialBuilding(g, b) {
+        const w = b.width;
+        const h = b.height;
+        const details = b.details;
+        
+        // Main building
+        g.beginFill(b.color);
+        g.drawRect(0, 0, w, h);
+        g.endFill();
+        
+        // Storefront
+        g.beginFill(0x1f2937);
+        g.drawRect(5, h - 20, w - 10, 15);
+        g.endFill();
+        
+        // Awning
+        if (details.hasAwning) {
+            g.beginFill(details.awningColor);
+            g.drawRect(0, h - 25, w, 6);
+            g.endFill();
+        }
+        
+        // Windows
+        g.beginFill(CONFIG.COLORS.WINDOW_LIT, 0.7);
+        const windowSize = 6;
+        const windowGap = 12;
+        
+        for (let wx = 8; wx < w - 8; wx += windowGap) {
+            for (let wy = 8; wy < h - 30; wy += windowGap) {
+                g.drawRect(wx, wy, windowSize, windowSize);
+            }
+        }
+        g.endFill();
+        
+        // Door
+        g.beginFill(CONFIG.COLORS.DOOR);
+        g.drawRect(w / 2 - 8, h - 18, 16, 18);
+        g.endFill();
+        
+        // Outline
+        g.lineStyle(1, 0x000000, 0.3);
+        g.drawRect(0, 0, w, h);
+        g.lineStyle(0);
+    }
+    
+    drawHouse(g, b) {
+        const w = b.width;
+        const h = b.height;
+        const details = b.details;
+        
+        // Yard/lot
+        g.beginFill(0x22c55e, 0.3);
+        g.drawRect(-8, -8, w + 16, h + 16);
+        g.endFill();
+        
+        // Driveway
+        if (details.hasDriveway) {
+            g.beginFill(0x6b7280);
+            const driveX = details.garagePosition === 'left' ? -5 : w - 15;
+            g.drawRect(driveX, h, 20, 20);
+            g.endFill();
+        }
+        
+        // Main house body
+        const houseWidth = details.hasGarage ? w * 0.7 : w;
+        const houseX = details.garagePosition === 'left' && details.hasGarage ? w - houseWidth : 0;
+        
+        g.beginFill(b.color);
+        g.drawRect(houseX, h * 0.2, houseWidth, h * 0.8);
+        g.endFill();
+        
+        // Roof
+        g.beginFill(details.roofColor);
+        if (details.roofType === 'gable') {
+            g.drawPolygon([
+                houseX - 5, h * 0.2,
+                houseX + houseWidth / 2, -5,
+                houseX + houseWidth + 5, h * 0.2
+            ]);
+        } else if (details.roofType === 'hip') {
+            g.drawPolygon([
+                houseX - 3, h * 0.2,
+                houseX + houseWidth * 0.3, 0,
+                houseX + houseWidth * 0.7, 0,
+                houseX + houseWidth + 3, h * 0.2
+            ]);
+        } else {
+            g.drawRect(houseX - 3, h * 0.15, houseWidth + 6, 8);
+        }
+        g.endFill();
+        
+        // Garage
+        if (details.hasGarage) {
+            const garageX = details.garagePosition === 'left' ? 0 : houseWidth;
+            const garageW = w - houseWidth;
+            
+            g.beginFill(b.color);
+            g.drawRect(garageX, h * 0.35, garageW, h * 0.65);
+            g.endFill();
+            
+            // Garage door
+            g.beginFill(0x9ca3af);
+            g.drawRect(garageX + 3, h * 0.5, garageW - 6, h * 0.5 - 3);
+            g.endFill();
+            
+            // Garage roof
+            g.beginFill(details.roofColor);
+            g.drawRect(garageX - 2, h * 0.3, garageW + 4, 8);
+            g.endFill();
+        }
+        
+        // Windows
+        g.beginFill(CONFIG.COLORS.WINDOW_LIT, 0.8);
+        g.drawRect(houseX + 10, h * 0.35, 12, 12);
+        g.drawRect(houseX + houseWidth - 22, h * 0.35, 12, 12);
+        if (b.floors > 1) {
+            g.drawRect(houseX + houseWidth / 2 - 6, h * 0.45, 12, 12);
+        }
+        g.endFill();
+        
+        // Front door
+        g.beginFill(CONFIG.COLORS.DOOR);
+        g.drawRect(houseX + houseWidth / 2 - 6, h - 18, 12, 18);
+        g.endFill();
+        
+        // Pool
+        if (details.hasPool) {
+            g.beginFill(CONFIG.COLORS.POOL);
+            g.drawRoundedRect(w + 15, h * 0.3, 30, 45, 5);
+            g.endFill();
+        }
+        
+        // Outline
+        g.lineStyle(1, 0x000000, 0.2);
+        g.drawRect(houseX, h * 0.2, houseWidth, h * 0.8);
+        g.lineStyle(0);
+    }
+    
+    drawApartment(g, b) {
+        const w = b.width;
+        const h = b.height;
+        const details = b.details;
+        
+        // Parking lot
+        if (details.parkingLot) {
+            g.beginFill(CONFIG.COLORS.PARKING);
+            g.drawRect(-20, h + 5, w + 40, 40);
+            g.endFill();
+            // Parking lines
+            g.lineStyle(1, 0xffffff, 0.5);
+            for (let px = -15; px < w + 25; px += 15) {
+                g.moveTo(px, h + 10);
+                g.lineTo(px, h + 40);
+            }
+            g.lineStyle(0);
+        }
+        
+        // Main building
+        g.beginFill(b.color);
+        g.drawRect(0, 0, w, h);
+        g.endFill();
+        
+        // Floor divisions
+        const floorHeight = h / (b.floors || 4);
+        g.lineStyle(1, 0x000000, 0.1);
+        for (let f = 1; f < b.floors; f++) {
+            g.moveTo(0, f * floorHeight);
+            g.lineTo(w, f * floorHeight);
+        }
+        g.lineStyle(0);
+        
+        // Windows and balconies
+        const unitWidth = 20;
+        for (let ux = 8; ux < w - 8; ux += unitWidth) {
+            for (let f = 0; f < b.floors; f++) {
+                const uy = f * floorHeight + 5;
+                
+                // Window
+                g.beginFill(CONFIG.COLORS.WINDOW_LIT, Math.random() > 0.3 ? 0.8 : 0.2);
+                g.drawRect(ux, uy, 10, 10);
+                g.endFill();
+                
+                // Balcony
+                if (details.hasBalconies && f > 0) {
+                    g.beginFill(0x9ca3af);
+                    g.drawRect(ux - 2, uy + floorHeight - 8, 14, 3);
+                    g.endFill();
+                    g.lineStyle(1, 0x6b7280);
+                    g.drawRect(ux - 2, uy + floorHeight - 8, 14, 8);
+                    g.lineStyle(0);
+                }
+            }
+        }
+        
+        // Entrance
+        g.beginFill(0x374151);
+        const entranceX = details.entranceType === 'center' ? w / 2 - 15 : 5;
+        g.drawRect(entranceX, h - 25, 30, 25);
+        g.endFill();
+        
+        // Door
+        g.beginFill(0x1f2937);
+        g.drawRect(entranceX + 8, h - 20, 14, 20);
+        g.endFill();
+        
+        // Outline
+        g.lineStyle(1, 0x000000, 0.3);
+        g.drawRect(0, 0, w, h);
+        g.lineStyle(0);
+    }
+    
+    drawIndustrial(g, b) {
+        const w = b.width;
+        const h = b.height;
+        const details = b.details;
+        
+        // Parking/yard area
+        g.beginFill(CONFIG.COLORS.PARKING);
+        g.drawRect(-30, -20, w + 60, h + 50);
+        g.endFill();
+        
+        // Main warehouse
+        g.beginFill(b.color);
+        g.drawRect(0, 0, w, h);
+        g.endFill();
+        
+        // Corrugated roof lines
+        g.lineStyle(2, 0x000000, 0.1);
+        for (let rx = 10; rx < w; rx += 15) {
+            g.moveTo(rx, 0);
+            g.lineTo(rx, h);
+        }
+        g.lineStyle(0);
+        
+        // Loading dock
+        if (details.hasLoadingDock) {
+            g.beginFill(0x6b7280);
+            g.drawRect(w * 0.2, h, w * 0.6, 20);
+            g.endFill();
+            
+            // Dock doors
+            g.beginFill(0x9ca3af);
+            const dockDoors = 3;
+            const doorWidth = (w * 0.6) / dockDoors - 10;
+            for (let d = 0; d < dockDoors; d++) {
+                g.drawRect(w * 0.2 + 5 + d * (doorWidth + 10), h - 25, doorWidth, 25);
+            }
+            g.endFill();
+        }
+        
+        // Smokestack
+        if (details.hasSmokestack) {
+            g.beginFill(0x78716c);
+            g.drawRect(w - 25, -40, 15, 45);
+            g.endFill();
+            // Smoke
+            g.beginFill(0x9ca3af, 0.4);
+            g.drawCircle(w - 17, -50, 10);
+            g.drawCircle(w - 12, -60, 8);
+            g.endFill();
+        }
+        
+        // Storage tanks
+        if (details.hasTanks) {
+            g.beginFill(0xd4d4d8);
+            g.drawCircle(-40, h / 2, 25);
+            g.drawCircle(-40, h / 2 + 55, 20);
+            g.endFill();
+        }
+        
+        // Small windows
+        g.beginFill(0x94a3b8, 0.5);
+        for (let wx = 20; wx < w - 20; wx += 50) {
+            g.drawRect(wx, 15, 25, 8);
+        }
+        g.endFill();
+        
+        // Office entrance
+        g.beginFill(0x475569);
+        g.drawRect(5, h - 20, 25, 20);
+        g.endFill();
+        g.beginFill(0x1f2937);
+        g.drawRect(10, h - 15, 10, 15);
+        g.endFill();
+        
+        // Outline
+        g.lineStyle(2, 0x000000, 0.3);
+        g.drawRect(0, 0, w, h);
+        g.lineStyle(0);
+    }
+    
+    renderVehicles() {
+        const g = new PIXI.Graphics();
+        
+        for (const vehicle of this.city.vehicles) {
+            g.beginFill(vehicle.color);
+            
+            // Save transform
+            const cos = Math.cos(vehicle.rotation);
+            const sin = Math.sin(vehicle.rotation);
+            
+            let carLength, carWidth;
+            switch (vehicle.type) {
+                case 'suv': carLength = 18; carWidth = 8; break;
+                case 'truck': carLength = 22; carWidth = 8; break;
+                default: carLength = 15; carWidth = 7;
+            }
+            
+            // Draw rotated rectangle
+            const points = [
+                { x: -carLength / 2, y: -carWidth / 2 },
+                { x: carLength / 2, y: -carWidth / 2 },
+                { x: carLength / 2, y: carWidth / 2 },
+                { x: -carLength / 2, y: carWidth / 2 }
+            ];
+            
+            const transformed = points.map(p => ({
+                x: vehicle.x + p.x * cos - p.y * sin,
+                y: vehicle.y + p.x * sin + p.y * cos
+            }));
+            
+            g.drawPolygon(transformed.flatMap(p => [p.x, p.y]));
+            g.endFill();
+            
+            // Windshield
+            g.beginFill(0x1e3a5f, 0.7);
+            const windshieldOffset = carLength * 0.2;
+            const wsPoints = [
+                { x: windshieldOffset - 3, y: -carWidth / 2 + 1 },
+                { x: windshieldOffset + 3, y: -carWidth / 2 + 1 },
+                { x: windshieldOffset + 3, y: carWidth / 2 - 1 },
+                { x: windshieldOffset - 3, y: carWidth / 2 - 1 }
+            ];
+            
+            const wsTransformed = wsPoints.map(p => ({
+                x: vehicle.x + p.x * cos - p.y * sin,
+                y: vehicle.y + p.x * sin + p.y * cos
+            }));
+            
+            g.drawPolygon(wsTransformed.flatMap(p => [p.x, p.y]));
+            g.endFill();
+        }
+        
+        this.vehicleLayer.addChild(g);
+    }
+    
+    renderTrees() {
+        const g = new PIXI.Graphics();
+        
+        for (const tree of this.city.trees) {
+            // Shadow
+            g.beginFill(0x000000, 0.15);
+            g.drawEllipse(tree.x + 2, tree.y + 2, tree.size * 0.7, tree.size * 0.4);
+            g.endFill();
+            
+            // Trunk
+            g.beginFill(CONFIG.COLORS.TREE_TRUNK);
+            g.drawRect(tree.x - 2, tree.y - 2, 4, 5);
+            g.endFill();
+            
+            // Leaves
+            const leafColor = this.city.rng.pick(CONFIG.COLORS.TREE_LEAVES);
+            g.beginFill(leafColor);
+            g.drawCircle(tree.x, tree.y - tree.size / 2, tree.size);
+            g.endFill();
+            
+            // Highlight
+            g.beginFill(0xffffff, 0.1);
+            g.drawCircle(tree.x - tree.size * 0.2, tree.y - tree.size * 0.7, tree.size * 0.4);
+            g.endFill();
+        }
+        
+        this.treeLayer.addChild(g);
+    }
+    
+    renderStreetFurniture() {
+        const g = new PIXI.Graphics();
+        
+        for (const item of this.city.streetFurniture) {
+            switch (item.type) {
+                case 'traffic_light':
+                    // Pole
+                    g.beginFill(0x374151);
+                    g.drawRect(item.x - 1.5, item.y - 1.5, 3, 12);
+                    g.endFill();
+                    // Light box
+                    g.beginFill(0x1f2937);
+                    g.drawRect(item.x - 3, item.y - 8, 6, 10);
+                    g.endFill();
+                    // Lights
+                    g.beginFill(0xef4444);
+                    g.drawCircle(item.x, item.y - 5, 1.5);
+                    g.endFill();
+                    g.beginFill(0xfbbf24);
+                    g.drawCircle(item.x, item.y - 2, 1.5);
+                    g.endFill();
+                    g.beginFill(0x22c55e);
+                    g.drawCircle(item.x, item.y + 1, 1.5);
+                    g.endFill();
+                    break;
+                    
+                case 'street_light':
+                    // Pole
+                    g.beginFill(0x4b5563);
+                    g.drawRect(item.x - 1, item.y, 2, 8);
+                    g.endFill();
+                    // Light
+                    g.beginFill(0xfef3c7, 0.8);
+                    g.drawCircle(item.x, item.y - 2, 4);
+                    g.endFill();
+                    break;
+                    
+                case 'fire_hydrant':
+                    g.beginFill(0xdc2626);
+                    g.drawRect(item.x - 2, item.y - 2, 4, 6);
+                    g.drawRect(item.x - 3, item.y - 4, 6, 3);
+                    g.endFill();
+                    break;
+            }
+        }
+        
+        this.furnitureLayer.addChild(g);
+    }
+}
+
+// ============================================================================
+// MOTORCYCLE
+// ============================================================================
+class Motorcycle {
+    constructor(renderer) {
+        this.renderer = renderer;
+        this.container = new PIXI.Container();
+        
+        this.x = CONFIG.WORLD_SIZE / 2;
+        this.y = CONFIG.WORLD_SIZE / 2;
+        this.rotation = 0;
+        
+        this.speed = 0;
+        this.maxSpeed = 120; // feet per second (~80 mph)
+        this.acceleration = 60;
+        this.brakeForce = 120;
+        this.friction = 20;
+        this.turnSpeed = 2.5;
+        
+        this.distance = 0;
+        
+        this.createGraphics();
+        this.container.visible = false;
+        renderer.motorcycleLayer.addChild(this.container);
+    }
+    
+    createGraphics() {
+        const g = new PIXI.Graphics();
+        
+        // Shadow
+        g.beginFill(0x000000, 0.3);
+        g.drawEllipse(0, 2, 14, 6);
+        g.endFill();
+        
+        // Body
+        g.beginFill(0xdc2626);
+        g.drawRoundedRect(-12, -4, 24, 8, 3);
+        g.endFill();
+        
+        // Tank
+        g.beginFill(0xb91c1c);
+        g.drawEllipse(-2, 0, 6, 3);
+        g.endFill();
+        
+        // Wheels
+        g.beginFill(0x1f2937);
+        g.drawCircle(-10, 0, 5);
+        g.drawCircle(10, 0, 5);
+        g.endFill();
+        
+        // Wheel detail
+        g.lineStyle(1, 0x4b5563);
+        g.drawCircle(-10, 0, 3);
+        g.drawCircle(10, 0, 3);
+        g.lineStyle(0);
+        
+        // Handlebars
+        g.beginFill(0x374151);
+        g.drawRect(8, -6, 3, 12);
+        g.endFill();
+        
+        // Rider
+        g.beginFill(0x1f2937);
+        g.drawCircle(0, 0, 4);
+        g.endFill();
+        
+        // Helmet
+        g.beginFill(0xffffff);
+        g.drawCircle(0, -1, 3);
+        g.endFill();
+        
+        // Headlight
+        g.beginFill(0xfef3c7);
+        g.drawCircle(12, 0, 2);
+        g.endFill();
+        
+        // Taillight
+        g.beginFill(0xef4444);
+        g.drawRect(-14, -2, 2, 4);
+        g.endFill();
+        
+        this.container.addChild(g);
+    }
+    
+    update(dt, keys) {
+        const forward = keys.W || keys.ArrowUp;
+        const backward = keys.S || keys.ArrowDown;
+        const left = keys.A || keys.ArrowLeft;
+        const right = keys.D || keys.ArrowRight;
+        const brake = keys.Space;
+        
+        // Acceleration
+        if (forward) {
+            this.speed += this.acceleration * dt;
+        } else if (backward) {
+            this.speed -= this.acceleration * 0.5 * dt;
+        }
+        
+        // Braking
+        if (brake) {
+            if (Math.abs(this.speed) > this.brakeForce * dt) {
+                this.speed -= Math.sign(this.speed) * this.brakeForce * dt;
+            } else {
+                this.speed = 0;
+            }
+        }
+        
+        // Friction
+        if (!forward && !backward && !brake) {
+            if (Math.abs(this.speed) > this.friction * dt) {
+                this.speed -= Math.sign(this.speed) * this.friction * dt;
+            } else {
+                this.speed = 0;
+            }
+        }
+        
+        // Clamp speed
+        this.speed = Math.max(-this.maxSpeed * 0.3, Math.min(this.maxSpeed, this.speed));
+        
+        // Turning (scales with speed)
+        if (Math.abs(this.speed) > 1) {
+            const turnFactor = Math.min(1, Math.abs(this.speed) / 30);
+            if (left) this.rotation -= this.turnSpeed * turnFactor * dt;
+            if (right) this.rotation += this.turnSpeed * turnFactor * dt;
+        }
+        
+        // Movement
+        const vx = Math.cos(this.rotation) * this.speed;
+        const vy = Math.sin(this.rotation) * this.speed;
+        
+        this.x += vx * dt;
+        this.y += vy * dt;
+        
+        // World bounds
+        const margin = 50;
+        this.x = Math.max(margin, Math.min(CONFIG.WORLD_SIZE - margin, this.x));
+        this.y = Math.max(margin, Math.min(CONFIG.WORLD_SIZE - margin, this.y));
+        
+        // Distance tracking (in miles)
+        this.distance += Math.abs(this.speed) * dt / 5280;
+        
+        // Update graphics
+        this.container.x = this.x;
+        this.container.y = this.y;
+        this.container.rotation = this.rotation;
+    }
+    
+    getMPH() {
+        return Math.abs(Math.round(this.speed * 0.681818)); // ft/s to mph
+    }
+    
+    getRPM() {
+        return Math.round(Math.abs(this.speed) / this.maxSpeed * 8000 + 800);
+    }
+    
+    getGear() {
+        if (Math.abs(this.speed) < 1) return 'N';
+        const gearSpeed = this.maxSpeed / 6;
+        return Math.ceil(Math.abs(this.speed) / gearSpeed);
+    }
+    
+    show() {
+        this.container.visible = true;
+    }
+    
+    hide() {
+        this.container.visible = false;
+        this.speed = 0;
+    }
+    
+    setPosition(x, y) {
+        this.x = x;
+        this.y = y;
+        this.container.x = x;
+        this.container.y = y;
+        this.distance = 0;
+    }
+}
+
+// ============================================================================
+// MAIN APPLICATION
+// ============================================================================
+class CityMapApp {
+    constructor() {
+        this.app = new PIXI.Application({
+            width: window.innerWidth,
+            height: window.innerHeight,
+            backgroundColor: 0x0f0f1a,
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true
+        });
+        
+        document.getElementById('canvas-container').appendChild(this.app.view);
+        
+        this.cityGenerator = new CityGenerator(42);
+        this.renderer = null;
+        this.motorcycle = null;
+        this.setupMode = MAP_MODE === 'setup';
+        this.selectedLot = null;
+        this.setupPlanner = null;
+        
+        // Viewport state
+        this.viewport = {
+            x: CONFIG.WORLD_SIZE / 2,
+            y: CONFIG.WORLD_SIZE / 2,
+            zoom: 0.5
+        };
+        
+        // Input state
+        this.keys = {};
+        this.isDragging = false;
+        this.dragStart = { x: 0, y: 0 };
+        this.lastPointer = { x: 0, y: 0 };
+        this.pointerDown = null;
+        
+        // Modes
+        this.motorcycleMode = false;
+        
+        // Tooltip
+        this.hoveredObject = null;
+        
+        this.init();
+    }
+
+    getCanvasMetrics() {
+        const rect = this.app.view.getBoundingClientRect();
+        return {
+            rect,
+            width: rect.width || this.app.screen.width,
+            height: rect.height || this.app.screen.height
+        };
+    }
+
+    pointerToLocal(clientX, clientY) {
+        const { rect } = this.getCanvasMetrics();
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    localToWorld(localX, localY) {
+        const { width, height } = this.getCanvasMetrics();
+        return {
+            x: this.viewport.x + (localX - width / 2) / this.viewport.zoom,
+            y: this.viewport.y + (localY - height / 2) / this.viewport.zoom
+        };
+    }
+
+    zoomToPoint(targetZoom, localX, localY) {
+        const newZoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, targetZoom));
+        const worldBefore = this.localToWorld(localX, localY);
+
+        this.viewport.zoom = newZoom;
+
+        const { width, height } = this.getCanvasMetrics();
+        this.viewport.x = worldBefore.x - (localX - width / 2) / this.viewport.zoom;
+        this.viewport.y = worldBefore.y - (localY - height / 2) / this.viewport.zoom;
+
+        this.clampViewport();
+        this.updateViewport();
+    }
+    
+    async init() {
+        // Generate city
+        this.cityGenerator.generate((progress) => {
+            document.getElementById('loading-bar').style.width = `${progress * 100}%`;
+        });
+        
+        // Create renderer
+        this.renderer = new CityRenderer(this.app, this.cityGenerator);
+        this.renderer.render();
+        
+        // Create motorcycle
+        this.motorcycle = new Motorcycle(this.renderer);
+        
+        // Setup input
+        this.setupInput();
+        
+        // Setup UI
+        this.setupUI();
+        if (this.setupMode) {
+            this.setupSetupPlanner();
+        }
+        
+        // Initial viewport
+        this.updateViewport();
+        
+        // Setup minimap
+        this.setupMinimap();
+        
+        // Start game loop
+        this.app.ticker.add(this.update.bind(this));
+        
+        // Hide loading screen
+        setTimeout(() => {
+            document.getElementById('loading').classList.add('hidden');
+        }, 500);
+        
+        // Update building count
+        const stockCount = this.cityGenerator.buildings.length + this.cityGenerator.openLots.length;
+        document.getElementById('buildings-count').textContent = stockCount;
+    }
+    
+    setupInput() {
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.key] = true;
+            this.keys[e.code] = true;
+            
+            if (e.code === 'Escape' && this.motorcycleMode) {
+                this.toggleMotorcycleMode();
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.key] = false;
+            this.keys[e.code] = false;
+        });
+        
+        // Mouse/Touch
+        const canvas = this.app.view;
+        
+        canvas.addEventListener('pointerdown', (e) => {
+            this.pointerDown = { x: e.clientX, y: e.clientY, ts: Date.now() };
+            if (!this.motorcycleMode) {
+                this.isDragging = true;
+                this.dragStart.x = e.clientX;
+                this.dragStart.y = e.clientY;
+            }
+        });
+        
+        canvas.addEventListener('pointermove', (e) => {
+            this.lastPointer.x = e.clientX;
+            this.lastPointer.y = e.clientY;
+            
+            if (this.isDragging && !this.motorcycleMode) {
+                const dx = (e.clientX - this.dragStart.x) / this.viewport.zoom;
+                const dy = (e.clientY - this.dragStart.y) / this.viewport.zoom;
+                
+                this.viewport.x -= dx;
+                this.viewport.y -= dy;
+                
+                this.dragStart.x = e.clientX;
+                this.dragStart.y = e.clientY;
+                
+                this.clampViewport();
+                this.updateViewport();
+            }
+            
+            // Check hover
+            this.checkHover(e);
+        });
+        
+        canvas.addEventListener('pointerup', (e) => {
+            this.isDragging = false;
+
+            if (!this.setupMode || !this.pointerDown) return;
+            const dx = Math.abs(e.clientX - this.pointerDown.x);
+            const dy = Math.abs(e.clientY - this.pointerDown.y);
+            if (dx > 6 || dy > 6) return;
+
+            const { x: mouseX, y: mouseY } = this.pointerToLocal(e.clientX, e.clientY);
+            const { x: worldX, y: worldY } = this.localToWorld(mouseX, mouseY);
+            const target = this.findObjectAtPosition(worldX, worldY, mouseX, mouseY);
+            if (target && target.type === 'open_lot') {
+                this.handleSetupSelection(target);
+            }
+        });
+        
+        canvas.addEventListener('pointerleave', () => {
+            this.isDragging = false;
+            this.hideTooltip();
+        });
+        
+        // Zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            if (this.motorcycleMode) return;
+            
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const { x: mouseX, y: mouseY } = this.pointerToLocal(e.clientX, e.clientY);
+            this.zoomToPoint(this.viewport.zoom * zoomFactor, mouseX, mouseY);
+        }, { passive: false });
+        
+        // Resize
+        window.addEventListener('resize', () => {
+            this.app.renderer.resize(window.innerWidth, window.innerHeight);
+            this.updateViewport();
+        });
+    }
+    
+    setupUI() {
+        if (this.setupMode) {
+            const title = document.querySelector('#control-panel h1');
+            const subtitle = document.querySelector('#control-panel .subtitle');
+            const help = document.querySelector('#control-panel .controls-help');
+            const motorcycleBtn = document.getElementById('btn-motorcycle');
+            const legend = document.getElementById('legend');
+
+            if (title) title.textContent = 'Bakery Site Selection';
+            if (subtitle) subtitle.textContent = 'Choose a lot, compare taxes and traffic';
+            if (help) help.innerHTML = '<strong>Setup Mode:</strong> Click highlighted lots to compare operating costs.<br><strong>Pan/Zoom:</strong> Drag and scroll to inspect districts.';
+            if (motorcycleBtn) motorcycleBtn.style.display = 'none';
+            if (legend) {
+                const modeHint = document.createElement('div');
+                modeHint.className = 'legend-item';
+                modeHint.innerHTML = '<div class="legend-color" style="background: linear-gradient(135deg, #0b4f3a, #95f9d8);"></div><span>Open Lot (Setup Candidate)</span>';
+                legend.appendChild(modeHint);
+            }
+        }
+
+        document.getElementById('btn-motorcycle').addEventListener('click', () => {
+            this.toggleMotorcycleMode();
+        });
+        
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            this.viewport.x = CONFIG.WORLD_SIZE / 2;
+            this.viewport.y = CONFIG.WORLD_SIZE / 2;
+            this.viewport.zoom = 0.5;
+            this.updateViewport();
+        });
+        
+        document.getElementById('btn-downtown').addEventListener('click', () => {
+            this.viewport.x = CONFIG.WORLD_SIZE / 2;
+            this.viewport.y = CONFIG.WORLD_SIZE / 2;
+            this.viewport.zoom = 2;
+            this.updateViewport();
+        });
+        
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+            const { width, height } = this.getCanvasMetrics();
+            const local = this.lastPointer.x > 0
+                ? this.pointerToLocal(this.lastPointer.x, this.lastPointer.y)
+                : { x: width / 2, y: height / 2 };
+            this.zoomToPoint(this.viewport.zoom * 1.5, local.x, local.y);
+        });
+        
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+            const { width, height } = this.getCanvasMetrics();
+            const local = this.lastPointer.x > 0
+                ? this.pointerToLocal(this.lastPointer.x, this.lastPointer.y)
+                : { x: width / 2, y: height / 2 };
+            this.zoomToPoint(this.viewport.zoom * 0.7, local.x, local.y);
+        });
+        
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchLocation(e.target.value);
+            }
+        });
+    }
+    
+    searchLocation(query) {
+        const lower = query.toLowerCase();
+        
+        // Search buildings
+        for (const building of this.cityGenerator.buildings) {
+            if (building.name.toLowerCase().includes(lower) ||
+                building.type.toLowerCase().includes(lower)) {
+                this.viewport.x = building.x + building.width / 2;
+                this.viewport.y = building.y + building.height / 2;
+                this.viewport.zoom = 3;
+                this.updateViewport();
+                return;
+            }
+        }
+        
+        // Search parks
+        for (const park of this.cityGenerator.parks) {
+            if (park.name.toLowerCase().includes(lower)) {
+                this.viewport.x = park.x + park.width / 2;
+                this.viewport.y = park.y + park.height / 2;
+                this.viewport.zoom = 2;
+                this.updateViewport();
+                return;
+            }
+        }
+        
+        // Zone search
+        if (lower.includes('downtown')) {
+            this.viewport.x = CONFIG.WORLD_SIZE / 2;
+            this.viewport.y = CONFIG.WORLD_SIZE / 2;
+            this.viewport.zoom = 2;
+        } else if (lower.includes('industrial')) {
+            this.viewport.x = CONFIG.WORLD_SIZE * 0.85;
+            this.viewport.y = CONFIG.WORLD_SIZE * 0.85;
+            this.viewport.zoom = 1;
+        }
+        
+        this.updateViewport();
+    }
+    
+    toggleMotorcycleMode() {
+        this.motorcycleMode = !this.motorcycleMode;
+        
+        const btn = document.getElementById('btn-motorcycle');
+        const hud = document.getElementById('motorcycle-hud');
+        
+        if (this.motorcycleMode) {
+            btn.classList.add('btn-active');
+            btn.innerHTML = '<span>🛑</span> Exit Motorcycle';
+            hud.classList.add('visible');
+            
+            this.motorcycle.setPosition(this.viewport.x, this.viewport.y);
+            this.motorcycle.rotation = 0;
+            this.motorcycle.show();
+            
+            this.viewport.zoom = 4;
+            this.updateViewport();
+        } else {
+            btn.classList.remove('btn-active');
+            btn.innerHTML = '<span>🏍️</span> Motorcycle Mode';
+            hud.classList.remove('visible');
+            
+            this.motorcycle.hide();
+        }
+    }
+    
+    clampViewport() {
+        const { width, height } = this.getCanvasMetrics();
+        const halfWidth = width / 2 / this.viewport.zoom;
+        const halfHeight = height / 2 / this.viewport.zoom;
+        const panSlackX = Math.max(180, halfWidth * 0.45);
+        const panSlackY = Math.max(140, halfHeight * 0.45);
+
+        const minX = -panSlackX;
+        const maxX = CONFIG.WORLD_SIZE + panSlackX;
+        const minY = -panSlackY;
+        const maxY = CONFIG.WORLD_SIZE + panSlackY;
+
+        this.viewport.x = Math.max(minX, Math.min(maxX, this.viewport.x));
+        this.viewport.y = Math.max(minY, Math.min(maxY, this.viewport.y));
+    }
+    
+    updateViewport() {
+        const world = this.renderer.world;
+        const { width, height } = this.getCanvasMetrics();
+        
+        world.scale.set(this.viewport.zoom);
+        world.x = width / 2 - this.viewport.x * this.viewport.zoom;
+        world.y = height / 2 - this.viewport.y * this.viewport.zoom;
+        
+        // Update UI
+        document.getElementById('zoom-value').textContent = this.viewport.zoom.toFixed(1) + 'x';
+        document.getElementById('position-x').textContent = Math.round(this.viewport.x);
+        document.getElementById('position-y').textContent = Math.round(this.viewport.y);
+        document.getElementById('coord-display').textContent = 
+            `${(this.viewport.x).toFixed(0)} ft, ${(this.viewport.y).toFixed(0)} ft`;
+    }
+
+    findObjectAtPosition(worldX, worldY, screenX = null, screenY = null) {
+        if (this.cityGenerator?.openLots?.length) {
+            for (let i = this.cityGenerator.openLots.length - 1; i >= 0; i--) {
+                const lot = this.cityGenerator.openLots[i];
+                const padding = lot.hitPadding || 0;
+                if (
+                    worldX >= lot.x - padding &&
+                    worldX <= lot.x + lot.width + padding &&
+                    worldY >= lot.y - padding &&
+                    worldY <= lot.y + lot.height + padding
+                ) {
+                    return lot;
+                }
+            }
+        }
+
+        if (!this.renderer?.buildingSprites || screenX === null || screenY === null) return null;
+
+        for (let i = this.renderer.buildingSprites.length - 1; i >= 0; i--) {
+            const sprite = this.renderer.buildingSprites[i];
+            const bounds = sprite.getBounds();
+            if (
+                screenX >= bounds.x &&
+                screenX <= bounds.x + bounds.width &&
+                screenY >= bounds.y &&
+                screenY <= bounds.y + bounds.height
+            ) {
+                return sprite.buildingData;
+            }
+        }
+
+        return null;
+    }
+
+    setupSetupPlanner() {
+        const overlay = document.querySelector('.ui-overlay');
+        if (!overlay) return;
+
+        const planner = document.createElement('div');
+        planner.id = 'setup-planner';
+        planner.className = 'panel';
+        planner.style.position = 'absolute';
+        planner.style.right = '24px';
+        planner.style.bottom = '24px';
+        planner.style.width = '360px';
+        planner.style.maxHeight = '56vh';
+        planner.style.overflowY = 'auto';
+        planner.style.padding = '16px';
+        planner.style.border = '1px solid rgba(102, 252, 241, 0.35)';
+        planner.style.background = 'rgba(10, 14, 24, 0.88)';
+
+        planner.innerHTML = `
+            <h3 style="margin:0 0 8px 0; font-size:18px; color:#9fe4ff;">Bakery Setup Planner</h3>
+            <p style="margin:0 0 12px 0; font-size:12px; color:#c9d5df; line-height:1.45;">
+                Choose an open lot, then complete practical startup checks used by real small businesses.
+            </p>
+            <div style="font-size:12px; color:#d6e2ee; margin-bottom:10px;"><strong>Procedures</strong></div>
+            <div style="font-size:12px; color:#c8d4de; line-height:1.55; margin-bottom:14px;">
+                1. Register entity name and tax IDs<br>
+                2. Confirm zoning and food service permits<br>
+                3. Estimate insurance and utility overhead<br>
+                4. Plan parking and frontage visibility
+            </div>
+            <div id="setup-lot-summary" style="font-size:12px; color:#8ca2b2; margin-bottom:12px;">Select any highlighted lot to view expected economics.</div>
+            <button id="btn-confirm-lot" class="btn btn-primary" style="width:100%;" disabled>
+                <span>✅</span> Confirm Lot For Bakery
+            </button>
+        `;
+
+        overlay.appendChild(planner);
+        this.setupPlanner = planner;
+        planner.querySelector('#btn-confirm-lot').addEventListener('click', () => this.confirmSetupLot());
+    }
+
+    handleSetupSelection(lot) {
+        this.selectedLot = lot;
+        this.updateSetupPlanner();
+        this.viewport.x = lot.x + lot.width / 2;
+        this.viewport.y = lot.y + lot.height / 2;
+        this.viewport.zoom = Math.max(this.viewport.zoom, 2.4);
+        this.updateViewport();
+    }
+
+    updateSetupPlanner() {
+        if (!this.setupPlanner) return;
+        const summary = this.setupPlanner.querySelector('#setup-lot-summary');
+        const btn = this.setupPlanner.querySelector('#btn-confirm-lot');
+        if (!summary || !btn) return;
+
+        if (!this.selectedLot) {
+            summary.textContent = 'Select any highlighted lot to view expected economics.';
+            btn.disabled = true;
+            return;
+        }
+
+        const lot = this.selectedLot;
+        summary.innerHTML = `
+            <div style="padding:10px; border-radius:8px; border:1px solid rgba(159,228,255,0.3); background:rgba(9,25,39,0.65)">
+                <div style="font-size:14px; color:#d7f2ff; margin-bottom:6px;">${lot.icon} ${lot.name}</div>
+                <div>District: ${lot.district}</div>
+                <div>Daily rent estimate: $${lot.rentDaily}</div>
+                <div>Monthly property tax: $${lot.monthlyPropertyTax}</div>
+                <div>Ingredient market pressure: x${lot.ingredientCostMultiplier.toFixed(2)}</div>
+                <div>Expected customer flow: x${lot.trafficMultiplier.toFixed(2)}</div>
+                <div>Permit and filing budget: $${lot.permitFees}</div>
+                <div>Nearby parking capacity: ~${lot.parkingSpaces} spaces</div>
+            </div>
+        `;
+        btn.disabled = false;
+    }
+
+    confirmSetupLot() {
+        if (!this.selectedLot) return;
+        const lot = this.selectedLot;
+        const payload = {
+            mapMode: 'setup',
+            locationId: lot.id,
+            name: lot.name,
+            district: lot.district,
+            zone: lot.zone,
+            rentDaily: lot.rentDaily,
+            monthlyPropertyTax: lot.monthlyPropertyTax,
+            trafficMultiplier: lot.trafficMultiplier,
+            ingredientCostMultiplier: lot.ingredientCostMultiplier,
+            permitFees: lot.permitFees,
+            parkingSpaces: lot.parkingSpaces,
+            exteriorStyle: lot.exteriorStyle,
+            procedures: [
+                'Register entity and tax IDs',
+                'File food service permits',
+                'Bind general liability insurance',
+                'Set utility service and waste contract'
+            ]
+        };
+
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'bakery_setup_location_selected', payload }, '*');
+        } else {
+            localStorage.setItem('bakery.setupLocation', JSON.stringify(payload));
+            alert(`Saved setup lot: ${lot.name}`);
+        }
+    }
+    
+    checkHover(e) {
+        if (this.motorcycleMode) {
+            this.hideTooltip();
+            return;
+        }
+        
+        const { x: mouseX, y: mouseY } = this.pointerToLocal(e.clientX, e.clientY);
+        const { x: worldX, y: worldY } = this.localToWorld(mouseX, mouseY);
+        
+        const found = this.findObjectAtPosition(worldX, worldY, mouseX, mouseY);
+        
+        if (found) {
+            this.showTooltip(e.clientX, e.clientY, found);
+        } else {
+            this.hideTooltip();
+        }
+    }
+    
+    showTooltip(x, y, data) {
+        const tooltip = document.getElementById('tooltip');
+        const icon = document.getElementById('tooltip-icon');
+        const title = document.getElementById('tooltip-title');
+        const type = document.getElementById('tooltip-type');
+        const details = document.getElementById('tooltip-details');
+        
+        // Set icon based on type
+        const icons = {
+            'downtown': '🏙️',
+            'commercial': '🏪',
+            'house': '🏠',
+            'apartment': '🏢',
+            'industrial': '🏭',
+            'park': '🌳',
+            'open_lot': '📍',
+            'parking_lot': '🅿️'
+        };
+        
+        const colors = {
+            'downtown': '#2563eb',
+            'commercial': '#8b5cf6',
+            'house': '#059669',
+            'apartment': '#0891b2',
+            'industrial': '#64748b',
+            'park': '#22c55e',
+            'open_lot': '#14b8a6',
+            'parking_lot': '#94a3b8'
+        };
+        
+        icon.textContent = icons[data.type] || '🏢';
+        icon.style.backgroundColor = colors[data.type] || '#666';
+        title.textContent = data.name;
+        type.textContent = data.type.toUpperCase();
+        
+        // Build details HTML
+        let detailsHtml = '';
+        
+        if (data.floors) {
+            detailsHtml += `<div class="tooltip-detail-row"><span>Floors</span><span>${data.floors}</span></div>`;
+        }
+        
+        if (data.details) {
+            if (data.details.business) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Business</span><span>${data.details.business}</span></div>`;
+            }
+            if (data.details.hasGarage) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Garage</span><span>Yes</span></div>`;
+            }
+            if (data.details.hasPool) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Pool</span><span>Yes</span></div>`;
+            }
+            if (data.details.hasHelipad) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Helipad</span><span>Yes</span></div>`;
+            }
+            if (data.details.features) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Features</span><span>${data.details.features}</span></div>`;
+            }
+            if (data.details.stalls) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Stalls</span><span>${data.details.stalls}</span></div>`;
+            }
+        }
+
+        if (data.type === 'open_lot') {
+            detailsHtml += `<div class="tooltip-detail-row"><span>Daily Rent</span><span>$${data.rentDaily}</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Property Tax</span><span>$${data.monthlyPropertyTax}/mo</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Traffic</span><span>x${data.trafficMultiplier.toFixed(2)}</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Ingredient Index</span><span>x${data.ingredientCostMultiplier.toFixed(2)}</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Permit Budget</span><span>$${data.permitFees}</span></div>`;
+        }
+        
+        details.innerHTML = detailsHtml || '<div style="color: #666;">No additional details</div>';
+        
+        // Position tooltip
+        tooltip.style.left = `${x + 15}px`;
+        tooltip.style.top = `${y + 15}px`;
+        tooltip.classList.add('visible');
+    }
+    
+    hideTooltip() {
+        document.getElementById('tooltip').classList.remove('visible');
+    }
+    
+    setupMinimap() {
+        this.minimapCanvas = document.getElementById('minimap-canvas');
+        this.minimapCtx = this.minimapCanvas.getContext('2d');
+        
+        // Draw static minimap
+        this.drawMinimap();
+    }
+    
+    drawMinimap() {
+        const ctx = this.minimapCtx;
+        const size = 200;
+        const scale = size / CONFIG.WORLD_SIZE;
+        
+        // Clear
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, size, size);
+        
+        // Draw zones
+        for (let x = 0; x < size; x += 4) {
+            for (let y = 0; y < size; y += 4) {
+                const worldX = x / scale;
+                const worldY = y / scale;
+                const zone = this.cityGenerator.getZoneAt(worldX, worldY);
+                
+                const colors = {
+                    'downtown': '#2563eb',
+                    'commercial': '#7c3aed',
+                    'residential': '#059669',
+                    'industrial': '#475569',
+                    'park': '#166534'
+                };
+                
+                ctx.fillStyle = colors[zone] || '#333';
+                ctx.fillRect(x, y, 4, 4);
+            }
+        }
+        
+        // Draw roads
+        ctx.fillStyle = '#555';
+        for (const road of this.cityGenerator.roads) {
+            if (road.type !== 'major') continue;
+            
+            if (road.orientation === 'vertical') {
+                ctx.fillRect(road.position * scale - 1, 0, 2, size);
+            } else {
+                ctx.fillRect(0, road.position * scale - 1, size, 2);
+            }
+        }
+    }
+    
+    updateMinimap() {
+        const ctx = this.minimapCtx;
+        const size = 200;
+        const scale = size / CONFIG.WORLD_SIZE;
+        
+        // Redraw base
+        this.drawMinimap();
+        
+        // Draw viewport rectangle
+        const viewWidth = this.app.screen.width / this.viewport.zoom * scale;
+        const viewHeight = this.app.screen.height / this.viewport.zoom * scale;
+        const viewX = (this.viewport.x - this.app.screen.width / 2 / this.viewport.zoom) * scale;
+        const viewY = (this.viewport.y - this.app.screen.height / 2 / this.viewport.zoom) * scale;
+        
+        ctx.strokeStyle = '#64b5f6';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(viewX, viewY, viewWidth, viewHeight);
+        
+        // Draw motorcycle
+        if (this.motorcycleMode) {
+            const mx = this.motorcycle.x * scale;
+            const my = this.motorcycle.y * scale;
+            
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(mx, my, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    update(delta) {
+        const dt = delta / 60; // Convert to seconds
+        
+        if (this.motorcycleMode) {
+            // Update motorcycle
+            this.motorcycle.update(dt, this.keys);
+            
+            // Follow motorcycle
+            this.viewport.x = this.motorcycle.x;
+            this.viewport.y = this.motorcycle.y;
+            this.clampViewport();
+            this.updateViewport();
+            
+            // Update HUD
+            document.getElementById('hud-speed').textContent = this.motorcycle.getMPH();
+            document.getElementById('hud-rpm').textContent = this.motorcycle.getRPM();
+            document.getElementById('hud-gear').textContent = this.motorcycle.getGear();
+            document.getElementById('hud-distance').textContent = this.motorcycle.distance.toFixed(2);
+        }
+        
+        // Update minimap every few frames
+        if (this.app.ticker.lastTime % 100 < 20) {
+            this.updateMinimap();
+        }
+    }
+}
+
+// ============================================================================
+// START APPLICATION
+// ============================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    new CityMapApp();
+});
+    </script>
+</body>
+</html>

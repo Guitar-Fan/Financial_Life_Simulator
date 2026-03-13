@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <rect x="8" y="14" width="32" height="28" rx="2" fill="#fff8f0" stroke="#d4a574" stroke-width="1.5"/>
+  <line x1="8" y1="20" x2="40" y2="20" stroke="#d4a574" stroke-width="0.5" opacity="0.3"/>
+  <line x1="8" y1="26" x2="40" y2="26" stroke="#d4a574" stroke-width="0.5" opacity="0.3"/>
+  <line x1="8" y1="32" x2="40" y2="32" stroke="#d4a574" stroke-width="0.5" opacity="0.3"/>
+  <line x1="8" y1="38" x2="40" y2="38" stroke="#d4a574" stroke-width="0.5" opacity="0.3"/>
+  <path d="M16 10 L16 14 L32 14 L32 10" stroke="#d4a574" stroke-width="1.5" fill="none"/>
+  <text x="24" y="30" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#a67c52">BOX</text>
+</svg>

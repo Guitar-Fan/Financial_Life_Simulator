@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120" viewBox="0 0 100 120">
+  <defs>
+    <linearGradient id="bin-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <linearGradient id="bin-lid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f87171"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="50" cy="110" rx="35" ry="8" fill="#991b1b" opacity="0.4"/>
+  <path d="M25 30 L20 100 Q20 110 50 110 Q80 110 80 100 L75 30 Z" fill="url(#bin-body)"/>
+  <path d="M25 30 Q25 35 50 35 Q75 35 75 30" fill="#dc2626"/>
+  <line x1="35" y1="40" x2="32" y2="95" stroke="#f87171" stroke-width="2" opacity="0.4"/>
+  <line x1="50" y1="40" x2="50" y2="95" stroke="#f87171" stroke-width="2" opacity="0.4"/>
+  <line x1="65" y1="40" x2="68" y2="95" stroke="#f87171" stroke-width="2" opacity="0.4"/>
+  <rect x="30" y="20" width="40" height="12" rx="3" fill="url(#bin-lid)"/>
+  <rect x="45" y="12" width="10" height="10" rx="2" fill="#f87171"/>
+  <path d="M40 55 L45 75 L55 75 L60 55 L50 50 Z" fill="#7f1d1d" opacity="0.6"/>
+  <text x="50" y="90" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#ffffff">WASTE</text>
+</svg>

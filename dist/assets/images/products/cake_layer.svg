@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="cake-layer1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff5f5"/>
+      <stop offset="100%" stop-color="#fecaca"/>
+    </linearGradient>
+    <linearGradient id="frosting" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8f8f8"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="48" rx="26" ry="8" fill="#e5a8a8" opacity="0.3"/>
+  <ellipse cx="32" cy="44" rx="24" ry="6" fill="url(#cake-layer1)"/>
+  <rect x="10" y="34" width="44" height="10" fill="url(#cake-layer1)"/>
+  <ellipse cx="32" cy="34" rx="22" ry="5" fill="url(#frosting)"/>
+  <ellipse cx="32" cy="28" rx="20" ry="5" fill="url(#cake-layer1)"/>
+  <rect x="14" y="18" width="36" height="10" fill="url(#cake-layer1)"/>
+  <ellipse cx="32" cy="18" rx="18" ry="4" fill="url(#frosting)"/>
+  <path d="M20 30 Q22 28 24 30" stroke="#ffb3b3" stroke-width="1.5" fill="none"/>
+  <path d="M30 30 Q32 28 34 30" stroke="#ffb3b3" stroke-width="1.5" fill="none"/>
+  <path d="M40 30 Q42 28 44 30" stroke="#ffb3b3" stroke-width="1.5" fill="none"/>
+  <circle cx="32" cy="15" r="2" fill="#ff6b6b"/>
+</svg>

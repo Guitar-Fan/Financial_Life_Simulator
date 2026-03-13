@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="butter-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#fde047"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="16" width="32" height="20" rx="2" fill="url(#butter-grad)" stroke="#eab308" stroke-width="1"/>
+  <rect x="8" y="16" width="32" height="4" fill="#fef3c7"/>
+  <text x="24" y="30" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="#a16207">BUTTER</text>
+  <line x1="14" y1="16" x2="14" y2="36" stroke="#f59e0b" stroke-width="0.5" opacity="0.3"/>
+  <line x1="24" y1="16" x2="24" y2="36" stroke="#f59e0b" stroke-width="0.5" opacity="0.3"/>
+  <line x1="34" y1="16" x2="34" y2="36" stroke="#f59e0b" stroke-width="0.5" opacity="0.3"/>
+</svg>

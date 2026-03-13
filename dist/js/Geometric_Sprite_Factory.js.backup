@@ -1,0 +1,354 @@
+/**
+ * Geometric_Sprite_Factory.js
+ * 
+ * Creates visual sprites using loaded SVG assets with fallback to geometric shapes.
+ * Provides consistent visual elements for game rendering.
+ */
+
+class GeometricSpriteFactory {
+    constructor(scene) {
+        this.scene = scene;
+        
+        // Product name to asset key mapping
+        this.productAssets = {
+            'Basic White Bread': 'product_bread_basic',
+            'Artisan Sourdough': 'product_bread_sourdough',
+            'French Baguette': 'product_baguette',
+            'Butter Croissant': 'product_croissant',
+            'Pain au Chocolat': 'product_pain_au_chocolat',
+            'Blueberry Muffin': 'product_muffin',
+            'Chocolate Chip Cookie': 'product_cookie_chocolate',
+            'Sugar Cookie': 'product_cookie_sugar',
+            '8" Layer Cake': 'product_cake_layer',
+            'Decorated Cupcake': 'product_cupcake'
+        };
+        
+        // Ingredient name to asset key mapping
+        this.ingredientAssets = {
+            'All-Purpose Flour': 'ingredient_flour',
+            'Bread Flour': 'ingredient_bread_flour',
+            'Granulated Sugar': 'ingredient_sugar',
+            'Brown Sugar': 'ingredient_brown_sugar',
+            'Unsalted Butter': 'ingredient_butter',
+            'Eggs': 'ingredient_eggs',
+            'Whole Milk': 'ingredient_milk',
+            'Heavy Cream': 'ingredient_cream',
+            'Yeast': 'ingredient_yeast',
+            'Baking Powder': 'ingredient_baking_powder',
+            'Salt': 'ingredient_salt',
+            'Vanilla Extract': 'ingredient_vanilla',
+            'Chocolate Chips': 'ingredient_chocolate',
+            'Cocoa Powder': 'ingredient_cocoa',
+            'Honey': 'ingredient_honey',
+            'Bread Bag': 'ingredient_bread_bag',
+            'Small Bakery Box': 'ingredient_box_small',
+            'Medium Bakery Box': 'ingredient_box_medium',
+            'Large Bakery Box': 'ingredient_box_large'
+        };
+        
+        // Color palette (fallback for geometric shapes)
+        this.colors = {
+            // Interactive zones
+            storage: 0x3b82f6,      // Blue
+            waste: 0xef4444,        // Red
+            display: 0x10b981,      // Green
+            production: 0xf59e0b,   // Orange
+            
+            // Ingredients
+            flour: 0xfef3c7,        // Light yellow
+            butter: 0xfde047,       // Yellow
+            sugar: 0xffffff,        // White
+            eggs: 0xfcd34d,         // Golden
+            yeast: 0xd4d4d4,        // Gray
+            chocolate: 0x78350f,    // Dark brown
+            
+            // Products
+            bread: 0xd97706,        // Brown
+            pastry: 0xfbbf24,       // Light brown
+            cookie: 0xfbbf24,       // Tan
+            cake: 0xfecaca,         // Pink
+            
+            // UI
+            button: 0x7c3aed,       // Purple
+            panel: 0x1f2937,        // Dark gray
+            text: 0xffffff,         // White
+            highlight: 0xfde68a     // Yellow highlight
+        };
+    }
+    
+    /**
+     * Create storage room sprite using loaded asset
+     */
+    createStorageZone(x, y, width = 200, height = 150) {
+        const sprite = this.scene.add.image(x, y, 'zone_storage');
+        sprite.setDisplaySize(width, height);
+        sprite.setInteractive();
+        return sprite;
+    }
+    
+    /**
+     * Create waste bin sprite using loaded asset
+     */
+    createWasteBin(x, y, radius = 50) {
+        const sprite = this.scene.add.image(x, y, 'zone_waste');
+        sprite.setDisplaySize(radius * 2, radius * 2.4);
+        sprite.setInteractive();
+        return sprite;
+    }
+    
+    /**
+     * Create display case sprite using loaded asset
+     */
+    createDisplayCase(x, y, width = 300, height = 200) {
+        const sprite = this.scene.add.image(x, y, 'zone_display');
+        sprite.setDisplaySize(width, height);
+        sprite.setInteractive();
+        return sprite;
+    }
+    
+    /**
+     * Create production area sprite using loaded asset
+     */
+    createProductionZone(x, y, width = 250, height = 200) {
+        const sprite = this.scene.add.image(x, y, 'zone_production');
+        sprite.setDisplaySize(width, height);
+        sprite.setInteractive();
+        return sprite;
+    }
+    
+    /**
+     * Create interactive button
+     */
+    createButton(x, y, text, width = 120, height = 40) {
+        const container = this.scene.add.container(x, y);
+        
+        const graphics = this.scene.add.graphics();
+        graphics.fillStyle(this.colors.button, 1);
+        graphics.fillRoundedRect(0, 0, width, height, 8);
+        graphics.lineStyle(2, 0xffffff, 1);
+        graphics.strokeRoundedRect(0, 0, width, height, 8);
+        
+        container.add(graphics);
+        
+        const label = this.scene.add.text(width / 2, height / 2, text, {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5);
+        
+        container.add(label);
+        
+        container.setSize(width, height);
+        container.setInteractive(
+            new Phaser.Geom.Rectangle(0, 0, width, height),
+            Phaser.Geom.Rectangle.Contains
+        );
+        
+        // Hover effect
+        container.on('pointerover', () => {
+            graphics.clear();
+            graphics.fillStyle(this.colors.highlight, 1);
+            graphics.fillRoundedRect(0, 0, width, height, 8);
+            graphics.lineStyle(2, 0xffffff, 1);
+            graphics.strokeRoundedRect(0, 0, width, height, 8);
+        });
+        
+        container.on('pointerout', () => {
+            graphics.clear();
+            graphics.fillStyle(this.colors.button, 1);
+            graphics.fillRoundedRect(0, 0, width, height, 8);
+            graphics.lineStyle(2, 0xffffff, 1);
+            graphics.strokeRoundedRect(0, 0, width, height, 8);
+        });
+        
+        return container;
+    }
+    
+    /**
+     * Create info panel background
+     */
+    createPanel(x, y, width = 300, height = 200) {
+        const container = this.scene.add.container(x, y);
+        
+        const graphics = this.scene.add.graphics();
+        graphics.fillStyle(this.colors.panel, 0.9);
+        graphics.fillRoundedRect(0, 0, width, height, 10);
+        graphics.lineStyle(2, 0xffffff, 1);
+        graphics.strokeRoundedRect(0, 0, width, height, 10);
+        
+        container.add(graphics);
+        
+        return container;
+    }
+    
+    /**
+     * Create ingredient icon (small colored square)
+     */
+    createIngredientIcon(ingredientType, size = 30) {
+        const container = this.scene.add.container(0, 0);
+        
+        const color = this.colors[ingredientType] || 0xcccccc;
+        
+        const graphics = this.scene.add.graphics();
+        graphics.fillStyle(color, 1);
+        graphics.fillRect(0, 0, size, size);
+        graphics.lineStyle(1, 0x000000, 1);
+        graphics.strokeRect(0, 0, size, size);
+        
+        container.add(graphics);
+        
+        const label = this.scene.add.text(size / 2, size / 2, ingredientType.substring(0, 3).toUpperCase(), {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            fontStyle: 'bold',
+            color: '#000000',
+            align: 'center'
+        }).setOrigin(0.5);
+        
+        container.add(label);
+        
+        return container;
+    }
+    
+    /**
+     * Create product icon (small colored circle)
+     */
+    createProductIcon(productType, size = 35) {
+        const container = this.scene.add.container(0, 0);
+        
+        const color = this.colors[productType] || 0xcccccc;
+        const radius = size / 2;
+        
+        const graphics = this.scene.add.graphics();
+        graphics.fillStyle(color, 1);
+        graphics.fillCircle(radius, radius, radius);
+        graphics.lineStyle(1, 0x000000, 1);
+        graphics.strokeCircle(radius, radius, radius);
+        
+        container.add(graphics);
+        
+        const label = this.scene.add.text(radius, radius, productType.substring(0, 3).toUpperCase(), {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            fontStyle: 'bold',
+            color: '#000000',
+            align: 'center'
+        }).setOrigin(0.5);
+        
+        container.add(label);
+        
+        return container;
+    }
+    
+    /**
+     * Create freshness indicator bar
+     */
+    createFreshnessBar(x, y, width = 100, height = 12, percentage = 100) {
+        const container = this.scene.add.container(x, y);
+        
+        // Background
+        const bgGraphics = this.scene.add.graphics();
+        bgGraphics.fillStyle(0x444444, 1);
+        bgGraphics.fillRect(0, 0, width, height);
+        
+        container.add(bgGraphics);
+        
+        // Foreground bar (color based on percentage)
+        const fgGraphics = this.scene.add.graphics();
+        let barColor;
+        if (percentage > 60) {
+            barColor = 0x10b981; // Green
+        } else if (percentage > 30) {
+            barColor = 0xf59e0b; // Orange
+        } else {
+            barColor = 0xef4444; // Red
+        }
+        
+        fgGraphics.fillStyle(barColor, 1);
+        fgGraphics.fillRect(0, 0, width * (percentage / 100), height);
+        
+        container.add(fgGraphics);
+        
+        // Store graphics for updates
+        container.bgGraphics = bgGraphics;
+        container.fgGraphics = fgGraphics;
+        container.maxWidth = width;
+        container.barHeight = height;
+        
+        return container;
+    }
+    
+    /**
+     * Update freshness bar percentage
+     */
+    updateFreshnessBar(container, percentage) {
+        percentage = Math.max(0, Math.min(100, percentage));
+        
+        let barColor;
+        if (percentage > 60) {
+            barColor = 0x10b981;
+        } else if (percentage > 30) {
+            barColor = 0xf59e0b;
+        } else {
+            barColor = 0xef4444;
+        }
+        
+        container.fgGraphics.clear();
+        container.fgGraphics.fillStyle(barColor, 1);
+        container.fgGraphics.fillRect(0, 0, container.maxWidth * (percentage / 100), container.barHeight);
+    }
+    
+    /**
+     * Create customer sprite (simple geometric person)
+     */
+    createCustomer(x, y) {
+        const container = this.scene.add.container(x, y);
+        
+        const graphics = this.scene.add.graphics();
+        
+        // Head (circle)
+        graphics.fillStyle(0xfbbf24, 1);
+        graphics.fillCircle(0, -15, 10);
+        
+        // Body (rectangle)
+        graphics.fillStyle(0x3b82f6, 1);
+        graphics.fillRect(-8, -5, 16, 20);
+        
+        // Legs (two rectangles)
+        graphics.fillStyle(0x1e3a8a, 1);
+        graphics.fillRect(-7, 15, 6, 15);
+        graphics.fillRect(1, 15, 6, 15);
+        
+        container.add(graphics);
+        
+        return container;
+    }
+    
+    /**
+     * Create floor tile background
+     */
+    createFloorBackground(x, y, width, height) {
+        const container = this.scene.add.container(x, y);
+        
+        const graphics = this.scene.add.graphics();
+        
+        // Checkerboard pattern
+        const tileSize = 40;
+        for (let row = 0; row < Math.ceil(height / tileSize); row++) {
+            for (let col = 0; col < Math.ceil(width / tileSize); col++) {
+                const color = (row + col) % 2 === 0 ? 0xe5e7eb : 0xd1d5db;
+                graphics.fillStyle(color, 1);
+                graphics.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+            }
+        }
+        
+        container.add(graphics);
+        
+        return container;
+    }
+}
+
+// Export for use in other files
+window.GeometricSpriteFactory = GeometricSpriteFactory;
