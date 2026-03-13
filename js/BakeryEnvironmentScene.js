@@ -285,7 +285,23 @@ class BakeryEnvironmentScene extends Phaser.Scene {
         this.customers = [];
         this.displayItems = [];
         this.inputEnabled = true;
+        this.overlayInputLock = false;
+        this.checkoutInputLock = false;
         this._expressionHandler = null;
+        this._moneyFloatHandler = null;
+        this._checkoutStateHandler = null;
+        this._overlayOpenedHandler = null;
+        this._overlayClosedHandler = null;
+        this.staffActors = new Map();
+        this._staffRouteHandler = null;
+        this._staffSyncTimer = null;
+        this._checkoutLockFailsafe = null;
+        this.staffStations = {
+            floor: { x: 700, y: 380 },
+            counter: { x: 700, y: 250 },
+            computer: { x: 140, y: 700 },
+            prep: { x: 560, y: 760 }
+        };
     }
 
     preload() { generateBakeryTextures(this); }
@@ -339,12 +355,34 @@ class BakeryEnvironmentScene extends Phaser.Scene {
         this.spawnCustomer();
 
         // Listen for overlay open/close to freeze/unfreeze player
-        window.addEventListener('bakery:overlay-opened', () => { this.inputEnabled = false; this.player.setVelocity(0,0); });
-        window.addEventListener('bakery:overlay-closed', () => { this.inputEnabled = true; });
+        this._overlayOpenedHandler = () => {
+            this.overlayInputLock = true;
+            this.updateInputLock();
+            this.player.setVelocity(0, 0);
+        };
+        this._overlayClosedHandler = () => {
+            this.overlayInputLock = false;
+            this.updateInputLock();
+        };
+        window.addEventListener('bakery:overlay-opened', this._overlayOpenedHandler);
+        window.addEventListener('bakery:overlay-closed', this._overlayClosedHandler);
 
         // Listen for game-driven customer expressions from GameController
         this._expressionHandler = (event) => this.showWorldCustomerBubble(event.detail || {});
         window.addEventListener('bakery:customer-expression', this._expressionHandler);
+        this._moneyFloatHandler = (event) => this.showMoneyFloat(event.detail || {});
+        window.addEventListener('bakery:money-float', this._moneyFloatHandler);
+        this._checkoutStateHandler = (event) => this.applyCheckoutLock(event.detail || {});
+        window.addEventListener('bakery:checkout-state', this._checkoutStateHandler);
+
+        this.initStaffVisuals();
+        this._staffRouteHandler = (event) => this.routeStaffActor(event.detail || {});
+        window.addEventListener('bakery:staff-route', this._staffRouteHandler);
+        this._staffSyncTimer = this.time.addEvent({
+            delay: 2000,
+            loop: true,
+            callback: () => this.syncStaffActorsFromGame()
+        });
 
         // Ambient chatter while customers roam
         this.time.addEvent({
@@ -367,11 +405,48 @@ class BakeryEnvironmentScene extends Phaser.Scene {
             window.removeEventListener('bakery:customer-expression', this._expressionHandler);
             this._expressionHandler = null;
         }
+        if (this._moneyFloatHandler) {
+            window.removeEventListener('bakery:money-float', this._moneyFloatHandler);
+            this._moneyFloatHandler = null;
+        }
+        if (this._checkoutStateHandler) {
+            window.removeEventListener('bakery:checkout-state', this._checkoutStateHandler);
+            this._checkoutStateHandler = null;
+        }
+        if (this._overlayOpenedHandler) {
+            window.removeEventListener('bakery:overlay-opened', this._overlayOpenedHandler);
+            this._overlayOpenedHandler = null;
+        }
+        if (this._overlayClosedHandler) {
+            window.removeEventListener('bakery:overlay-closed', this._overlayClosedHandler);
+            this._overlayClosedHandler = null;
+        }
+        if (this._staffRouteHandler) {
+            window.removeEventListener('bakery:staff-route', this._staffRouteHandler);
+            this._staffRouteHandler = null;
+        }
+        if (this._staffSyncTimer) {
+            this._staffSyncTimer.remove(false);
+            this._staffSyncTimer = null;
+        }
+        if (this._checkoutLockFailsafe) {
+            this._checkoutLockFailsafe.remove(false);
+            this._checkoutLockFailsafe = null;
+        }
     }
 
     // ======== EXTERIOR WALLS ========
     buildExteriorWalls() {
-        this.add.tileSprite(BAKERY_WORLD.W / 2, BAKERY_WORLD.WALL_H / 2, BAKERY_WORLD.W, BAKERY_WORLD.WALL_H, 'wall_shop').setDepth(0);
+        const wall = this.add.tileSprite(BAKERY_WORLD.W / 2, BAKERY_WORLD.WALL_H / 2, BAKERY_WORLD.W, BAKERY_WORLD.WALL_H, 'wall_shop').setDepth(0);
+        const style = window.game?.engine?.exteriorStyle || 'warm_classic';
+        const tintByStyle = {
+            warm_classic: 0xffffff,
+            modern_glass: 0xdbeafe,
+            rustic_market: 0xffedd5,
+            industrial_minimal: 0xe5e7eb,
+            neighborhood_cozy: 0xfef3c7
+        };
+        wall.setTint(tintByStyle[style] || 0xffffff);
     }
 
     // ======== FLOORS ========
@@ -728,6 +803,112 @@ class BakeryEnvironmentScene extends Phaser.Scene {
         window.dispatchEvent(new CustomEvent('bakery:interact', { detail: { actionId: obj.actionId, description: obj.description } }));
     }
 
+    // ======== STAFF VISUALIZATION ========
+    initStaffVisuals() {
+        this.syncStaffActorsFromGame();
+    }
+
+    syncStaffActorsFromGame() {
+        const manager = window.game?.staffManager;
+        let roster = [];
+        if (manager && typeof manager.getAllStaff === 'function') {
+            roster = manager.getAllStaff().filter(Boolean);
+        }
+
+        if (!roster.length) {
+            roster = [{ id: 'owner', name: 'You (Owner)', role: 'owner', face: '🧑‍🍳', isPlayer: true }];
+        }
+
+        const ids = new Set(roster.map(s => s.id));
+
+        roster.forEach((staff, idx) => {
+            if (!this.staffActors.has(staff.id)) {
+                const base = this.staffStations.floor;
+                const x = base.x - 120 + (idx * 30);
+                const y = base.y + 120;
+                const tex = 'baker';
+                const sprite = this.physics.add.sprite(x, y, tex);
+                sprite.setOrigin(0.5, 1);
+                sprite.setScale(staff.id === 'owner' ? 0.7 : 0.82);
+                sprite.setAlpha(0.95);
+                sprite.body.setAllowGravity(false);
+                sprite.body.setImmovable(true);
+                sprite.staffId = staff.id;
+                sprite.station = 'floor';
+                sprite.yDepth = y;
+                this.depthGroup.add(sprite);
+
+                const label = this.add.text(x, y - 72, `${staff.face || '🧑‍🍳'} ${staff.name}`, {
+                    fontFamily: 'Inter',
+                    fontSize: '11px',
+                    color: '#f4f6ff',
+                    backgroundColor: '#00000080',
+                    padding: { x: 4, y: 2 }
+                }).setOrigin(0.5, 1).setDepth(10003);
+
+                this.staffActors.set(staff.id, { sprite, label, info: staff });
+            } else {
+                const actor = this.staffActors.get(staff.id);
+                actor.info = staff;
+                actor.label.setText(`${staff.face || '🧑‍🍳'} ${staff.name}`);
+            }
+        });
+
+        Array.from(this.staffActors.keys()).forEach(id => {
+            if (!ids.has(id)) {
+                const actor = this.staffActors.get(id);
+                actor?.sprite?.destroy();
+                actor?.label?.destroy();
+                this.staffActors.delete(id);
+            }
+        });
+    }
+
+    routeStaffActor(payload = {}) {
+        const staffId = payload.staffId;
+        if (!staffId) return;
+
+        if (!this.staffActors.has(staffId)) {
+            this.syncStaffActorsFromGame();
+        }
+
+        const actor = this.staffActors.get(staffId);
+        if (!actor || !actor.sprite || !actor.label) return;
+
+        const station = payload.station || 'floor';
+        const target = this.staffStations[station] || this.staffStations.floor;
+        const duration = Math.max(280, payload.duration || 520);
+
+        actor.sprite.station = station;
+        this.tweens.add({
+            targets: actor.sprite,
+            x: target.x + Phaser.Math.Between(-12, 12),
+            y: target.y + Phaser.Math.Between(-8, 8),
+            duration,
+            ease: 'Sine.easeInOut',
+            onUpdate: () => {
+                actor.sprite.yDepth = actor.sprite.y;
+                actor.label.setPosition(actor.sprite.x, actor.sprite.y - 72);
+            }
+        });
+
+        const summary = payload.context ? `${payload.context}` : station;
+        actor.label.setText(`${payload.face || actor.info?.face || '🧑‍🍳'} ${payload.staffName || actor.info?.name || 'Staff'} • ${summary}`);
+
+        if (payload.holdMs && payload.holdMs > 0 && station !== 'floor') {
+            this.time.delayedCall(payload.holdMs, () => {
+                this.routeStaffActor({
+                    staffId,
+                    station: 'floor',
+                    context: 'idle',
+                    face: payload.face || actor.info?.face,
+                    staffName: payload.staffName || actor.info?.name,
+                    duration: 600
+                });
+            });
+        }
+    }
+
     // ======== CUSTOMERS ========
     spawnCustomer() {
         if (this.customers.length >= 6) return;
@@ -790,9 +971,14 @@ class BakeryEnvironmentScene extends Phaser.Scene {
     }
 
     showWorldCustomerBubble(detail = {}) {
-        const target = this.customers.length > 0
-            ? Phaser.Utils.Array.GetRandom(this.customers)
-            : this.player;
+        const actorTarget = detail.staffId && this.staffActors.has(detail.staffId)
+            ? this.staffActors.get(detail.staffId)?.sprite
+            : null;
+        const target = detail.target === 'player'
+            ? this.player
+            : (actorTarget || (this.customers.length > 0
+                ? Phaser.Utils.Array.GetRandom(this.customers)
+                : this.player));
         if (!target) return;
 
         const emoji = detail.emoji || '🙂';
@@ -819,6 +1005,73 @@ class BakeryEnvironmentScene extends Phaser.Scene {
             duration: 2200,
             ease: 'Sine.easeInOut',
             onComplete: () => bubble.destroy()
+        });
+    }
+
+    updateInputLock() {
+        this.inputEnabled = !(this.overlayInputLock || this.checkoutInputLock);
+    }
+
+    applyCheckoutLock(detail = {}) {
+        this.checkoutInputLock = !!detail.locked;
+        this.updateInputLock();
+
+        if (this._checkoutLockFailsafe) {
+            this._checkoutLockFailsafe.remove(false);
+            this._checkoutLockFailsafe = null;
+        }
+
+        if (this.checkoutInputLock) {
+            this.player.setVelocity(0, 0);
+            this.showWorldCustomerBubble({
+                target: 'player',
+                emoji: '🧾',
+                message: detail.message || 'Processing checkout...',
+                tone: 'neutral',
+                staffId: detail.staffId || 'owner'
+            });
+
+            const etaMs = Math.max(1500, Number(detail.etaMs) || 0);
+            if (etaMs > 0) {
+                this._checkoutLockFailsafe = this.time.delayedCall(etaMs + 2200, () => {
+                    this.checkoutInputLock = false;
+                    this.updateInputLock();
+                    this._checkoutLockFailsafe = null;
+                });
+            }
+        }
+    }
+
+    showMoneyFloat(detail = {}) {
+        const amount = Number(detail.amount) || 0;
+        if (amount <= 0) return;
+
+        const staffSprite = detail.staffId && this.staffActors.has(detail.staffId)
+            ? this.staffActors.get(detail.staffId)?.sprite
+            : null;
+        const source = staffSprite || this.player;
+        const startX = source?.x || this.staffStations.counter.x;
+        const startY = source?.y || this.staffStations.counter.y;
+        const label = detail.label || `+$${amount.toFixed(2)}`;
+
+        const text = this.add.text(startX, startY - 82, label, {
+            fontFamily: 'Fredoka',
+            fontSize: '26px',
+            fontStyle: 'bold',
+            color: '#5CFF8D',
+            stroke: '#0a3d1f',
+            strokeThickness: 4,
+            shadow: { offsetX: 0, offsetY: 2, color: '#0f2917', blur: 6, stroke: false, fill: true }
+        }).setOrigin(0.5, 1).setDepth(10005);
+
+        this.tweens.add({
+            targets: text,
+            y: text.y - 52,
+            alpha: 0,
+            scale: 1.08,
+            duration: 1200,
+            ease: 'Sine.easeOut',
+            onComplete: () => text.destroy()
         });
     }
 
@@ -850,6 +1103,12 @@ class BakeryEnvironmentScene extends Phaser.Scene {
         this.customers.forEach(c => {
             if (c.customerState === 'waiting' || c.customerState === 'browsing')
                 c.setScale(1, 1 + Math.sin(time / 500 + c.x) * 0.012);
+        });
+
+        this.staffActors.forEach(actor => {
+            if (!actor?.sprite || !actor?.label) return;
+            actor.sprite.yDepth = actor.sprite.y;
+            actor.label.setPosition(actor.sprite.x, actor.sprite.y - 72);
         });
 
         this.depthGroup.getChildren().forEach(child => {

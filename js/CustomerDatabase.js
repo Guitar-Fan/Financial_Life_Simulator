@@ -551,64 +551,37 @@ class CustomerDatabase {
     }
 
     /**
-     * STAGE 1: Enhanced Satisfaction Calculator with 50/50 Split
-     * 50% from bakery factors, 50% from personal factors
+     * Simplified satisfaction model: quality + value + upgrade-driven experience.
      */
     calculateSatisfaction(customer, price, quality, recipeKey) {
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
-        const basePrice = recipe.retailPrice;
+        const expectedPrice = Math.max(0.5, Number(customer?.willingnessToPay?.base) || Number(recipe?.retailPrice) || 5);
+        const qualityFactor = Math.max(0, Math.min(1, (quality || 0) / 100));
+        const qualityPreference = Math.max(0.75, Math.min(1.3, Number(customer?.qualityWeight) || 1));
+        const qualityScore = Math.min(48, qualityFactor * qualityPreference * 48);
 
-        // ========== BAKERY FACTORS (50 points max) ==========
+        const valueFactor = this.calculateValuePerception(price, expectedPrice);
+        const valueScore = valueFactor * 34;
 
-        // 1. Food Quality (25 points)
-        const qualityScore = (quality / 100) * 25 * customer.qualityWeight;
+        const upgradeFactor = this.getUpgradeInfluenceScore(customer);
+        const upgradeScore = upgradeFactor * 18;
 
-        // 2. Bakery Appearance/Experience (7.5 points)
-        // Based on equipment quality and cleanliness
-        const bakeryLooksScore = this.calculateBakeryExperience() * 7.5;
-
-        // 3. Service Quality (12.5 points)
-        const serviceScore = this.calculateServiceQuality(customer) * 12.5;
-
-        // 4. Value Perception (5 points)
-        const priceRatio = price / basePrice;
-        const expectedPrice = customer.willingnessToPay.base;
-        const priceExpectation = price <= expectedPrice ? 1.0 : Math.max(0, 1 - (price - expectedPrice) / expectedPrice);
-        const valueScore = priceExpectation * 5;
-
-        const bakeryScore = Math.min(50, qualityScore + bakeryLooksScore + serviceScore + valueScore);
-
-        // ========== PERSONAL FACTORS (50 points max) ==========
-
-        // 1. Current Mood (20 points)
-        const moodScore = (customer.currentMood / 100) * 20;
-
-        // 2. Personality Match (15 points)
-        const personalityMatch = this.calculatePersonalityMatch(customer);
-        const personalityScore = personalityMatch * 15;
-
-        // 3. External Circumstances (15 points)
-        const externalScore = this.calculateExternalFactors(customer) * 15;
-
-        const personalScore = Math.min(50, moodScore + personalityScore + externalScore);
-
-        // ========== TOTAL SATISFACTION ==========
-        const totalSatisfaction = bakeryScore + personalScore;
+        const totalSatisfaction = Math.max(0, Math.min(100, qualityScore + valueScore + upgradeScore));
 
         // Record in satisfaction history
         const satisfactionRecord = {
             day: this.engine.day,
-            bakeryScore: parseFloat(bakeryScore.toFixed(2)),
-            personalScore: parseFloat(personalScore.toFixed(2)),
+            bakeryScore: parseFloat(totalSatisfaction.toFixed(2)),
+            personalScore: 0,
             total: parseFloat(totalSatisfaction.toFixed(2)),
             breakdown: {
                 quality: parseFloat(qualityScore.toFixed(2)),
-                bakeryLooks: parseFloat(bakeryLooksScore.toFixed(2)),
-                service: parseFloat(serviceScore.toFixed(2)),
+                bakeryLooks: parseFloat((upgradeFactor * 8).toFixed(2)),
+                service: parseFloat((upgradeFactor * 10).toFixed(2)),
                 value: parseFloat(valueScore.toFixed(2)),
-                mood: parseFloat(moodScore.toFixed(2)),
-                personality: parseFloat(personalityScore.toFixed(2)),
-                external: parseFloat(externalScore.toFixed(2))
+                mood: 0,
+                personality: 0,
+                external: 0
             }
         };
 
@@ -620,6 +593,44 @@ class CustomerDatabase {
         }
 
         return totalSatisfaction;
+    }
+
+    calculateValuePerception(price, expectedPrice) {
+        const safeExpected = Math.max(0.5, Number(expectedPrice) || 1);
+        if (price <= safeExpected) return 1;
+        return Math.max(0, 1 - ((price - safeExpected) / safeExpected));
+    }
+
+    getUpgradeInfluenceScore() {
+        const menuAppeal = Math.max(0.7, Math.min(1.8, Number(this.engine?.getMenuAppealMultiplier?.() || this.engine?.menuAppeal || 1)));
+        const menuScore = Math.max(0, Math.min(1, (menuAppeal - 0.7) / 1.1));
+
+        const equipmentGroups = this.engine?.equipment && typeof this.engine.equipment === 'object'
+            ? Object.values(this.engine.equipment)
+            : [];
+        const equipmentItems = equipmentGroups.flatMap(group => Array.isArray(group) ? group : []);
+        const equipmentScore = equipmentItems.length
+            ? equipmentItems.reduce((sum, eq) => {
+                const reliability = Number(eq?.reliability);
+                const quality = Number(eq?.quality);
+                const score = Number.isFinite(reliability)
+                    ? reliability
+                    : (Number.isFinite(quality) ? (quality / 100) : 0.65);
+                return sum + Math.max(0, Math.min(1.1, score));
+            }, 0) / equipmentItems.length
+            : 0.65;
+
+        const staffList = Array.isArray(this.engine?.staff) ? this.engine.staff : [];
+        const serviceScore = staffList.length
+            ? Math.max(0.45, Math.min(1.2, staffList.reduce((sum, staff) => {
+                const skill = Number.isFinite(staff?.skillLevel) ? staff.skillLevel : (Number(staff?.skill) || 50) / 20;
+                const training = Number(staff?.trainingLevel) || 0;
+                return sum + Math.max(0.35, Math.min(1.3, (skill / 5) + training * 0.06));
+            }, 0) / staffList.length))
+            : 0.45;
+
+        const combined = (menuScore * 0.45) + (equipmentScore * 0.3) + (serviceScore * 0.25);
+        return Math.max(0, Math.min(1, combined));
     }
 
     /**
@@ -748,72 +759,25 @@ class CustomerDatabase {
     }
 
     /**
-     * STAGE 1: Enhanced Return Probability with Personality & Mood
+     * Simplified return probability: quality + value + upgrades (+ slight noise).
      */
     updateReturnProbability(customer) {
-        let probability = 0.5; // Base 50%
+        const avgQuality = Math.max(0, Math.min(1, Number(customer.averageQuality || customer.lastPurchaseQuality || 70) / 100));
 
-        // 1. Satisfaction Impact (40% weight)
-        const avgSatisfaction = this.getAverageSatisfaction(customer);
-        probability += (avgSatisfaction - 50) / 100 * 0.4;
+        const recentPurchases = (customer.purchaseHistory || []).slice(-5);
+        const expected = Math.max(0.5, Number(customer?.willingnessToPay?.base) || 5);
+        const valueScore = recentPurchases.length
+            ? recentPurchases.reduce((sum, p) => sum + this.calculateValuePerception(Number(p.price) || 0, expected), 0) / recentPurchases.length
+            : this.calculateValuePerception(expected, expected);
 
-        // 2. Brand Loyalty from Personality (25% weight)
-        const loyaltyBonus = (customer.preferences.brandLoyalty / 100) * 0.25;
-        probability += loyaltyBonus;
+        const upgradeScore = this.getUpgradeInfluenceScore(customer);
+        const slightNoise = (Math.random() * 0.06) - 0.03;
 
-        // 3. Loyalty Tier Impact (15% weight)
-        const tierBonuses = { none: 0, bronze: 0.05, silver: 0.10, gold: 0.15, platinum: 0.20 };
-        probability += tierBonuses[customer.loyaltyTier] || 0;
-
-        // 4. Recency Impact (10% weight)
-        const daysSinceVisit = this.engine.day - customer.lastVisit;
-        probability -= daysSinceVisit * 0.015; // Decay 1.5% per day
-
-        // 5. Current Mood Effect (5% weight)
-        probability += (customer.currentMood - 50) / 100 * 0.05;
-
-        // 6. Moodiness Penalty (5% weight)
-        // Moody customers are less predictable/reliable
-        const moodinessPenalty = (customer.personality.moodiness / 100) * 0.05;
-        probability -= moodinessPenalty;
-
-        // 7. Trust Impact
-        probability += customer.trustScore * 0.1;
-
-        // 8. Recent Trend (check last 3 visits)
-        if (customer.satisfactionHistory.length >= 3) {
-            const recentSatisfactions = customer.satisfactionHistory.slice(-3).map(s => s.total);
-            const trend = recentSatisfactions[2] - recentSatisfactions[0];
-
-            if (trend > 10) {
-                probability += 0.05; // Improving experience
-            } else if (trend < -10) {
-                probability -= 0.10; // Declining experience - bigger penalty
-            }
-        }
-
-        // 9. Weather Effect (if applicable)
-        if (this.engine.economy && this.engine.economy.weather) {
-            const weather = this.engine.economy.weather;
-            const weatherSens = customer.externalFactors.weatherSensitivity / 100;
-
-            if (weather === 'rainy' || weather === 'stormy') {
-                probability -= 0.15 * weatherSens; // Bad weather reduces returns
-            } else if (weather === 'snowy') {
-                probability -= 0.25 * weatherSens; // Snow really discourages visits
-            }
-        }
-
-        // 10. Economic Impact
-        if (this.engine.economy && this.engine.economy.getDemandMultiplier) {
-            const economicHealth = this.engine.economy.getDemandMultiplier();
-            const economicSens = customer.externalFactors.economicSensitivity / 100;
-
-            // Poor economy affects budget-conscious customers more
-            if (customer.segment === 'BUDGET' && economicHealth < 0.9) {
-                probability -= (1 - economicHealth) * 0.5 * economicSens;
-            }
-        }
+        let probability = 0.22;
+        probability += avgQuality * 0.42;
+        probability += valueScore * 0.28;
+        probability += upgradeScore * 0.12;
+        probability += slightNoise;
 
         customer.returnProbability = Math.max(0.05, Math.min(0.95, probability));
         customer.churnRisk = 1 - customer.returnProbability;

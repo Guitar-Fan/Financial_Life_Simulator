@@ -620,6 +620,56 @@ const CONFIG = {
     }
 };
 
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const MAP_MODE = URL_PARAMS.get('mode') || 'explore';
+
+const SETUP_PROFILES = {
+    downtown: {
+        district: 'Downtown Core',
+        icon: '🏙️',
+        rentRange: [280, 420],
+        taxRange: [520, 880],
+        trafficRange: [1.45, 1.95],
+        ingredientRange: [1.08, 1.18],
+        permitRange: [1700, 2800],
+        parkingRange: [4, 12],
+        exteriorStyle: 'modern_glass'
+    },
+    commercial: {
+        district: 'Commercial Corridor',
+        icon: '🏬',
+        rentRange: [190, 320],
+        taxRange: [380, 640],
+        trafficRange: [1.2, 1.55],
+        ingredientRange: [1.03, 1.11],
+        permitRange: [1300, 2200],
+        parkingRange: [8, 22],
+        exteriorStyle: 'warm_classic'
+    },
+    residential: {
+        district: 'Neighborhood Edge',
+        icon: '🏘️',
+        rentRange: [120, 210],
+        taxRange: [220, 420],
+        trafficRange: [0.82, 1.2],
+        ingredientRange: [0.96, 1.05],
+        permitRange: [900, 1600],
+        parkingRange: [6, 16],
+        exteriorStyle: 'neighborhood_cozy'
+    },
+    industrial: {
+        district: 'Light Industrial Belt',
+        icon: '🏭',
+        rentRange: [90, 170],
+        taxRange: [180, 360],
+        trafficRange: [0.65, 0.95],
+        ingredientRange: [0.93, 1.02],
+        permitRange: [750, 1400],
+        parkingRange: [14, 34],
+        exteriorStyle: 'industrial_minimal'
+    }
+};
+
 // ============================================================================
 // SEEDED RANDOM
 // ============================================================================
@@ -819,6 +869,8 @@ class CityGenerator {
         this.vehicles = [];
         this.streetFurniture = [];
         this.parks = [];
+        this.openLots = [];
+        this.parkingLots = [];
         
         this.worldCenter = CONFIG.WORLD_SIZE / 2;
     }
@@ -877,7 +929,7 @@ class CityGenerator {
     }
     
     generate(progressCallback) {
-        const totalSteps = 5;
+        const totalSteps = 6;
         let currentStep = 0;
         
         // Step 1: Generate roads
@@ -892,11 +944,15 @@ class CityGenerator {
         this.generateVegetation();
         progressCallback(++currentStep / totalSteps);
         
-        // Step 4: Generate parked vehicles
+        // Step 4: Reserve open business lots and parking opportunities
+        this.generateBusinessLots();
+        progressCallback(++currentStep / totalSteps);
+
+        // Step 5: Generate parked vehicles
         this.generateVehicles();
         progressCallback(++currentStep / totalSteps);
         
-        // Step 5: Generate street furniture
+        // Step 6: Generate street furniture
         this.generateStreetFurniture();
         progressCallback(++currentStep / totalSteps);
     }
@@ -1360,6 +1416,71 @@ class CityGenerator {
             });
         }
     }
+
+    generateBusinessLots() {
+        const targetLots = 18;
+        const used = new Set();
+
+        for (let i = 0; i < targetLots * 8 && this.openLots.length < targetLots; i++) {
+            const blockX = this.rng.int(0, Math.floor(CONFIG.WORLD_SIZE / CONFIG.MINOR_BLOCK_SIZE) - 1) * CONFIG.MINOR_BLOCK_SIZE;
+            const blockY = this.rng.int(0, Math.floor(CONFIG.WORLD_SIZE / CONFIG.MINOR_BLOCK_SIZE) - 1) * CONFIG.MINOR_BLOCK_SIZE;
+            const key = `${blockX}:${blockY}`;
+            if (used.has(key)) continue;
+            used.add(key);
+
+            const centerX = blockX + CONFIG.MINOR_BLOCK_SIZE / 2;
+            const centerY = blockY + CONFIG.MINOR_BLOCK_SIZE / 2;
+            const zone = this.getZoneAt(centerX, centerY);
+            if (zone === 'park') continue;
+
+            const profile = SETUP_PROFILES[zone] || SETUP_PROFILES.residential;
+            const lotMargin = CONFIG.MINOR_ROAD_WIDTH / 2 + 24;
+            const lotWidth = this.rng.range(90, 165);
+            const lotHeight = this.rng.range(80, 145);
+            const x = blockX + lotMargin + this.rng.range(0, Math.max(10, CONFIG.MINOR_BLOCK_SIZE - lotMargin * 2 - lotWidth));
+            const y = blockY + lotMargin + this.rng.range(0, Math.max(10, CONFIG.MINOR_BLOCK_SIZE - lotMargin * 2 - lotHeight));
+
+            const rentDaily = Math.round(this.rng.range(profile.rentRange[0], profile.rentRange[1]));
+            const monthlyPropertyTax = Math.round(this.rng.range(profile.taxRange[0], profile.taxRange[1]));
+            const trafficMultiplier = Number(this.rng.range(profile.trafficRange[0], profile.trafficRange[1]).toFixed(2));
+            const ingredientCostMultiplier = Number(this.rng.range(profile.ingredientRange[0], profile.ingredientRange[1]).toFixed(2));
+            const permitFees = Math.round(this.rng.range(profile.permitRange[0], profile.permitRange[1]));
+            const parkingSpaces = this.rng.int(profile.parkingRange[0], profile.parkingRange[1]);
+
+            this.openLots.push({
+                id: `lot_${this.openLots.length + 1}`,
+                x,
+                y,
+                width: lotWidth,
+                height: lotHeight,
+                zone,
+                type: 'open_lot',
+                name: `${profile.district} Lot ${this.openLots.length + 1}`,
+                district: profile.district,
+                icon: profile.icon,
+                rentDaily,
+                monthlyPropertyTax,
+                trafficMultiplier,
+                ingredientCostMultiplier,
+                permitFees,
+                parkingSpaces,
+                exteriorStyle: profile.exteriorStyle
+            });
+
+            if (this.rng.chance(0.65)) {
+                this.parkingLots.push({
+                    id: `parking_${this.parkingLots.length + 1}`,
+                    x: x + lotWidth + this.rng.range(14, 42),
+                    y: y + this.rng.range(-8, 18),
+                    width: this.rng.range(40, 75),
+                    height: this.rng.range(28, 52),
+                    stalls: this.rng.int(5, 14),
+                    type: 'parking_lot',
+                    zone
+                });
+            }
+        }
+    }
 }
 
 // ============================================================================
@@ -1374,6 +1495,7 @@ class CityRenderer {
         this.groundLayer = new PIXI.Container();
         this.roadLayer = new PIXI.Container();
         this.parkLayer = new PIXI.Container();
+        this.lotLayer = new PIXI.Container();
         this.buildingLayer = new PIXI.Container();
         this.detailLayer = new PIXI.Container();
         this.vehicleLayer = new PIXI.Container();
@@ -1386,6 +1508,7 @@ class CityRenderer {
         this.world.addChild(this.groundLayer);
         this.world.addChild(this.roadLayer);
         this.world.addChild(this.parkLayer);
+        this.world.addChild(this.lotLayer);
         this.world.addChild(this.buildingLayer);
         this.world.addChild(this.detailLayer);
         this.world.addChild(this.vehicleLayer);
@@ -1403,10 +1526,99 @@ class CityRenderer {
         this.renderGround();
         this.renderRoads();
         this.renderParks();
+        this.renderOpenLots();
         this.renderBuildings();
         this.renderVehicles();
         this.renderTrees();
         this.renderStreetFurniture();
+    }
+
+    renderOpenLots() {
+        for (const lot of this.city.openLots) {
+            const g = new PIXI.Graphics();
+            lot.hitPadding = MAP_MODE === 'setup' ? 36 : 10;
+
+            g.beginFill(0x0b4f3a, 0.45);
+            g.drawRoundedRect(lot.x, lot.y, lot.width, lot.height, 6);
+            g.endFill();
+            g.lineStyle(2, 0x95f9d8, 0.95);
+            g.drawRoundedRect(lot.x, lot.y, lot.width, lot.height, 6);
+            g.lineStyle(0);
+
+            const signW = Math.min(96, lot.width - 10);
+            g.beginFill(0x113f67, 0.9);
+            g.drawRoundedRect(lot.x + 6, lot.y + 6, signW, 18, 4);
+            g.endFill();
+
+            if (MAP_MODE === 'setup') {
+                const cx = lot.x + lot.width / 2;
+                const pointerY = lot.y - 36;
+
+                // Red pointer pin to highlight selectable locations.
+                g.beginFill(0xff2d2d, 0.95);
+                g.drawCircle(cx, pointerY, 18);
+                g.endFill();
+                g.beginFill(0xff2d2d, 0.9);
+                g.drawPolygon([
+                    cx - 10, pointerY + 10,
+                    cx + 10, pointerY + 10,
+                    cx, pointerY + 34
+                ]);
+                g.endFill();
+
+                g.lineStyle(4, 0xff6a6a, 0.85);
+                g.drawCircle(cx, pointerY, 30);
+                g.lineStyle(3, 0xff9a9a, 0.7);
+                g.drawCircle(cx, pointerY, 44);
+                g.lineStyle(2, 0xffb0b0, 0.55);
+                g.drawCircle(cx, pointerY, 58);
+                g.lineStyle(0);
+            }
+
+            this.lotLayer.addChild(g);
+
+            const hitArea = new PIXI.Graphics();
+            hitArea.beginFill(0xffffff, 0.001);
+            hitArea.drawRect(lot.x, lot.y, lot.width, lot.height);
+            hitArea.endFill();
+            hitArea.eventMode = 'static';
+            hitArea.cursor = 'pointer';
+            hitArea.buildingData = lot;
+            this.lotLayer.addChild(hitArea);
+            this.buildingSprites.push(hitArea);
+        }
+
+        for (const parking of this.city.parkingLots) {
+            const g = new PIXI.Graphics();
+            g.beginFill(0x1f2937, 0.55);
+            g.drawRect(parking.x, parking.y, parking.width, parking.height);
+            g.endFill();
+            g.lineStyle(1, 0xe5e7eb, 0.35);
+            const laneGap = Math.max(7, Math.floor(parking.width / Math.max(3, parking.stalls / 2)));
+            for (let dx = 4; dx < parking.width - 2; dx += laneGap) {
+                g.moveTo(parking.x + dx, parking.y + 2);
+                g.lineTo(parking.x + dx, parking.y + parking.height - 2);
+            }
+            g.lineStyle(0);
+            this.lotLayer.addChild(g);
+
+            const hitArea = new PIXI.Graphics();
+            hitArea.beginFill(0xffffff, 0.001);
+            hitArea.drawRect(parking.x, parking.y, parking.width, parking.height);
+            hitArea.endFill();
+            hitArea.eventMode = 'static';
+            hitArea.cursor = 'pointer';
+            hitArea.buildingData = {
+                type: 'parking_lot',
+                name: `Parking Parcel ${parking.id.split('_')[1]}`,
+                details: {
+                    stalls: parking.stalls,
+                    zone: parking.zone
+                }
+            };
+            this.lotLayer.addChild(hitArea);
+            this.buildingSprites.push(hitArea);
+        }
     }
     
     renderGround() {
@@ -2376,6 +2588,9 @@ class CityMapApp {
         this.cityGenerator = new CityGenerator(42);
         this.renderer = null;
         this.motorcycle = null;
+        this.setupMode = MAP_MODE === 'setup';
+        this.selectedLot = null;
+        this.setupPlanner = null;
         
         // Viewport state
         this.viewport = {
@@ -2389,6 +2604,7 @@ class CityMapApp {
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
         this.lastPointer = { x: 0, y: 0 };
+        this.pointerDown = null;
         
         // Modes
         this.motorcycleMode = false;
@@ -2397,6 +2613,45 @@ class CityMapApp {
         this.hoveredObject = null;
         
         this.init();
+    }
+
+    getCanvasMetrics() {
+        const rect = this.app.view.getBoundingClientRect();
+        return {
+            rect,
+            width: rect.width || this.app.screen.width,
+            height: rect.height || this.app.screen.height
+        };
+    }
+
+    pointerToLocal(clientX, clientY) {
+        const { rect } = this.getCanvasMetrics();
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    localToWorld(localX, localY) {
+        const { width, height } = this.getCanvasMetrics();
+        return {
+            x: this.viewport.x + (localX - width / 2) / this.viewport.zoom,
+            y: this.viewport.y + (localY - height / 2) / this.viewport.zoom
+        };
+    }
+
+    zoomToPoint(targetZoom, localX, localY) {
+        const newZoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, targetZoom));
+        const worldBefore = this.localToWorld(localX, localY);
+
+        this.viewport.zoom = newZoom;
+
+        const { width, height } = this.getCanvasMetrics();
+        this.viewport.x = worldBefore.x - (localX - width / 2) / this.viewport.zoom;
+        this.viewport.y = worldBefore.y - (localY - height / 2) / this.viewport.zoom;
+
+        this.clampViewport();
+        this.updateViewport();
     }
     
     async init() {
@@ -2417,6 +2672,9 @@ class CityMapApp {
         
         // Setup UI
         this.setupUI();
+        if (this.setupMode) {
+            this.setupSetupPlanner();
+        }
         
         // Initial viewport
         this.updateViewport();
@@ -2433,7 +2691,8 @@ class CityMapApp {
         }, 500);
         
         // Update building count
-        document.getElementById('buildings-count').textContent = this.cityGenerator.buildings.length;
+        const stockCount = this.cityGenerator.buildings.length + this.cityGenerator.openLots.length;
+        document.getElementById('buildings-count').textContent = stockCount;
     }
     
     setupInput() {
@@ -2456,6 +2715,7 @@ class CityMapApp {
         const canvas = this.app.view;
         
         canvas.addEventListener('pointerdown', (e) => {
+            this.pointerDown = { x: e.clientX, y: e.clientY, ts: Date.now() };
             if (!this.motorcycleMode) {
                 this.isDragging = true;
                 this.dragStart.x = e.clientX;
@@ -2485,8 +2745,20 @@ class CityMapApp {
             this.checkHover(e);
         });
         
-        canvas.addEventListener('pointerup', () => {
+        canvas.addEventListener('pointerup', (e) => {
             this.isDragging = false;
+
+            if (!this.setupMode || !this.pointerDown) return;
+            const dx = Math.abs(e.clientX - this.pointerDown.x);
+            const dy = Math.abs(e.clientY - this.pointerDown.y);
+            if (dx > 6 || dy > 6) return;
+
+            const { x: mouseX, y: mouseY } = this.pointerToLocal(e.clientX, e.clientY);
+            const { x: worldX, y: worldY } = this.localToWorld(mouseX, mouseY);
+            const target = this.findObjectAtPosition(worldX, worldY, mouseX, mouseY);
+            if (target && target.type === 'open_lot') {
+                this.handleSetupSelection(target);
+            }
         });
         
         canvas.addEventListener('pointerleave', () => {
@@ -2501,23 +2773,8 @@ class CityMapApp {
             if (this.motorcycleMode) return;
             
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-            const newZoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, this.viewport.zoom * zoomFactor));
-            
-            // Zoom towards mouse
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            
-            const worldX = this.viewport.x + (mouseX - this.app.screen.width / 2) / this.viewport.zoom;
-            const worldY = this.viewport.y + (mouseY - this.app.screen.height / 2) / this.viewport.zoom;
-            
-            this.viewport.zoom = newZoom;
-            
-            this.viewport.x = worldX - (mouseX - this.app.screen.width / 2) / this.viewport.zoom;
-            this.viewport.y = worldY - (mouseY - this.app.screen.height / 2) / this.viewport.zoom;
-            
-            this.clampViewport();
-            this.updateViewport();
+            const { x: mouseX, y: mouseY } = this.pointerToLocal(e.clientX, e.clientY);
+            this.zoomToPoint(this.viewport.zoom * zoomFactor, mouseX, mouseY);
         }, { passive: false });
         
         // Resize
@@ -2528,6 +2785,25 @@ class CityMapApp {
     }
     
     setupUI() {
+        if (this.setupMode) {
+            const title = document.querySelector('#control-panel h1');
+            const subtitle = document.querySelector('#control-panel .subtitle');
+            const help = document.querySelector('#control-panel .controls-help');
+            const motorcycleBtn = document.getElementById('btn-motorcycle');
+            const legend = document.getElementById('legend');
+
+            if (title) title.textContent = 'Bakery Site Selection';
+            if (subtitle) subtitle.textContent = 'Choose a lot, compare taxes and traffic';
+            if (help) help.innerHTML = '<strong>Setup Mode:</strong> Click highlighted lots to compare operating costs.<br><strong>Pan/Zoom:</strong> Drag and scroll to inspect districts.';
+            if (motorcycleBtn) motorcycleBtn.style.display = 'none';
+            if (legend) {
+                const modeHint = document.createElement('div');
+                modeHint.className = 'legend-item';
+                modeHint.innerHTML = '<div class="legend-color" style="background: linear-gradient(135deg, #0b4f3a, #95f9d8);"></div><span>Open Lot (Setup Candidate)</span>';
+                legend.appendChild(modeHint);
+            }
+        }
+
         document.getElementById('btn-motorcycle').addEventListener('click', () => {
             this.toggleMotorcycleMode();
         });
@@ -2547,13 +2823,19 @@ class CityMapApp {
         });
         
         document.getElementById('btn-zoom-in').addEventListener('click', () => {
-            this.viewport.zoom = Math.min(CONFIG.MAX_ZOOM, this.viewport.zoom * 1.5);
-            this.updateViewport();
+            const { width, height } = this.getCanvasMetrics();
+            const local = this.lastPointer.x > 0
+                ? this.pointerToLocal(this.lastPointer.x, this.lastPointer.y)
+                : { x: width / 2, y: height / 2 };
+            this.zoomToPoint(this.viewport.zoom * 1.5, local.x, local.y);
         });
         
         document.getElementById('btn-zoom-out').addEventListener('click', () => {
-            this.viewport.zoom = Math.max(CONFIG.MIN_ZOOM, this.viewport.zoom * 0.7);
-            this.updateViewport();
+            const { width, height } = this.getCanvasMetrics();
+            const local = this.lastPointer.x > 0
+                ? this.pointerToLocal(this.lastPointer.x, this.lastPointer.y)
+                : { x: width / 2, y: height / 2 };
+            this.zoomToPoint(this.viewport.zoom * 0.7, local.x, local.y);
         });
         
         document.getElementById('search-input').addEventListener('keypress', (e) => {
@@ -2630,19 +2912,28 @@ class CityMapApp {
     }
     
     clampViewport() {
-        const halfWidth = this.app.screen.width / 2 / this.viewport.zoom;
-        const halfHeight = this.app.screen.height / 2 / this.viewport.zoom;
-        
-        this.viewport.x = Math.max(halfWidth, Math.min(CONFIG.WORLD_SIZE - halfWidth, this.viewport.x));
-        this.viewport.y = Math.max(halfHeight, Math.min(CONFIG.WORLD_SIZE - halfHeight, this.viewport.y));
+        const { width, height } = this.getCanvasMetrics();
+        const halfWidth = width / 2 / this.viewport.zoom;
+        const halfHeight = height / 2 / this.viewport.zoom;
+        const panSlackX = Math.max(180, halfWidth * 0.45);
+        const panSlackY = Math.max(140, halfHeight * 0.45);
+
+        const minX = -panSlackX;
+        const maxX = CONFIG.WORLD_SIZE + panSlackX;
+        const minY = -panSlackY;
+        const maxY = CONFIG.WORLD_SIZE + panSlackY;
+
+        this.viewport.x = Math.max(minX, Math.min(maxX, this.viewport.x));
+        this.viewport.y = Math.max(minY, Math.min(maxY, this.viewport.y));
     }
     
     updateViewport() {
         const world = this.renderer.world;
+        const { width, height } = this.getCanvasMetrics();
         
         world.scale.set(this.viewport.zoom);
-        world.x = this.app.screen.width / 2 - this.viewport.x * this.viewport.zoom;
-        world.y = this.app.screen.height / 2 - this.viewport.y * this.viewport.zoom;
+        world.x = width / 2 - this.viewport.x * this.viewport.zoom;
+        world.y = height / 2 - this.viewport.y * this.viewport.zoom;
         
         // Update UI
         document.getElementById('zoom-value').textContent = this.viewport.zoom.toFixed(1) + 'x';
@@ -2651,6 +2942,149 @@ class CityMapApp {
         document.getElementById('coord-display').textContent = 
             `${(this.viewport.x).toFixed(0)} ft, ${(this.viewport.y).toFixed(0)} ft`;
     }
+
+    findObjectAtPosition(worldX, worldY, screenX = null, screenY = null) {
+        if (this.cityGenerator?.openLots?.length) {
+            for (let i = this.cityGenerator.openLots.length - 1; i >= 0; i--) {
+                const lot = this.cityGenerator.openLots[i];
+                const padding = lot.hitPadding || 0;
+                if (
+                    worldX >= lot.x - padding &&
+                    worldX <= lot.x + lot.width + padding &&
+                    worldY >= lot.y - padding &&
+                    worldY <= lot.y + lot.height + padding
+                ) {
+                    return lot;
+                }
+            }
+        }
+
+        if (!this.renderer?.buildingSprites || screenX === null || screenY === null) return null;
+
+        for (let i = this.renderer.buildingSprites.length - 1; i >= 0; i--) {
+            const sprite = this.renderer.buildingSprites[i];
+            const bounds = sprite.getBounds();
+            if (
+                screenX >= bounds.x &&
+                screenX <= bounds.x + bounds.width &&
+                screenY >= bounds.y &&
+                screenY <= bounds.y + bounds.height
+            ) {
+                return sprite.buildingData;
+            }
+        }
+
+        return null;
+    }
+
+    setupSetupPlanner() {
+        const overlay = document.querySelector('.ui-overlay');
+        if (!overlay) return;
+
+        const planner = document.createElement('div');
+        planner.id = 'setup-planner';
+        planner.className = 'panel';
+        planner.style.position = 'absolute';
+        planner.style.right = '24px';
+        planner.style.bottom = '24px';
+        planner.style.width = '360px';
+        planner.style.maxHeight = '56vh';
+        planner.style.overflowY = 'auto';
+        planner.style.padding = '16px';
+        planner.style.border = '1px solid rgba(102, 252, 241, 0.35)';
+        planner.style.background = 'rgba(10, 14, 24, 0.88)';
+
+        planner.innerHTML = `
+            <h3 style="margin:0 0 8px 0; font-size:18px; color:#9fe4ff;">Bakery Setup Planner</h3>
+            <p style="margin:0 0 12px 0; font-size:12px; color:#c9d5df; line-height:1.45;">
+                Choose an open lot, then complete practical startup checks used by real small businesses.
+            </p>
+            <div style="font-size:12px; color:#d6e2ee; margin-bottom:10px;"><strong>Procedures</strong></div>
+            <div style="font-size:12px; color:#c8d4de; line-height:1.55; margin-bottom:14px;">
+                1. Register entity name and tax IDs<br>
+                2. Confirm zoning and food service permits<br>
+                3. Estimate insurance and utility overhead<br>
+                4. Plan parking and frontage visibility
+            </div>
+            <div id="setup-lot-summary" style="font-size:12px; color:#8ca2b2; margin-bottom:12px;">Select any highlighted lot to view expected economics.</div>
+            <button id="btn-confirm-lot" class="btn btn-primary" style="width:100%;" disabled>
+                <span>✅</span> Confirm Lot For Bakery
+            </button>
+        `;
+
+        overlay.appendChild(planner);
+        this.setupPlanner = planner;
+        planner.querySelector('#btn-confirm-lot').addEventListener('click', () => this.confirmSetupLot());
+    }
+
+    handleSetupSelection(lot) {
+        this.selectedLot = lot;
+        this.updateSetupPlanner();
+        this.viewport.x = lot.x + lot.width / 2;
+        this.viewport.y = lot.y + lot.height / 2;
+        this.viewport.zoom = Math.max(this.viewport.zoom, 2.4);
+        this.updateViewport();
+    }
+
+    updateSetupPlanner() {
+        if (!this.setupPlanner) return;
+        const summary = this.setupPlanner.querySelector('#setup-lot-summary');
+        const btn = this.setupPlanner.querySelector('#btn-confirm-lot');
+        if (!summary || !btn) return;
+
+        if (!this.selectedLot) {
+            summary.textContent = 'Select any highlighted lot to view expected economics.';
+            btn.disabled = true;
+            return;
+        }
+
+        const lot = this.selectedLot;
+        summary.innerHTML = `
+            <div style="padding:10px; border-radius:8px; border:1px solid rgba(159,228,255,0.3); background:rgba(9,25,39,0.65)">
+                <div style="font-size:14px; color:#d7f2ff; margin-bottom:6px;">${lot.icon} ${lot.name}</div>
+                <div>District: ${lot.district}</div>
+                <div>Daily rent estimate: $${lot.rentDaily}</div>
+                <div>Monthly property tax: $${lot.monthlyPropertyTax}</div>
+                <div>Ingredient market pressure: x${lot.ingredientCostMultiplier.toFixed(2)}</div>
+                <div>Expected customer flow: x${lot.trafficMultiplier.toFixed(2)}</div>
+                <div>Permit and filing budget: $${lot.permitFees}</div>
+                <div>Nearby parking capacity: ~${lot.parkingSpaces} spaces</div>
+            </div>
+        `;
+        btn.disabled = false;
+    }
+
+    confirmSetupLot() {
+        if (!this.selectedLot) return;
+        const lot = this.selectedLot;
+        const payload = {
+            mapMode: 'setup',
+            locationId: lot.id,
+            name: lot.name,
+            district: lot.district,
+            zone: lot.zone,
+            rentDaily: lot.rentDaily,
+            monthlyPropertyTax: lot.monthlyPropertyTax,
+            trafficMultiplier: lot.trafficMultiplier,
+            ingredientCostMultiplier: lot.ingredientCostMultiplier,
+            permitFees: lot.permitFees,
+            parkingSpaces: lot.parkingSpaces,
+            exteriorStyle: lot.exteriorStyle,
+            procedures: [
+                'Register entity and tax IDs',
+                'File food service permits',
+                'Bind general liability insurance',
+                'Set utility service and waste contract'
+            ]
+        };
+
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'bakery_setup_location_selected', payload }, '*');
+        } else {
+            localStorage.setItem('bakery.setupLocation', JSON.stringify(payload));
+            alert(`Saved setup lot: ${lot.name}`);
+        }
+    }
     
     checkHover(e) {
         if (this.motorcycleMode) {
@@ -2658,32 +3092,10 @@ class CityMapApp {
             return;
         }
         
-        const rect = this.app.view.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const { x: mouseX, y: mouseY } = this.pointerToLocal(e.clientX, e.clientY);
+        const { x: worldX, y: worldY } = this.localToWorld(mouseX, mouseY);
         
-        // Convert to world coordinates
-        const worldX = this.viewport.x + (mouseX - this.app.screen.width / 2) / this.viewport.zoom;
-        const worldY = this.viewport.y + (mouseY - this.app.screen.height / 2) / this.viewport.zoom;
-        
-        // Check buildings
-        let found = null;
-        
-        for (const sprite of this.renderer.buildingSprites) {
-            const bounds = sprite.getBounds();
-            const parent = sprite.parent;
-            
-            const bx = parent.x + sprite.x;
-            const by = parent.y + sprite.y;
-            const bw = bounds.width / this.viewport.zoom;
-            const bh = bounds.height / this.viewport.zoom;
-            
-            if (worldX >= bx && worldX <= bx + bw &&
-                worldY >= by && worldY <= by + bh) {
-                found = sprite.buildingData;
-                break;
-            }
-        }
+        const found = this.findObjectAtPosition(worldX, worldY, mouseX, mouseY);
         
         if (found) {
             this.showTooltip(e.clientX, e.clientY, found);
@@ -2706,7 +3118,9 @@ class CityMapApp {
             'house': '🏠',
             'apartment': '🏢',
             'industrial': '🏭',
-            'park': '🌳'
+            'park': '🌳',
+            'open_lot': '📍',
+            'parking_lot': '🅿️'
         };
         
         const colors = {
@@ -2715,7 +3129,9 @@ class CityMapApp {
             'house': '#059669',
             'apartment': '#0891b2',
             'industrial': '#64748b',
-            'park': '#22c55e'
+            'park': '#22c55e',
+            'open_lot': '#14b8a6',
+            'parking_lot': '#94a3b8'
         };
         
         icon.textContent = icons[data.type] || '🏢';
@@ -2746,6 +3162,17 @@ class CityMapApp {
             if (data.details.features) {
                 detailsHtml += `<div class="tooltip-detail-row"><span>Features</span><span>${data.details.features}</span></div>`;
             }
+            if (data.details.stalls) {
+                detailsHtml += `<div class="tooltip-detail-row"><span>Stalls</span><span>${data.details.stalls}</span></div>`;
+            }
+        }
+
+        if (data.type === 'open_lot') {
+            detailsHtml += `<div class="tooltip-detail-row"><span>Daily Rent</span><span>$${data.rentDaily}</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Property Tax</span><span>$${data.monthlyPropertyTax}/mo</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Traffic</span><span>x${data.trafficMultiplier.toFixed(2)}</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Ingredient Index</span><span>x${data.ingredientCostMultiplier.toFixed(2)}</span></div>`;
+            detailsHtml += `<div class="tooltip-detail-row"><span>Permit Budget</span><span>$${data.permitFees}</span></div>`;
         }
         
         details.innerHTML = detailsHtml || '<div style="color: #666;">No additional details</div>';

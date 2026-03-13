@@ -5,11 +5,3 @@
 !README.md
 !README.MD
 
-Delete current setup modes (interactive storybook and first phaser environment with buildings) code.
-Create a new setup mode this is a hybrid of storybook and environment.
-
-I want to use Map.html to be the screen where user decides where they should open up their buisness.
-Their choice on decisions affects the rate of customers, fees and taxes (property tax, ingredient prices, etc...), 
-asthetics of how outside view of bakery looks, and that's it.
-I want you to adapt the map to my needs by create open lots, empty blocks for potential setup spot
-or parking.

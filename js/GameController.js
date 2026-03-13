@@ -29,6 +29,15 @@ class GameController {
         this.lastScenarioRollDay = null;
         this.dayComplexityProfile = null;
         this.lastCrisisRollAt = 0;
+        this.setupOperationalProfile = null;
+        this._setupBriefShown = false;
+        this.customerFlowSignals = {
+            rollingSatisfaction: 76,
+            throughputMultiplier: 1,
+            recentCheckouts: 0,
+            recentWalkouts: 0
+        };
+        this.lastCustomerFlowTick = 0;
 
         // Initialize new systems
         this.timeManager = null;
@@ -247,7 +256,12 @@ class GameController {
             isPlayer: true,
             skill: 80,
             speed: 70,
-            chattiness: 50
+            chattiness: 50,
+            adaptability: 1.25,
+            checkoutAptitude: 1.25,
+            prepAptitude: 1.15,
+            procurementAptitude: 1.15,
+            perk: { label: 'Founder Drive' }
         });
 
         // Add any existing engine staff
@@ -259,7 +273,12 @@ class GameController {
                     role: staff.role || 'server', // Default to server role
                     skill: staff.skill || 50,
                     speed: staff.speed || 50,
-                    chattiness: staff.chattiness || 50
+                    chattiness: staff.chattiness || 50,
+                    adaptability: staff.adaptability || 1,
+                    checkoutAptitude: staff.checkoutAptitude || 1,
+                    prepAptitude: staff.prepAptitude || 1,
+                    procurementAptitude: staff.procurementAptitude || 1,
+                    perk: staff.perk || null
                 });
             });
         }
@@ -284,7 +303,12 @@ class GameController {
                         role: staff.role || 'server', // Default to server role
                         skill: staff.skill || 50,
                         speed: staff.speed || 50,
-                        chattiness: staff.chattiness || 50
+                        chattiness: staff.chattiness || 50,
+                        adaptability: staff.adaptability || 1,
+                        checkoutAptitude: staff.checkoutAptitude || 1,
+                        prepAptitude: staff.prepAptitude || 1,
+                        procurementAptitude: staff.procurementAptitude || 1,
+                        perk: staff.perk || null
                     });
                 }
             });
@@ -946,6 +970,17 @@ class GameController {
     enforceInventoryPlan() {
         if (!this.strategySettings || !this.engine?.ensureIngredientInventory || !this.automationEnabled) return;
 
+        const procurementStaff = this.staffManager
+            ? this.staffManager.getAvailableStaff().sort((a, b) => {
+                const aScore = (a.procurementAptitude || 1) * (a.adaptability || 1) * (1 - (a.fatigue || 0) / 200);
+                const bScore = (b.procurementAptitude || 1) * (b.adaptability || 1) * (1 - (b.fatigue || 0) / 200);
+                return bScore - aScore;
+            })[0]
+            : null;
+        if (procurementStaff) {
+            this.emitStaffRoute(procurementStaff, 'computer', { context: 'procurement', holdMs: 2200 });
+        }
+
         const actions = this.engine.ensureIngredientInventory({
             productionTargets: this.productionTargets,
             bufferDays: this.strategySettings.inventoryBufferDays,
@@ -1257,272 +1292,465 @@ class GameController {
 
     // ==================== SETUP PHASE ====================
     showSetupPhase() {
-        console.log('showSetupPhase called');
-        // Show choice between StoryBook (educational) and Quick Start
-        this.showSetupModeChoice();
+        this.showStartupCitySetup();
     }
 
     showSetupModeChoice() {
-        const container = document.getElementById('game-container');
-        if (!container) return;
-
-        container.classList.add('full-screen');
-        container.innerHTML = `
-            <div style="
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
-                background: linear-gradient(135deg, #1a1208 0%, #2d1f14 50%, #1a1208 100%);
-                padding: 40px;
-            ">
-                <h1 style="
-                    font-family: 'Fredoka', cursive;
-                    font-size: 48px;
-                    color: #d4af37;
-                    text-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
-                    margin-bottom: 20px;
-                ">🥐 Start Your Bakery</h1>
-                
-                <p style="
-                    font-family: 'Georgia', serif;
-                    font-size: 18px;
-                    color: #a08060;
-                    text-align: center;
-                    max-width: 600px;
-                    margin-bottom: 40px;
-                    line-height: 1.6;
-                ">Choose how you'd like to begin your entrepreneurial journey</p>
-                
-                <div style="
-                    display: flex;
-                    gap: 30px;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                ">
-                    <!-- StoryBook Mode -->
-                    <div id="choice-storybook" style="
-                        background: linear-gradient(145deg, #2a1f15, #3d2a1a);
-                        border: 3px solid #d4af37;
-                        border-radius: 20px;
-                        padding: 30px;
-                        width: 280px;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                        text-align: center;
-                    " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 40px rgba(212, 175, 55, 0.3)';"
-                       onmouseout="this.style.transform=''; this.style.boxShadow='';">
-                        <div style="font-size: 60px; margin-bottom: 15px;">📚</div>
-                        <h2 style="
-                            font-family: 'Fredoka', cursive;
-                            font-size: 24px;
-                            color: #d4af37;
-                            margin-bottom: 10px;
-                        ">Interactive Storybook</h2>
-                        <p style="
-                            font-family: 'Georgia', serif;
-                            font-size: 14px;
-                            color: #c9a66b;
-                            line-height: 1.5;
-                            margin-bottom: 15px;
-                        ">Learn the real steps of starting a business through an engaging story</p>
-                        <div style="
-                            background: rgba(76, 175, 80, 0.2);
-                            border: 1px solid #4caf50;
-                            border-radius: 10px;
-                            padding: 10px;
-                            font-size: 12px;
-                            color: #81c784;
-                        ">✨ Recommended for first-time players</div>
-                        <div style="
-                            margin-top: 15px;
-                            font-size: 12px;
-                            color: #8b7355;
-                        ">⏱ ~15 minutes</div>
-                    </div>
-                    
-                    <!-- Quick Start Mode -->
-                    <div id="choice-quickstart" style="
-                        background: linear-gradient(145deg, #1a1510, #2a2015);
-                        border: 2px solid #8b7355;
-                        border-radius: 20px;
-                        padding: 30px;
-                        width: 280px;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                        text-align: center;
-                    " onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 40px rgba(139, 115, 85, 0.2)';"
-                       onmouseout="this.style.transform=''; this.style.boxShadow='';">
-                        <div style="font-size: 60px; margin-bottom: 15px;">🏃</div>
-                        <h2 style="
-                            font-family: 'Fredoka', cursive;
-                            font-size: 24px;
-                            color: #c9a66b;
-                            margin-bottom: 10px;
-                        ">Quick Start</h2>
-                        <p style="
-                            font-family: 'Georgia', serif;
-                            font-size: 14px;
-                            color: #a08060;
-                            line-height: 1.5;
-                            margin-bottom: 15px;
-                        ">Explore the startup city and make decisions at your own pace</p>
-                        <div style="
-                            background: rgba(139, 115, 85, 0.2);
-                            border: 1px solid #8b7355;
-                            border-radius: 10px;
-                            padding: 10px;
-                            font-size: 12px;
-                            color: #a08060;
-                        ">🎮 Walk around & interact with buildings</div>
-                        <div style="
-                            margin-top: 15px;
-                            font-size: 12px;
-                            color: #8b7355;
-                        ">⏱ ~5-10 minutes</div>
-                    </div>
-                </div>
-                
-                <button id="choice-skip" style="
-                    margin-top: 40px;
-                    background: transparent;
-                    border: none;
-                    color: #666;
-                    font-family: 'Inter', sans-serif;
-                    font-size: 14px;
-                    cursor: pointer;
-                    padding: 10px 20px;
-                    transition: color 0.3s;
-                " onmouseover="this.style.color='#a08060'" onmouseout="this.style.color='#666'">
-                    Skip setup and use default settings →
-                </button>
-            </div>
-        `;
-
-        // Wire up buttons
-        document.getElementById('choice-storybook').onclick = () => this.showStoryBookSetup();
-        document.getElementById('choice-quickstart').onclick = () => this.showStartupCitySetup();
-        document.getElementById('choice-skip').onclick = () => this.skipSetupWithDefaults();
+        this.showStartupCitySetup();
     }
 
     showStoryBookSetup() {
-        console.log('Starting StoryBook setup...');
-        try {
-            this.cleanupPhaser();
-
-            const container = document.getElementById('game-container');
-            if (!container) {
-                throw new Error('game-container element not found');
-            }
-
-            container.classList.add('full-screen');
-            container.style.padding = '';
-            container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 100%; overflow: hidden;"></div>`;
-
-            if (typeof Phaser === 'undefined') {
-                throw new Error('Phaser library not loaded');
-            }
-            if (typeof StoryBookScene === 'undefined') {
-                throw new Error('StoryBookScene class not loaded');
-            }
-
-            const config = {
-                type: Phaser.AUTO,
-                width: window.innerWidth,
-                height: window.innerHeight - 60,
-                parent: 'phaser-container',
-                backgroundColor: '#1a1208',
-                scale: {
-                    mode: Phaser.Scale.RESIZE,
-                    autoCenter: Phaser.Scale.CENTER_BOTH
-                },
-                physics: {
-                    default: 'arcade',
-                    arcade: { gravity: { y: 0 }, debug: false }
-                },
-                scene: [StoryBookScene]
-            };
-
-            this.phaserGame = new Phaser.Game(config);
-            console.log('StoryBook setup initialized');
-        } catch (err) {
-            console.error('Error in showStoryBookSetup:', err);
-            alert('Failed to start storybook: ' + err.message);
-            this.showMainMenu();
-        }
+        // Storybook mode deprecated: startup now begins directly with location selection.
+        this.showStartupCitySetup();
     }
 
     showStartupCitySetup() {
-        console.log('showStartupCitySetup called');
-        try {
-            console.log('Cleaning up previous Phaser instance...');
-            this.cleanupPhaser();
+        const container = document.getElementById('game-container');
+        if (!container) return;
 
-            const container = document.getElementById('game-container');
-            if (!container) {
-                throw new Error('game-container element not found');
+        this.cleanupPhaser();
+        container.classList.add('full-screen');
+        container.style.padding = '';
+
+        this.setupChoices = {
+            location: null,
+            financing: null,
+            equipment: { oven: null, mixer: null, display: null },
+            staff: null,
+            paperwork: [],
+            insurance: null,
+            utilities: { power: null, internet: null },
+            procedures: {
+                entityType: 'llc',
+                banking: 'community_bank',
+                bookkeeping: 'software_basic',
+                payroll: 'payroll_software',
+                leaseTerm: 'standard_term',
+                inspectionPrep: 'standard',
+                openingInventoryBudget: 1800,
+                launchMarketingBudget: 900,
+                emergencyReserveTarget: 3000
             }
+        };
 
-            console.log('Setting up container...');
-            container.classList.add('full-screen');
-            container.style.padding = '';
+        container.innerHTML = `
+            <div style="display:flex; flex-direction:column; height:100%; background:linear-gradient(135deg,#0b1220,#1d2a3f 60%,#0b1220); color:#e8f4ff;">
+                <div style="padding:16px 20px; border-bottom:1px solid rgba(159,228,255,0.2); display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div>
+                        <h2 style="margin:0; font-family:'Fredoka',cursive; font-size:28px; color:#9fe4ff;">🗺️ Bakery Site Selection</h2>
+                        <p style="margin:4px 0 0 0; font-size:13px; color:#b8c9d8;">Pick an open lot, compare rent/property tax/ingredient pressure, then lock the location.</p>
+                    </div>
+                    <button id="btn-setup-back" class="btn btn-link" style="padding:8px 12px;">← Back</button>
+                </div>
+                <div style="flex:1; min-height:0;">
+                    <iframe id="setup-map-frame" src="Map.html?mode=setup" style="width:100%; height:100%; border:none;"></iframe>
+                </div>
+            </div>
+        `;
 
-            this.setupChoices = {
-                location: null,
-                financing: null,
-                equipment: { oven: null, mixer: null, display: null },
-                staff: null,
-                paperwork: [],
-                insurance: null,
-                utilities: { power: null, internet: null }
-            };
-
-            // Clear container and add Phaser container
-            console.log('Creating Phaser container...');
-            container.innerHTML = `<div id="phaser-container" style="width: 100%; height: 100%; overflow: hidden;"></div>`;
-            container.classList.add('full-screen');
-
-            // Verify dependencies
-            if (typeof Phaser === 'undefined') {
-                throw new Error('Phaser library not loaded');
-            }
-            if (typeof StartupScene === 'undefined') {
-                throw new Error('StartupScene class not loaded - check js/Bakery_Startup_Sequence.js');
-            }
-
-            // Initialize Phaser Game with larger viewport
-            console.log('Creating Phaser config...');
-            const config = {
-                type: Phaser.AUTO,
-                width: window.innerWidth,
-                height: window.innerHeight - 60, // Subtract top nav height
-                parent: 'phaser-container',
-                backgroundColor: '#2C1810',
-                scale: {
-                    mode: Phaser.Scale.RESIZE,
-                    autoCenter: Phaser.Scale.CENTER_BOTH
-                },
-                physics: {
-                    default: 'arcade',
-                    arcade: {
-                        gravity: { y: 0 },
-                        debug: false
-                    }
-                },
-                scene: [StartupScene]
-            };
-
-            console.log('Initializing Phaser Game...');
-            this.phaserGame = new Phaser.Game(config);
-            console.log('Phaser Game initialized successfully');
-        } catch (err) {
-            console.error('CRITICAL ERROR in showSetupPhase:', err);
-            console.error('Error stack:', err.stack);
-            alert('Failed to initialize setup phase: ' + (err.message || 'Unknown error'));
-            // Try to recover by going back to menu
-            this.showMainMenu();
+        const backBtn = document.getElementById('btn-setup-back');
+        if (backBtn) {
+            backBtn.onclick = () => this.showMainMenu();
         }
+
+        if (this._mapSetupMessageHandler) {
+            window.removeEventListener('message', this._mapSetupMessageHandler);
+        }
+
+        this._mapSetupMessageHandler = (event) => this.handleMapSetupMessage(event);
+        window.addEventListener('message', this._mapSetupMessageHandler);
+    }
+
+    handleMapSetupMessage(event) {
+        const msg = event?.data;
+        if (!msg || msg.type !== 'bakery_setup_location_selected' || !msg.payload) return;
+
+        this.applyMapSetupSelection(msg.payload);
+
+        if (this._mapSetupMessageHandler) {
+            window.removeEventListener('message', this._mapSetupMessageHandler);
+            this._mapSetupMessageHandler = null;
+        }
+
+        this.showPopup({
+            icon: '✅',
+            title: 'Location Locked',
+            message: `${msg.payload.name} selected. Complete your business setup decisions to open.`,
+            type: 'success',
+            autoClose: 1800
+        });
+
+        this.showSetupProcedureFlow();
+    }
+
+    applyMapSetupSelection(payload) {
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        const getById = (arr, ids = []) => arr.find(item => ids.includes(item.id)) || arr[0];
+
+        const requiredPaperwork = options.paperwork.filter(p => p.required).map(p => p.id);
+        const standardInsurance = getById(options.insurance, ['standard_package', 'basic_liability']);
+
+        this.setupChoices = {
+            location: {
+                id: payload.locationId,
+                name: payload.name,
+                icon: '📍',
+                description: `${payload.district} candidate selected from city map`,
+                rent: payload.rentDaily,
+                traffic: payload.trafficMultiplier,
+                zoningFees: payload.permitFees,
+                propertyTaxMonthly: payload.monthlyPropertyTax,
+                ingredientCostMultiplier: payload.ingredientCostMultiplier,
+                exteriorStyle: payload.exteriorStyle,
+                parkingSpaces: payload.parkingSpaces
+            },
+            financing: getById(options.financing, ['personal_savings', 'family_loan']),
+            equipment: {
+                oven: getById(options.equipment.ovens, ['basic_convection']),
+                mixer: getById(options.equipment.mixers, ['countertop_mixer']),
+                display: getById(options.equipment.displays, ['basic_case'])
+            },
+            staff: getById(options.staff, ['solo']),
+            paperwork: requiredPaperwork,
+            insurance: standardInsurance,
+            utilities: {
+                power: getById(options.utilities, ['commercial_power', 'basic_power']),
+                internet: getById(options.utilities, ['business_internet', 'basic_internet'])
+            },
+            procedures: {
+                entityType: 'llc',
+                banking: 'community_bank',
+                bookkeeping: 'software_basic',
+                payroll: 'payroll_software',
+                leaseTerm: 'standard_term',
+                inspectionPrep: 'standard',
+                openingInventoryBudget: 1800,
+                launchMarketingBudget: 900,
+                emergencyReserveTarget: 3000
+            }
+        };
+
+        const upfrontRegulatory = Math.max(0, Number(payload.permitFees) || 0);
+        if (upfrontRegulatory > 0) {
+            this.engine.cash = Math.max(0, this.engine.cash - upfrontRegulatory);
+        }
+    }
+
+    showSetupProcedureFlow() {
+        const container = document.getElementById('game-container');
+        if (!container) return;
+
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        const procedureOptions = GAME_CONFIG.SETUP_PROCEDURES;
+        const c = this.setupChoices;
+
+        const financingOptions = options.financing.map(f =>
+            `<option value="${f.id}" ${c.financing?.id === f.id ? 'selected' : ''}>${f.name} (${f.interestRate ? `${(f.interestRate * 100).toFixed(1)}% APR` : 'No debt'})</option>`
+        ).join('');
+
+        const staffOptions = options.staff.map(s =>
+            `<option value="${s.id}" ${c.staff?.id === s.id ? 'selected' : ''}>${s.name} ($${s.monthlyCost}/mo)</option>`
+        ).join('');
+
+        const insuranceOptions = options.insurance.map(i =>
+            `<option value="${i.id}" ${c.insurance?.id === i.id ? 'selected' : ''}>${i.name} ($${i.monthlyCost}/mo)</option>`
+        ).join('');
+
+        const powerOptions = options.utilities.filter(u => u.id.includes('power')).map(u =>
+            `<option value="${u.id}" ${c.utilities?.power?.id === u.id ? 'selected' : ''}>${u.name} ($${u.monthlyCost}/mo)</option>`
+        ).join('');
+
+        const internetOptions = options.utilities.filter(u => u.id.includes('internet')).map(u =>
+            `<option value="${u.id}" ${c.utilities?.internet?.id === u.id ? 'selected' : ''}>${u.name} ($${u.monthlyCost}/mo)</option>`
+        ).join('');
+
+        const entityOptions = procedureOptions.entityTypes.map(e =>
+            `<option value="${e.id}" ${c.procedures?.entityType === e.id ? 'selected' : ''}>${e.name} ($${e.filingFee} filing)</option>`
+        ).join('');
+
+        const bankingOptions = procedureOptions.banking.map(b =>
+            `<option value="${b.id}" ${c.procedures?.banking === b.id ? 'selected' : ''}>${b.name} ($${b.monthlyFee}/mo)</option>`
+        ).join('');
+
+        const bookkeepingOptions = procedureOptions.bookkeeping.map(b =>
+            `<option value="${b.id}" ${c.procedures?.bookkeeping === b.id ? 'selected' : ''}>${b.name} ($${b.monthlyCost}/mo)</option>`
+        ).join('');
+
+        const payrollOptions = procedureOptions.payroll.map(p =>
+            `<option value="${p.id}" ${c.procedures?.payroll === p.id ? 'selected' : ''}>${p.name} ($${p.monthlyCost}/mo)</option>`
+        ).join('');
+
+        const leaseOptions = procedureOptions.leaseTerms.map(l =>
+            `<option value="${l.id}" ${c.procedures?.leaseTerm === l.id ? 'selected' : ''}>${l.name} (${l.securityDepositMonths} mo deposit)</option>`
+        ).join('');
+
+        const inspectionOptions = procedureOptions.inspectionPrep.map(i =>
+            `<option value="${i.id}" ${c.procedures?.inspectionPrep === i.id ? 'selected' : ''}>${i.name} ($${i.upfrontCost})</option>`
+        ).join('');
+
+        const permitRows = options.paperwork.map(p => {
+            const checked = c.paperwork.includes(p.id) || p.required;
+            return `
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; opacity:${p.required ? '0.95' : '1'};">
+                    <input type="checkbox" class="setup-permit" data-id="${p.id}" ${checked ? 'checked' : ''} ${p.required ? 'disabled' : ''}>
+                    <span>${p.name} ${p.required ? '(Required)' : ''} - $${p.cost}</span>
+                </label>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="height:100%; overflow:auto; padding:20px 22px; background:linear-gradient(140deg,#101826,#1f2b41 60%,#101826); color:#e7f1fb;">
+                <h2 style="margin:0 0 8px 0; font-family:'Fredoka',cursive; color:#9fe4ff;">Startup Procedures</h2>
+                <p style="margin:0 0 16px 0; font-size:13px; color:#b8c8d8;">Now complete realistic operating decisions before opening day.</p>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                    <div style="background:rgba(6,16,28,0.65); border:1px solid rgba(159,228,255,0.18); border-radius:12px; padding:14px;">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; color:#ffd2b8;">Selected Location</h3>
+                        <div style="font-size:13px; line-height:1.5;">
+                            <div>${c.location?.name || 'N/A'}</div>
+                            <div>Rent/day: $${c.location?.rent || 0}</div>
+                            <div>Property tax/mo: $${c.location?.propertyTaxMonthly || 0}</div>
+                            <div>Traffic multiplier: x${(c.location?.traffic || 1).toFixed(2)}</div>
+                            <div>Ingredient pressure: x${(c.location?.ingredientCostMultiplier || 1).toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(6,16,28,0.65); border:1px solid rgba(159,228,255,0.18); border-radius:12px; padding:14px;">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; color:#ffd2b8;">Capital Plan</h3>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Financing</label>
+                        <select id="setup-financing" style="width:100%; margin-bottom:10px;">${financingOptions}</select>
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Staffing</label>
+                        <select id="setup-staff" style="width:100%; margin-bottom:10px;">${staffOptions}</select>
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Insurance</label>
+                        <select id="setup-insurance" style="width:100%;">${insuranceOptions}</select>
+                    </div>
+
+                    <div style="background:rgba(6,16,28,0.65); border:1px solid rgba(159,228,255,0.18); border-radius:12px; padding:14px;">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; color:#ffd2b8;">Equipment Decisions</h3>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Oven</label>
+                        <select id="setup-oven" style="width:100%; margin-bottom:10px;">${options.equipment.ovens.map(o => `<option value="${o.id}" ${c.equipment?.oven?.id === o.id ? 'selected' : ''}>${o.name} ($${o.cost})</option>`).join('')}</select>
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Mixer</label>
+                        <select id="setup-mixer" style="width:100%; margin-bottom:10px;">${options.equipment.mixers.map(m => `<option value="${m.id}" ${c.equipment?.mixer?.id === m.id ? 'selected' : ''}>${m.name} ($${m.cost})</option>`).join('')}</select>
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Display</label>
+                        <select id="setup-display" style="width:100%;">${options.equipment.displays.map(d => `<option value="${d.id}" ${c.equipment?.display?.id === d.id ? 'selected' : ''}>${d.name} ($${d.cost})</option>`).join('')}</select>
+                    </div>
+
+                    <div style="background:rgba(6,16,28,0.65); border:1px solid rgba(159,228,255,0.18); border-radius:12px; padding:14px;">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; color:#ffd2b8;">Licensing & Utilities</h3>
+                        <div style="margin-bottom:10px; font-size:12px; color:#c9d8e5;">Permits and licenses</div>
+                        <div style="font-size:12px; margin-bottom:10px;">${permitRows}</div>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Power Service</label>
+                        <select id="setup-power" style="width:100%; margin-bottom:10px;">${powerOptions}</select>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Internet Service</label>
+                        <select id="setup-internet" style="width:100%;">${internetOptions}</select>
+                    </div>
+
+                    <div style="background:rgba(6,16,28,0.65); border:1px solid rgba(159,228,255,0.18); border-radius:12px; padding:14px;">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; color:#ffd2b8;">Legal & Finance Ops</h3>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Business Entity</label>
+                        <select id="setup-entity" style="width:100%; margin-bottom:10px;">${entityOptions}</select>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Business Banking</label>
+                        <select id="setup-banking" style="width:100%; margin-bottom:10px;">${bankingOptions}</select>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Bookkeeping</label>
+                        <select id="setup-bookkeeping" style="width:100%; margin-bottom:10px;">${bookkeepingOptions}</select>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Payroll Compliance</label>
+                        <select id="setup-payroll" style="width:100%;">${payrollOptions}</select>
+                    </div>
+
+                    <div style="background:rgba(6,16,28,0.65); border:1px solid rgba(159,228,255,0.18); border-radius:12px; padding:14px;">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; color:#ffd2b8;">Lease & Opening Budget</h3>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Lease Term</label>
+                        <select id="setup-lease" style="width:100%; margin-bottom:10px;">${leaseOptions}</select>
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Inspection Readiness</label>
+                        <select id="setup-inspection" style="width:100%; margin-bottom:10px;">${inspectionOptions}</select>
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Opening Inventory Budget</label>
+                        <input id="setup-inventory-budget" type="number" min="500" step="100" value="${c.procedures?.openingInventoryBudget || 1800}" style="width:100%; margin-bottom:10px;">
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Launch Marketing Budget</label>
+                        <input id="setup-marketing-budget" type="number" min="0" step="100" value="${c.procedures?.launchMarketingBudget || 900}" style="width:100%; margin-bottom:10px;">
+
+                        <label style="display:block; font-size:12px; margin-bottom:4px;">Emergency Reserve Target</label>
+                        <input id="setup-reserve-target" type="number" min="0" step="100" value="${c.procedures?.emergencyReserveTarget || 3000}" style="width:100%;">
+                    </div>
+                </div>
+
+                <div style="margin-top:14px; background:rgba(7, 18, 31, 0.78); border:1px solid rgba(255, 214, 170, 0.22); border-radius:12px; padding:14px;">
+                    <div style="font-size:12px; color:#cfdceb;">Startup Summary</div>
+                    <div id="setup-summary-rollup" style="margin-top:6px; font-size:14px; color:#f2f8ff;"></div>
+                    <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end;">
+                        <button id="btn-back-location" class="btn btn-secondary">Back To Map</button>
+                        <button id="btn-complete-startup" class="btn btn-primary">Open Bakery</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.bindSetupProcedureEvents();
+        this.refreshSetupSummary();
+    }
+
+    bindSetupProcedureEvents() {
+        const options = GAME_CONFIG.SETUP_OPTIONS;
+        const procedureOptions = GAME_CONFIG.SETUP_PROCEDURES;
+        const pick = (list, id) => list.find(item => item.id === id);
+
+        const onChange = () => this.refreshSetupSummary();
+
+        const financing = document.getElementById('setup-financing');
+        const staff = document.getElementById('setup-staff');
+        const insurance = document.getElementById('setup-insurance');
+        const oven = document.getElementById('setup-oven');
+        const mixer = document.getElementById('setup-mixer');
+        const display = document.getElementById('setup-display');
+        const power = document.getElementById('setup-power');
+        const internet = document.getElementById('setup-internet');
+        const entity = document.getElementById('setup-entity');
+        const banking = document.getElementById('setup-banking');
+        const bookkeeping = document.getElementById('setup-bookkeeping');
+        const payroll = document.getElementById('setup-payroll');
+        const lease = document.getElementById('setup-lease');
+        const inspection = document.getElementById('setup-inspection');
+        const inventoryBudget = document.getElementById('setup-inventory-budget');
+        const marketingBudget = document.getElementById('setup-marketing-budget');
+        const reserveTarget = document.getElementById('setup-reserve-target');
+
+        if (financing) financing.onchange = () => { this.setupChoices.financing = pick(options.financing, financing.value); onChange(); };
+        if (staff) staff.onchange = () => { this.setupChoices.staff = pick(options.staff, staff.value); onChange(); };
+        if (insurance) insurance.onchange = () => { this.setupChoices.insurance = pick(options.insurance, insurance.value); onChange(); };
+        if (oven) oven.onchange = () => { this.setupChoices.equipment.oven = pick(options.equipment.ovens, oven.value); onChange(); };
+        if (mixer) mixer.onchange = () => { this.setupChoices.equipment.mixer = pick(options.equipment.mixers, mixer.value); onChange(); };
+        if (display) display.onchange = () => { this.setupChoices.equipment.display = pick(options.equipment.displays, display.value); onChange(); };
+        if (power) power.onchange = () => { this.setupChoices.utilities.power = pick(options.utilities, power.value); onChange(); };
+        if (internet) internet.onchange = () => { this.setupChoices.utilities.internet = pick(options.utilities, internet.value); onChange(); };
+        if (entity) entity.onchange = () => { this.setupChoices.procedures.entityType = entity.value; onChange(); };
+        if (banking) banking.onchange = () => { this.setupChoices.procedures.banking = banking.value; onChange(); };
+        if (bookkeeping) bookkeeping.onchange = () => { this.setupChoices.procedures.bookkeeping = bookkeeping.value; onChange(); };
+        if (payroll) payroll.onchange = () => { this.setupChoices.procedures.payroll = payroll.value; onChange(); };
+        if (lease) lease.onchange = () => {
+            this.setupChoices.procedures.leaseTerm = lease.value;
+            onChange();
+        };
+        if (inspection) inspection.onchange = () => { this.setupChoices.procedures.inspectionPrep = inspection.value; onChange(); };
+        if (inventoryBudget) inventoryBudget.oninput = () => {
+            this.setupChoices.procedures.openingInventoryBudget = Math.max(0, Number(inventoryBudget.value) || 0);
+            onChange();
+        };
+        if (marketingBudget) marketingBudget.oninput = () => {
+            this.setupChoices.procedures.launchMarketingBudget = Math.max(0, Number(marketingBudget.value) || 0);
+            onChange();
+        };
+        if (reserveTarget) reserveTarget.oninput = () => {
+            this.setupChoices.procedures.emergencyReserveTarget = Math.max(0, Number(reserveTarget.value) || 0);
+            onChange();
+        };
+
+        document.querySelectorAll('.setup-permit').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = cb.dataset.id;
+                if (!id) return;
+                if (cb.checked && !this.setupChoices.paperwork.includes(id)) this.setupChoices.paperwork.push(id);
+                if (!cb.checked) this.setupChoices.paperwork = this.setupChoices.paperwork.filter(p => p !== id);
+                onChange();
+            });
+        });
+
+        const back = document.getElementById('btn-back-location');
+        if (back) back.onclick = () => this.showStartupCitySetup();
+
+        const complete = document.getElementById('btn-complete-startup');
+        if (complete) complete.onclick = () => this.finishSetup();
+    }
+
+    refreshSetupSummary() {
+        const summary = document.getElementById('setup-summary-rollup');
+        if (!summary) return;
+
+        const procedures = this.setupChoices.procedures || {};
+        const procedureOptions = GAME_CONFIG.SETUP_PROCEDURES || {};
+
+        const entity = (procedureOptions.entityTypes || []).find(e => e.id === procedures.entityType);
+        const bank = (procedureOptions.banking || []).find(e => e.id === procedures.banking);
+        const books = (procedureOptions.bookkeeping || []).find(e => e.id === procedures.bookkeeping);
+        const payroll = (procedureOptions.payroll || []).find(e => e.id === procedures.payroll);
+        const lease = (procedureOptions.leaseTerms || []).find(e => e.id === procedures.leaseTerm);
+        const inspection = (procedureOptions.inspectionPrep || []).find(e => e.id === procedures.inspectionPrep);
+
+        const equipmentCost = (this.setupChoices.equipment?.oven?.cost || 0)
+            + (this.setupChoices.equipment?.mixer?.cost || 0)
+            + (this.setupChoices.equipment?.display?.cost || 0);
+
+        const permitsCost = (GAME_CONFIG.SETUP_OPTIONS.paperwork || [])
+            .filter(p => this.setupChoices.paperwork.includes(p.id))
+            .reduce((sum, p) => sum + (p.cost || 0), 0);
+
+        const monthlyOverhead = (this.setupChoices.staff?.monthlyCost || 0)
+            + (this.setupChoices.staff?.benefits || 0)
+            + (this.setupChoices.insurance?.monthlyCost || 0)
+            + (this.setupChoices.utilities?.power?.monthlyCost || 0)
+            + (this.setupChoices.utilities?.internet?.monthlyCost || 0)
+            + (this.setupChoices.location?.propertyTaxMonthly || 0)
+            + ((this.setupChoices.financing?.monthlyPayment) || 0);
+
+        const financingCash = this.setupChoices.financing?.amount || 0;
+        const oneTimeOps = (entity?.filingFee || 0)
+            + (bank?.openingCost || 0)
+            + (inspection?.upfrontCost || 0)
+            + (lease?.tiBudget || 0)
+            + ((this.setupChoices.location?.rent || 0) * (lease?.securityDepositMonths || 0))
+            + (procedures.openingInventoryBudget || 0)
+            + (procedures.launchMarketingBudget || 0);
+
+        const monthlyOps = (entity?.monthlyCompliance || 0)
+            + (bank?.monthlyFee || 0)
+            + (books?.monthlyCost || 0)
+            + (payroll?.monthlyCost || 0);
+
+        const projectedCash = this.engine.cash + financingCash - equipmentCost - permitsCost - oneTimeOps;
+        const totalMonthlyBurn = monthlyOverhead + monthlyOps;
+        const runwayDays = totalMonthlyBurn > 0 ? Math.floor((projectedCash / totalMonthlyBurn) * 30) : 365;
+
+        const requiredPermits = (GAME_CONFIG.SETUP_OPTIONS.paperwork || []).filter(p => p.required);
+        const hasAllRequiredPermits = requiredPermits.every(p => this.setupChoices.paperwork.includes(p.id));
+        const reserveTarget = procedures.emergencyReserveTarget || 0;
+        const hitsReserveTarget = projectedCash >= reserveTarget;
+
+        let readinessScore = 100;
+        if (!hasAllRequiredPermits) readinessScore -= 30;
+        if (runwayDays < 21) readinessScore -= 35;
+        else if (runwayDays < 45) readinessScore -= 18;
+        if (!hitsReserveTarget) readinessScore -= 15;
+        readinessScore = Math.max(0, readinessScore);
+
+        const runwayClass = runwayDays < 21 ? '#ff9b9b' : runwayDays < 45 ? '#ffd89f' : '#b9ffcb';
+        const readinessClass = readinessScore < 55 ? '#ff9b9b' : readinessScore < 75 ? '#ffd89f' : '#b9ffcb';
+
+        const warnings = [];
+        if (!hasAllRequiredPermits) warnings.push('Missing required permits');
+        if (!hitsReserveTarget) warnings.push(`Reserve target shortfall ($${Math.max(0, reserveTarget - projectedCash).toLocaleString()})`);
+        if (runwayDays < 21) warnings.push('Less than 3 weeks runway');
+
+        const completeBtn = document.getElementById('btn-complete-startup');
+        if (completeBtn) {
+            completeBtn.disabled = !hasAllRequiredPermits || runwayDays < 10;
+            completeBtn.title = completeBtn.disabled ? 'Complete required permits and improve runway before opening.' : '';
+        }
+
+        summary.innerHTML = `
+            Upfront purchases: <strong>$${equipmentCost.toLocaleString()}</strong><br>
+            Permits selected: <strong>$${permitsCost.toLocaleString()}</strong><br>
+            One-time setup procedures: <strong>$${oneTimeOps.toLocaleString()}</strong><br>
+            Financing injected: <strong>$${financingCash.toLocaleString()}</strong><br>
+            Estimated monthly fixed burn: <strong>$${(monthlyOverhead + monthlyOps).toLocaleString()}</strong><br>
+            Projected post-setup cash: <strong>$${projectedCash.toLocaleString()}</strong><br>
+            Cash runway: <strong style="color:${runwayClass}">${runwayDays} days</strong><br>
+            Launch readiness: <strong style="color:${readinessClass}">${readinessScore}/100</strong>
+            ${warnings.length ? `<br><span style="color:#ffd3b0; font-size:12px;">⚠ ${warnings.join(' | ')}</span>` : ''}
+        `;
     }
 
     selectSetup(type, id) {
@@ -1561,19 +1789,30 @@ class GameController {
         const options = GAME_CONFIG.SETUP_OPTIONS;
         
         this.setupChoices = {
-            location: options.locations.find(l => l.id === 'suburban') || options.locations[0],
-            financing: options.financing.find(f => f.id === 'savings') || options.financing[0],
+            location: options.locations.find(l => l.id === 'suburbs_plaza') || options.locations[0],
+            financing: options.financing.find(f => f.id === 'personal_savings') || options.financing[0],
             equipment: {
-                oven: options.equipment.ovens.find(o => o.id === 'standard') || options.equipment.ovens[1],
-                mixer: options.equipment.mixers.find(m => m.id === 'standard') || options.equipment.mixers[1],
-                display: options.equipment.displays.find(d => d.id === 'standard') || options.equipment.displays[1]
+                oven: options.equipment.ovens.find(o => o.id === 'basic_convection') || options.equipment.ovens[1],
+                mixer: options.equipment.mixers.find(m => m.id === 'countertop_mixer') || options.equipment.mixers[1],
+                display: options.equipment.displays.find(d => d.id === 'basic_case') || options.equipment.displays[1]
             },
             staff: options.staff.find(s => s.id === 'solo') || options.staff[0],
             paperwork: options.paperwork.filter(p => p.required).map(p => p.id),
-            insurance: options.insurance.find(i => i.id === 'basic') || options.insurance[0],
+            insurance: options.insurance.find(i => i.id === 'basic_liability') || options.insurance[0],
             utilities: {
-                power: options.utilities.find(u => u.id === 'power_standard'),
-                internet: options.utilities.find(u => u.id === 'internet_basic')
+                power: options.utilities.find(u => u.id === 'basic_power'),
+                internet: options.utilities.find(u => u.id === 'basic_internet')
+            },
+            procedures: {
+                entityType: 'llc',
+                banking: 'community_bank',
+                bookkeeping: 'software_basic',
+                payroll: 'payroll_software',
+                leaseTerm: 'standard_term',
+                inspectionPrep: 'standard',
+                openingInventoryBudget: 1800,
+                launchMarketingBudget: 900,
+                emergencyReserveTarget: 3000
             }
         };
 
@@ -1581,40 +1820,8 @@ class GameController {
     }
 
     finishStoryBookSetup(choices, budget) {
-        console.log('Finishing StoryBook setup with choices:', choices);
-        
-        // Convert storybook choices to engine-compatible format
-        const options = GAME_CONFIG.SETUP_OPTIONS;
-        
-        // Map storybook choices to game config options
-        this.setupChoices = {
-            location: options.locations.find(l => l.id === (choices.location || 'suburban')) || options.locations[0],
-            financing: options.financing.find(f => f.id === (choices.financing || 'savings')) || options.financing[0],
-            equipment: {
-                oven: options.equipment.ovens.find(o => o.id === (choices.equipment?.oven || 'standard')) || options.equipment.ovens[1],
-                mixer: options.equipment.mixers.find(m => m.id === (choices.equipment?.mixer || 'standard')) || options.equipment.mixers[1],
-                display: options.equipment.displays.find(d => d.id === (choices.equipment?.display || 'standard')) || options.equipment.displays[1]
-            },
-            staff: options.staff.find(s => s.id === (choices.staff || 'solo')) || options.staff[0],
-            paperwork: choices.permits || options.paperwork.filter(p => p.required).map(p => p.id),
-            insurance: options.insurance.find(i => i.id === (choices.insurance || 'basic')) || options.insurance[0],
-            utilities: {
-                power: options.utilities.find(u => u.id === 'power_standard'),
-                internet: options.utilities.find(u => u.id === 'internet_basic')
-            }
-        };
-
-        // Store business name from storybook
-        if (choices.businessName) {
-            this.businessName = choices.businessName;
-        }
-
-        // Apply budget adjustments if any
-        if (budget && budget.spent > 0) {
-            this.engine.cash -= budget.spent;
-        }
-
-        this.finishSetup();
+        // Storybook mode removed.
+        this.showStartupCitySetup();
     }
 
     canFinishSetup() {
@@ -1630,7 +1837,13 @@ class GameController {
             c.equipment.display &&
             hasAllRequired &&
             c.insurance &&
-            c.staff;
+            c.staff &&
+            c.procedures?.entityType &&
+            c.procedures?.banking &&
+            c.procedures?.bookkeeping &&
+            c.procedures?.payroll &&
+            c.procedures?.leaseTerm &&
+            c.procedures?.inspectionPrep;
     }
 
     finishSetup() {
@@ -1639,22 +1852,77 @@ class GameController {
             this.phaserGame.destroy(true);
             this.phaserGame = null;
         }
+        if (this._mapSetupMessageHandler) {
+            window.removeEventListener('message', this._mapSetupMessageHandler);
+            this._mapSetupMessageHandler = null;
+        }
 
         // Apply choices to engine
         const choices = this.setupChoices;
 
+        if (!choices?.location) {
+            this.showPopup({
+                icon: '⚠️',
+                title: 'Location Required',
+                message: 'Select and confirm a location first.',
+                type: 'warning',
+                autoClose: 1800
+            });
+            this.showStartupCitySetup();
+            return;
+        }
+
+        if (!this.canFinishSetup()) {
+            this.showPopup({
+                icon: '📋',
+                title: 'Complete Setup Procedures',
+                message: 'Finish all required legal, staffing, utility, and permit decisions before opening.',
+                type: 'warning',
+                autoClose: 2200
+            });
+            this.showSetupProcedureFlow();
+            return;
+        }
+
+        const procedures = choices.procedures || {};
+        const procedureOptions = GAME_CONFIG.SETUP_PROCEDURES || {};
+        const entity = (procedureOptions.entityTypes || []).find(e => e.id === procedures.entityType);
+        const bank = (procedureOptions.banking || []).find(e => e.id === procedures.banking);
+        const books = (procedureOptions.bookkeeping || []).find(e => e.id === procedures.bookkeeping);
+        const payroll = (procedureOptions.payroll || []).find(e => e.id === procedures.payroll);
+        const lease = (procedureOptions.leaseTerms || []).find(e => e.id === procedures.leaseTerm);
+        const inspection = (procedureOptions.inspectionPrep || []).find(e => e.id === procedures.inspectionPrep);
+
         // Location
-        this.engine.rentAmount = choices.location.rent;
+        this.engine.rentAmount = Math.round((choices.location.rent || 0) * (lease?.rentMultiplier || 1));
         this.engine.trafficMultiplier = choices.location.traffic;
+        this.engine.monthlyPropertyTax = choices.location.propertyTaxMonthly || this.engine.monthlyPropertyTax || 0;
+        this.engine.ingredientCostMultiplier = choices.location.ingredientCostMultiplier || this.engine.ingredientCostMultiplier || 1;
+        this.engine.exteriorStyle = choices.location.exteriorStyle || this.engine.exteriorStyle;
+
+        // Financing
+        if (choices.financing?.amount) {
+            this.engine.cash += choices.financing.amount;
+        }
+        this.engine.monthlyDebtService = choices.financing?.monthlyPayment || 0;
 
         // Equipment
         this.engine.ovenCapacity = choices.equipment.oven.capacity;
         this.engine.bakingSpeedMultiplier = choices.equipment.oven.speed * choices.equipment.mixer.efficiency;
+        this.engine.menuAppeal = choices.equipment.display?.appeal || this.engine.menuAppeal;
+
+        const equipmentCapex = (choices.equipment.oven?.cost || 0)
+            + (choices.equipment.mixer?.cost || 0)
+            + (choices.equipment.display?.cost || 0);
+        if (equipmentCapex > 0) {
+            this.engine.cash = Math.max(0, this.engine.cash - equipmentCapex);
+        }
 
         // Staff
         if (choices.staff.efficiency) {
             this.engine.bakingSpeedMultiplier *= choices.staff.efficiency;
         }
+        this.engine.monthlyStaffCost = (choices.staff?.monthlyCost || 0) + (choices.staff?.benefits || 0);
 
         // Financing (debt already added in scene)
         // Insurance (monthly costs)
@@ -1666,6 +1934,82 @@ class GameController {
         if (choices.utilities.power && choices.utilities.internet) {
             this.engine.monthlyUtilities = choices.utilities.power.monthlyCost + choices.utilities.internet.monthlyCost;
         }
+
+        // Admin/compliance monthly burden from legal + finance operations.
+        this.engine.monthlyAdminCosts = (entity?.monthlyCompliance || 0)
+            + (bank?.monthlyFee || 0)
+            + (books?.monthlyCost || 0)
+            + (payroll?.monthlyCost || 0);
+
+        // One-time setup operations costs.
+        const oneTimeProcedureCosts = (entity?.filingFee || 0)
+            + (bank?.openingCost || 0)
+            + (inspection?.upfrontCost || 0)
+            + (lease?.tiBudget || 0)
+            + ((choices.location?.rent || 0) * (lease?.securityDepositMonths || 0))
+            + (procedures.openingInventoryBudget || 0)
+            + (procedures.launchMarketingBudget || 0);
+        if (oneTimeProcedureCosts > 0) {
+            this.engine.cash = Math.max(0, this.engine.cash - oneTimeProcedureCosts);
+        }
+
+        // Paperwork: required fees are included in location filing budget, optional permits are extra.
+        const optionalPermitCost = (GAME_CONFIG.SETUP_OPTIONS.paperwork || [])
+            .filter(p => !p.required && choices.paperwork.includes(p.id))
+            .reduce((sum, p) => sum + (p.cost || 0), 0);
+        if (optionalPermitCost > 0) {
+            this.engine.cash = Math.max(0, this.engine.cash - optionalPermitCost);
+        }
+
+        // Optional permit gameplay effects.
+        const selectedOptionalPermits = (GAME_CONFIG.SETUP_OPTIONS.paperwork || [])
+            .filter(p => !p.required && choices.paperwork.includes(p.id));
+
+        selectedOptionalPermits.forEach(permit => {
+            if (permit.trafficBonus) {
+                this.engine.trafficMultiplier *= permit.trafficBonus;
+            }
+            if (permit.revenueBonus) {
+                this.engine.menuAppeal *= permit.revenueBonus;
+            }
+            if (permit.priceMultiplier) {
+                this.engine.markupPercentage = Math.round(this.engine.markupPercentage * permit.priceMultiplier);
+            }
+        });
+
+        // Location parking + inspection readiness influence opening demand/quality.
+        const parkingBoost = Math.min(0.14, (choices.location?.parkingSpaces || 0) * 0.005);
+        this.engine.trafficMultiplier *= 1 + parkingBoost;
+        this.engine.trafficMultiplier *= inspection?.firstMonthTrafficMult || 1;
+        this.engine.menuAppeal *= inspection?.qualitySafetyMult || 1;
+
+        // Penalize aggressive starts without adequate emergency reserve.
+        const reserveTarget = Math.max(0, procedures.emergencyReserveTarget || 0);
+        if (reserveTarget > 0 && this.engine.cash < reserveTarget) {
+            this.engine.trafficMultiplier *= 0.95;
+            this.engine.menuAppeal *= 0.97;
+        }
+
+        const projectedCash = this.engine.cash;
+        const monthlyBurn = (this.engine.monthlyStaffCost || 0)
+            + (this.engine.monthlyInsurance || 0)
+            + (this.engine.monthlyUtilities || 0)
+            + (this.engine.monthlyPropertyTax || 0)
+            + (this.engine.monthlyDebtService || 0)
+            + (this.engine.monthlyAdminCosts || 0)
+            + (this.engine.rentAmount || 0) * 30;
+        const runwayDays = monthlyBurn > 0 ? Math.floor((projectedCash / monthlyBurn) * 30) : 365;
+
+        this.setupOperationalProfile = this.buildOperationalSetupProfile(choices, {
+            inspection,
+            bookkeeping: books,
+            payroll,
+            optionalPermitsCount: selectedOptionalPermits.length,
+            runwayDays,
+            projectedCash
+        });
+        this._setupBaseTraffic = this.engine.trafficMultiplier || 1;
+        this._setupBriefShown = false;
 
         // Initialize day state
         // Move to free-roam mode hub
@@ -1737,6 +2081,18 @@ class GameController {
 
         this.applyDailyComplexityProfile(this.engine.day);
 
+        if (this.setupOperationalProfile && !this._setupBriefShown) {
+            this._setupBriefShown = true;
+            const profile = this.setupOperationalProfile;
+            this.showPopup({
+                icon: '📈',
+                title: 'Operations Forecast Loaded',
+                message: `Launch Mode: ${profile.maturityBand}\nDemand range is now setup-driven (${(profile.demandFloor * 100).toFixed(0)}%-${(profile.demandCeiling * 100).toFixed(0)}%).\nVolatility and crisis pressure will evolve based on your startup choices.`,
+                type: 'insight',
+                autoClose: 4200
+            });
+        }
+
         // Start HUD update loop
         this.startHUDLoop();
         this.checkForScenarios();
@@ -1781,9 +2137,95 @@ class GameController {
         };
     }
 
+    buildOperationalSetupProfile(choices, context = {}) {
+        const procedures = choices?.procedures || {};
+        const locationTraffic = choices?.location?.traffic || 1;
+        const ingredientPressure = choices?.location?.ingredientCostMultiplier || 1;
+        const staffEfficiency = choices?.staff?.efficiency || 1;
+        const inspection = context.inspection || {};
+        const bookkeeping = context.bookkeeping || {};
+        const payroll = context.payroll || {};
+        const financing = choices?.financing || {};
+        const reserveTarget = Math.max(0, procedures.emergencyReserveTarget || 0);
+        const projectedCash = Math.max(0, context.projectedCash || this.engine?.cash || 0);
+        const reserveCoverage = reserveTarget > 0 ? Math.min(1.25, projectedCash / reserveTarget) : 1;
+        const reservePressure = reserveCoverage < 1 ? (1 - reserveCoverage) : 0;
+
+        const demandFloor = Math.max(0.72, Math.min(1.45,
+            (0.8 + (locationTraffic * 0.42)) * (inspection.firstMonthTrafficMult || 1) * (reserveCoverage >= 1 ? 1.04 : 0.96)
+        ));
+        const demandCeiling = Math.max(demandFloor + 0.12, Math.min(2.15,
+            demandFloor + 0.42 + ((context.optionalPermitsCount || 0) * 0.03)
+        ));
+
+        const costFloor = Math.max(0.86, Math.min(1.2,
+            0.94 + ((ingredientPressure - 1) * 0.85) + ((financing.interestRate || 0) * 0.28)
+        ));
+        const costCeiling = Math.max(costFloor + 0.06, Math.min(1.72,
+            costFloor + 0.24 + (reservePressure * 0.18)
+        ));
+
+        const volatilityFloor = Math.max(0.72, Math.min(1.32,
+            0.9 + (reservePressure * 0.24) + (((payroll.complianceRisk || 1) - 1) * 0.35)
+        ));
+        const volatilityCeiling = Math.max(volatilityFloor + 0.1, Math.min(1.9,
+            volatilityFloor + 0.34 + (((bookkeeping.taxPenaltyRisk || 1) - 1) * 0.45)
+        ));
+
+        const crisisFloor = Math.max(0.72, Math.min(1.45,
+            0.9 + (reservePressure * 0.4) + ((inspection.id === 'minimal') ? 0.12 : 0) + ((payroll.id === 'manual_payroll') ? 0.09 : 0)
+        ));
+        const crisisCeiling = Math.max(crisisFloor + 0.05, Math.min(1.85, crisisFloor + 0.24));
+
+        const fatigueFloor = Math.max(0.82, Math.min(1.28,
+            1.02 - ((staffEfficiency - 1) * 0.2) + ((context.runwayDays || 0) < 30 ? 0.08 : 0)
+        ));
+        const fatigueCeiling = Math.max(fatigueFloor + 0.04, Math.min(1.62, fatigueFloor + 0.2 + (reservePressure * 0.1)));
+
+        const maturityBand = reserveCoverage >= 1 && (context.runwayDays || 0) >= 45
+            ? 'Disciplined Launch'
+            : reserveCoverage >= 0.7
+                ? 'Balanced Launch'
+                : 'Fragile Launch';
+
+        return {
+            maturityBand,
+            demandFloor,
+            demandCeiling,
+            costFloor,
+            costCeiling,
+            volatilityFloor,
+            volatilityCeiling,
+            crisisFloor,
+            crisisCeiling,
+            fatigueFloor,
+            fatigueCeiling
+        };
+    }
+
+    applyOperationalSetupModifiers(baseProfile, day = this.engine?.day || 1) {
+        if (!this.setupOperationalProfile) return baseProfile;
+
+        const cappedDay = Math.min(30, Math.max(1, day));
+        const ramp = (cappedDay - 1) / 29;
+        const p = this.setupOperationalProfile;
+
+        const lerp = (a, b, t) => a + ((b - a) * t);
+
+        return {
+            ...baseProfile,
+            setupBand: p.maturityBand,
+            customerDemandMultiplier: baseProfile.customerDemandMultiplier * lerp(p.demandFloor, p.demandCeiling, ramp),
+            costPressureMultiplier: baseProfile.costPressureMultiplier * lerp(p.costFloor, p.costCeiling, ramp),
+            worldVolatility: baseProfile.worldVolatility * lerp(p.volatilityFloor, p.volatilityCeiling, ramp),
+            crisisChancePerMinute: baseProfile.crisisChancePerMinute * lerp(p.crisisFloor, p.crisisCeiling, ramp),
+            fatiguePressure: baseProfile.fatiguePressure * lerp(p.fatigueFloor, p.fatigueCeiling, ramp)
+        };
+    }
+
     applyDailyComplexityProfile(day = this.engine?.day || 1) {
         if (!this.engine) return;
-        const profile = this.getComplexityProfile(day);
+        const profile = this.applyOperationalSetupModifiers(this.getComplexityProfile(day), day);
         this.dayComplexityProfile = profile;
 
         if (!this._baseRentAmount) {
@@ -1792,7 +2234,11 @@ class GameController {
         this.engine.rentAmount = Math.round(this._baseRentAmount * profile.costPressureMultiplier);
 
         const demandMultiplier = this.engine.economy?.getDemandMultiplier ? this.engine.economy.getDemandMultiplier() : 1;
-        this.engine.trafficMultiplier = Math.max(0.6, demandMultiplier * profile.customerDemandMultiplier);
+        if (!this._setupBaseTraffic) {
+            this._setupBaseTraffic = this.engine.trafficMultiplier || 1;
+        }
+        const setupTrafficBaseline = Math.max(0.55, this._setupBaseTraffic || 1);
+        this.engine.trafficMultiplier = Math.max(0.6, setupTrafficBaseline * demandMultiplier * profile.customerDemandMultiplier);
     }
 
     // -- Overlay panel helpers --
@@ -2087,6 +2533,7 @@ class GameController {
                         <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">🎚️ World Complexity</h4>
                         <div style="font-size:13px; line-height:1.9;">
                             <div>Tier: <strong style="color:#ffd700;">${complexity.tier}</strong> (Day ${Math.min(30, this.engine.day)}/30)</div>
+                            <div>Launch Band: <strong>${complexity.setupBand || 'Standard'}</strong></div>
                             <div>Demand Pressure: <strong>${(complexity.customerDemandMultiplier * 100).toFixed(0)}%</strong></div>
                             <div>Cost Pressure: <strong>${(complexity.costPressureMultiplier * 100).toFixed(0)}%</strong></div>
                             <div>Volatility: <strong>${(complexity.worldVolatility * 100).toFixed(0)}%</strong></div>
@@ -3310,6 +3757,13 @@ class GameController {
                     staff: result.item?.assignedEmployee?.name,
                     quantity: result.item?.quantity || 1
                 });
+                if (result.item?.assignedEmployee) {
+                    this.emitStaffRoute(result.item.assignedEmployee, 'prep', {
+                        context: 'production',
+                        recipe: recipe?.name || recipeKey,
+                        holdMs: 2600
+                    });
+                }
                 deficit--;
             }
         });
@@ -3563,15 +4017,28 @@ class GameController {
     }
 
     renderEmployeeSelling() {
-        if (this.engine.staff.length === 0) {
+        const roster = this.staffManager
+            ? this.staffManager.getAllStaff()
+            : (this.engine.staff || []);
+
+        if (roster.length === 0) {
             return '<div class="no-employees">Solo operation - you handle all customers!</div>';
         }
 
-        return this.engine.staff.map(employee => {
+        return roster.map(employee => {
             const servingCustomer = employee.currentCustomer || null;
             const taskInfo = servingCustomer
                 ? `Serving ${servingCustomer.name} ${servingCustomer.face}`
-                : 'Ready to serve';
+                : employee.currentTask
+                    ? `${employee.currentTask.type} task`
+                    : 'Ready to serve';
+            const skillDisplay = Number.isFinite(employee.skillLevel)
+                ? employee.skillLevel
+                : Number.isFinite(employee.skill)
+                    ? employee.skill / 20
+                    : 3;
+            const happiness = Number.isFinite(employee.happiness) ? employee.happiness : 100;
+            const fatigue = Number.isFinite(employee.fatigue) ? employee.fatigue : 0;
 
             return `
                 <div class="employee-card-selling">
@@ -3580,15 +4047,15 @@ class GameController {
                             <span style="font-size: 20px;">${employee.face}</span>
                             <span class="employee-name">${employee.name}</span>
                         </div>
-                        <span class="employee-skill">⭐${employee.skillLevel.toFixed(1)}</span>
+                        <span class="employee-skill">⭐${skillDisplay.toFixed(1)}</span>
                     </div>
                     <div class="employee-status">
                         <div class="status-value">${taskInfo}</div>
                     </div>
                     <div class="employee-stats-mini">
                         <div class="stat-mini">
-                            <span>😊${employee.happiness.toFixed(0)}</span>
-                            <span>😴${employee.fatigue.toFixed(0)}</span>
+                            <span>😊${happiness.toFixed(0)}</span>
+                            <span>😴${fatigue.toFixed(0)}</span>
                         </div>
                     </div>
                 </div>
@@ -3638,6 +4105,100 @@ class GameController {
         return (this.activeCustomers || []).find(c => c.id === customerId);
     }
 
+    emitStaffRoute(staff, station, detail = {}) {
+        if (!staff) return;
+        window.dispatchEvent(new CustomEvent('bakery:staff-route', {
+            detail: {
+                staffId: staff.id,
+                staffName: staff.name,
+                face: staff.face || '🧑‍🍳',
+                role: staff.role || 'server',
+                station,
+                ...detail
+            }
+        }));
+    }
+
+    updateFlowSatisfaction(score) {
+        const clamped = Math.max(0, Math.min(100, Number(score) || 0));
+        const smooth = this.customerFlowSignals.rollingSatisfaction * 0.9 + clamped * 0.1;
+        this.customerFlowSignals.rollingSatisfaction = smooth;
+        this.customerFlowSignals.throughputMultiplier = Math.max(0.5, Math.min(1.35, 0.75 + (smooth / 100) * 0.65));
+    }
+
+    getCustomerMoodLabel(mood) {
+        if (mood >= 75) return 'Excited';
+        if (mood >= 55) return 'Neutral';
+        if (mood >= 35) return 'Impatient';
+        return 'Frustrated';
+    }
+
+    createCustomerCart(availableItems, customerMood, segment, customerPreferences = null, budgetCap = null, primaryItem = null) {
+        if (!Array.isArray(availableItems) || availableItems.length === 0) return [];
+
+        const aestheticBoost = Math.max(0.75, Math.min(1.35, this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1));
+        const segmentBoost = segment?.icon === '⭐' ? 1 : 0;
+        const preferredCount = Math.max(1, Math.min(4, Math.round(1 + (aestheticBoost - 0.75) * 2 + segmentBoost + Math.random() * 1.4)));
+
+        const pool = [...availableItems].sort(() => Math.random() - 0.5);
+        const selectedSet = new Set(pool.slice(0, Math.min(preferredCount, pool.length)));
+        if (primaryItem && availableItems.includes(primaryItem)) {
+            selectedSet.add(primaryItem);
+        }
+
+        const draftedCart = Array.from(selectedSet).map(itemKey => {
+            const stock = this.engine.getProductStock(itemKey);
+            const quality = this.engine.getProductQuality(itemKey);
+            const qualityMult = this.engine.getQualityPriceMultiplier(quality);
+            const unitPrice = this.engine.getRecipeBasePrice(itemKey) * qualityMult;
+
+            const baseQty = 1 + Math.floor(Math.random() * 2);
+            const quantitySegmentBoost = segment?.icon === '⭐' ? 1 : 0;
+            const quantity = Math.max(1, Math.min(stock, baseQty + quantitySegmentBoost));
+
+            return {
+                recipeKey: itemKey,
+                quantity,
+                unitPrice,
+                quality
+            };
+        }).filter(line => line.quantity > 0);
+
+        if (!Number.isFinite(budgetCap) || budgetCap <= 0) {
+            return draftedCart;
+        }
+
+        let remainingBudget = budgetCap;
+        const affordableCart = [];
+        const prioritized = [...draftedCart].sort((a, b) => {
+            if (a.recipeKey === primaryItem) return -1;
+            if (b.recipeKey === primaryItem) return 1;
+            return a.unitPrice - b.unitPrice;
+        });
+
+        prioritized.forEach(line => {
+            if (remainingBudget < line.unitPrice) return;
+            const maxQtyByBudget = Math.floor(remainingBudget / line.unitPrice);
+            const finalQty = Math.max(0, Math.min(line.quantity, maxQtyByBudget));
+            if (finalQty <= 0) return;
+
+            affordableCart.push({
+                ...line,
+                quantity: finalQty
+            });
+            remainingBudget -= finalQty * line.unitPrice;
+        });
+
+        return affordableCart;
+    }
+
+    summarizeCart(cart) {
+        return cart.map(line => {
+            const recipe = GAME_CONFIG.RECIPES[line.recipeKey];
+            return `${recipe?.icon || '🥐'} ${line.quantity}x ${recipe?.name || line.recipeKey}`;
+        }).join(', ');
+    }
+
     /**
      * Serve customer - always via staff assignment
      */
@@ -3645,80 +4206,8 @@ class GameController {
         const customer = this.getCustomerById(customerId);
         if (!customer) return;
 
-        if (window.CustomerInteractionScene && !customer._interactionInProgress) {
-            customer._interactionInProgress = true;
-            try {
-                const ownerStaff = {
-                    role: 'owner',
-                    isPlayer: true,
-                    name: 'You',
-                    face: '🧑‍🍳'
-                };
-                const interaction = new CustomerInteractionScene(this, customer, ownerStaff);
-                const interactionResult = await interaction.start();
-                if (interactionResult?.moodChange) {
-                    customer.currentMood = Math.max(0, Math.min(100, (customer.currentMood || 50) + interactionResult.moodChange));
-                }
-                if (interactionResult?.orderedItems?.length > 0) {
-                    customer.wantsItem = interactionResult.orderedItems[0];
-                }
-            } catch (error) {
-                console.warn('Customer interaction scene failed; using direct service fallback.', error);
-            } finally {
-                customer._interactionInProgress = false;
-            }
-        }
-
-        // Customer just orders what they want
-        if (customer.wantsItem) {
-            const saleResult = this.engine.processSale(customer.wantsItem, 1);
-            
-            if (saleResult.success) {
-                // Record purchase in customer database
-                if (this.customerDB && customer.dbId) {
-                    const dbCustomer = this.customerDB.customers.get(customer.dbId);
-                    if (dbCustomer) {
-                        const quality = saleResult.quality || 100;
-                        const price = saleResult.revenue || 0;
-                        this.customerDB.processPurchase(dbCustomer, customer.wantsItem, price, quality);
-                    }
-                }
-                
-                // Show success
-                const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
-                const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)];
-                
-                customer.state = 'success';
-                customer.resultMessage = msg;
-                customer.resultRevenue = saleResult.revenue;
-                customer.resultFace = '😊';
-                
-                this.releaseAssignedStaff(customer);
-                this.renderCustomerArea();
-                
-                // Notify about revenue
-                if (this.notificationSystem) {
-                    this.notificationSystem.moneyEarned(saleResult.revenue);
-                }
-                
-                this.logAutomationEvent('sale', `${customer.name} bought ${customer.wantsItem}`, {
-                    item: customer.wantsItem,
-                    amount: `$${saleResult.revenue.toFixed(2)}`,
-                    auto: false
-                });
-                
-                this.renderDisplayProducts();
-                this.updateStats();
-                
-                setTimeout(() => {
-                    this.removeCustomer(customer);
-                }, 2000);
-            } else {
-                this.handleOutOfStock(customer);
-            }
-        } else {
-            this.removeCustomer(customer);
-        }
+        customer.requiresManualService = false;
+        this.planCustomerService(customer);
     }
 
     /**
@@ -3742,14 +4231,6 @@ class GameController {
         if (!staff) {
             if (this.notificationSystem) {
                 this.notificationSystem.error('Staff member not found');
-            }
-            return;
-        }
-
-        // Check if staff has server role
-        if (staff.role !== 'server' && staff.role !== 'owner') {
-            if (this.notificationSystem) {
-                this.notificationSystem.warning(`${staff.name} is a ${staff.role}, not a server. Only servers can serve customers.`);
             }
             return;
         }
@@ -3902,25 +4383,20 @@ class GameController {
             `;
         }
 
-        const requiresManual = customer.requiresManualService;
-        const staffLabel = requiresManual
-            ? 'Manual service needed — tap Serve Manually'
-            : customer.assignedStaff
-                ? `${customer.assignedStaff.face || '👨‍🍳'} ${customer.assignedStaff.name} is preparing the order`
-                : 'Owner is preparing the order';
+        const waitPct = Math.max(0, Math.min(100, ((customer.satisfactionNow || 0) / 100) * 100));
+        const staffLabel = customer.assignedStaff
+            ? `${customer.assignedStaff.face || '👨‍🍳'} ${customer.assignedStaff.name} is checking out`
+            : 'Waiting for available checkout staff';
         const etaSeconds = Math.max(1, Math.round(((customer.serviceDuration || 2000) / 1000)));
-        const showProgress = !requiresManual && !!customer.serviceDuration;
-
-        // Get available staff for assignment dropdown (only servers and owner)
-        const availableStaff = this.staffManager ? 
-            this.staffManager.getAvailableStaff().filter(s => s.role === 'server' || s.role === 'owner') : 
-            [];
-        const staffOptions = availableStaff.map(s => 
-            `<option value="${s.id}">${s.name}${s.role !== 'owner' ? ` (👔 ${s.role})` : ''}</option>`
-        ).join('');
+        const showProgress = !!customer.serviceDuration;
+        const cartLines = (customer.shoppingCart || []).map(line => {
+            const item = GAME_CONFIG.RECIPES[line.recipeKey];
+            return `<div style="display:flex; justify-content:space-between; gap:8px;"><span>${item?.icon || '🥐'} ${line.quantity}x ${item?.name || line.recipeKey}</span><strong>$${(line.unitPrice * line.quantity).toFixed(2)}</strong></div>`;
+        }).join('');
+        const moodLabel = this.getCustomerMoodLabel(customer.satisfactionNow || customer.currentMood || 50);
 
         return `
-            <div class="customer-popup ${requiresManual ? 'manual-needed' : ''}" data-customer-id="${customer.id}">
+            <div class="customer-popup" data-customer-id="${customer.id}">
                 <div class="customer-face" style="font-size: 64px;">${baseFace}</div>
                 <div class="customer-name">
                     ${baseName}
@@ -3928,6 +4404,11 @@ class GameController {
                 </div>
                 <div class="customer-dialogue">"${customer.greeting || 'Hello!'}"</div>
                 <div class="customer-order">"${orderLine}"</div>
+                <div style="background:rgba(255,255,255,0.12); border-radius:16px; padding:10px 12px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.25);">
+                    <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; opacity:0.8; margin-bottom:6px;">💬 Cart Bubble</div>
+                    <div style="font-size:12px; display:flex; flex-direction:column; gap:4px;">${cartLines}</div>
+                    <div style="margin-top:7px; font-size:12px; text-align:right; color:#ffd700; font-weight:700;">Total: $${(customer.cartTotal || 0).toFixed(2)}</div>
+                </div>
                 <div class="auto-service">
                     <div class="service-status">${staffLabel}${showProgress ? ` • ~${etaSeconds}s` : ''}</div>
                     ${showProgress ? `
@@ -3935,23 +4416,12 @@ class GameController {
                             <div class="service-progress-fill" style="width: 0%;"></div>
                         </div>
                     ` : ''}
-                    ${availableStaff.length > 0 ? `
-                        <div class="staff-assignment" style="margin: 10px 0;">
-                            <select class="staff-select" id="staff-select-${customer.id}" 
-                                    style="padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,215,0,0.3); 
-                                           background: rgba(0,0,0,0.3); color: white; width: 100%; margin-bottom: 8px;">
-                                <option value="">Assign Staff...</option>
-                                ${staffOptions}
-                            </select>
-                            <button class="btn btn-primary" style="width: 100%;" 
-                                    onclick="window.game.assignStaffToCustomer('${customer.id}')">
-                                👔 Assign Selected Staff
-                            </button>
-                        </div>
-                    ` : ''}
-                    <div class="service-actions">
-                        <button class="btn btn-secondary" onclick="window.game.manualServeCustomer('${customer.id}')">🙋 Serve Manually</button>
-                        <button class="btn btn-link" style="color: #c0392b;" onclick="window.game.cancelCustomerOrder('${customer.id}')">Cancel Order</button>
+                    <div style="margin-top:8px; font-size:11px; color:rgba(255,255,255,0.8); display:flex; justify-content:space-between;">
+                        <span>Mood: ${moodLabel}</span>
+                        <span>Satisfaction ${Math.round(waitPct)}%</span>
+                    </div>
+                    <div class="service-progress" style="height:6px; margin-top:6px;">
+                        <div class="service-progress-fill" style="width:${waitPct}%; background:${waitPct > 65 ? '#2ecc71' : waitPct > 40 ? '#f39c12' : '#e74c3c'};"></div>
                     </div>
                 </div>
             </div>
@@ -3960,7 +4430,7 @@ class GameController {
 
     resumeWaitingCustomers() {
         if (!this.automationEnabled || !Array.isArray(this.activeCustomers) || this.activeCustomers.length === 0) return;
-        const waiting = this.activeCustomers.filter(customer => customer.requiresManualService);
+        const waiting = this.activeCustomers.filter(customer => customer.state === 'waiting' && !customer.assignedStaff);
         if (waiting.length === 0) return;
 
         waiting.forEach(customer => this.planCustomerService(customer, { silent: true }));
@@ -4022,7 +4492,9 @@ class GameController {
                 const loyaltyBoost = 1 + this.getScenarioModifier('loyalty', { defaultValue: 0, operation: 'add' });
                 const complexity = this.dayComplexityProfile || this.getComplexityProfile(this.engine.day);
                 const volatilityNoise = 1 + ((Math.random() - 0.5) * 0.08 * complexity.worldVolatility);
-                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * loyaltyBoost * complexity.customerDemandMultiplier * volatilityNoise) / 60 / 10;
+                const trafficEffect = Math.max(0.45, Math.min(2.2, this.engine.trafficMultiplier || 1));
+                const satisfactionDemand = Math.max(0.55, Math.min(1.35, this.customerFlowSignals.throughputMultiplier || 1));
+                const spawnChance = (GAME_CONFIG.DEMAND.baseCustomersPerHour * hourMult * appealMult * scenarioDemand * scenarioTraffic * trafficEffect * satisfactionDemand * loyaltyBoost * complexity.customerDemandMultiplier * volatilityNoise) / 60 / 10;
 
                 if (timeSinceLastCustomer > 2000 && Math.random() < spawnChance) {
                     this.spawnCustomer();
@@ -4038,6 +4510,34 @@ class GameController {
             }
 
             this.processAutoCustomers(now);
+
+            if (now - this.lastCustomerFlowTick > 300) {
+                this.lastCustomerFlowTick = now;
+                const queued = (this.activeCustomers || []).filter(c => c && c.state === 'waiting' && !c.assignedStaff);
+                queued.forEach(customer => {
+                    const waited = Math.max(0, now - (customer.queueStartedAt || now));
+                    const maxWait = Math.max(4000, customer.maxWaitMs || 20000);
+                    const pressure = Math.max(0, Math.min(1, waited / maxWait));
+                    customer.waitPressure = pressure;
+                    customer.satisfactionNow = Math.max(0, (customer.satisfactionNow || 75) - (0.55 + pressure * 0.85));
+
+                    if (customer.satisfactionNow <= 6) {
+                        customer.resultFace = '😠';
+                        customer.resultMessage = 'Queue is too long. I am leaving.';
+                        customer.state = 'sad';
+                        this.engine.missedCustomer();
+                        this.customerFlowSignals.recentWalkouts++;
+                        this.updateFlowSatisfaction(24);
+                        this.removeCustomer(customer);
+                        return;
+                    }
+
+                    if (waited > 1200 && !customer.assignedStaff) {
+                        this.planCustomerService(customer, { silent: true });
+                    }
+                });
+                this.renderCustomerArea();
+            }
 
             // Update stats display
             this.updateSellingStats();
@@ -4090,8 +4590,8 @@ class GameController {
 
         // Find available products that this customer segment is willing to buy
         const available = Object.entries(this.engine.products)
-            .filter(([key, p]) => {
-                if (p.quantity <= 0) return false;
+            .filter(([key]) => {
+                if (this.engine.getProductStock(key) <= 0) return false;
 
                 // Demand check based on current price and customer mood
                 const recipe = GAME_CONFIG.RECIPES[key];
@@ -4129,7 +4629,7 @@ class GameController {
             const anyStock = Object.keys(this.engine.products).some(k => this.engine.getProductStock(k) > 0);
             if (anyStock) {
                 const allStock = Object.entries(this.engine.products)
-                    .filter(([k, p]) => p.quantity > 0)
+                    .filter(([k]) => this.engine.getProductStock(k) > 0)
                     .map(([k]) => k);
                 if (allStock.length > 0) wantsItem = allStock[Math.floor(Math.random() * allStock.length)];
             }
@@ -4161,7 +4661,7 @@ class GameController {
             
             // Phase 1: Pricing elasticity consequence
             // Track if customer left due to price vs. stockout
-            const hasAnyStock = Object.values(this.engine.products).some(p => p.quantity > 0);
+            const hasAnyStock = Object.keys(this.engine.products).some(k => this.engine.getProductStock(k) > 0);
             if (hasAnyStock && available.length === 0) {
                 // Customer left because prices are too high!
                 this.priceRelatedMisses = (this.priceRelatedMisses || 0) + 1;
@@ -4186,6 +4686,19 @@ class GameController {
         const orderMsg = orderDialogues[Math.floor(Math.random() * orderDialogues.length)]
             .replace('{item}', GAME_CONFIG.RECIPES[wantsItem]?.name || wantsItem);
 
+        const budgetCap = Number(customerData?.willingnessToPay?.base) || Number(customerData?.willingnessToPay?.priceRange?.[1]) || null;
+        const cart = this.createCustomerCart(available, customerMood, segment, customerPreferences, budgetCap, wantsItem);
+        if (!cart.length) {
+            this.engine.missedCustomer();
+            this.customerFlowSignals.recentWalkouts++;
+            this.updateFlowSatisfaction(Math.max(20, this.customerFlowSignals.rollingSatisfaction - 12));
+            return;
+        }
+
+        const cartTotal = cart.reduce((sum, line) => sum + (line.unitPrice * line.quantity), 0);
+        const interiorAppeal = this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1;
+        const queuePatienceSeconds = Math.max(12, Math.round(26 + (customerMood / 8) + interiorAppeal * 4));
+
         // Create enhanced customer object with all database properties
         const newCustomer = {
             id: `cust-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -4199,6 +4712,15 @@ class GameController {
             state: 'waiting',
             assignedStaff: null,
             requiresManualService: false,
+            checkoutState: 'queued',
+            shoppingCart: cart,
+            cartTotal,
+            cartSummary: this.summarizeCart(cart),
+            queueStartedAt: performance.now(),
+            maxWaitMs: queuePatienceSeconds * 1000,
+            satisfactionNow: Math.max(35, Math.min(100, customerData.satisfaction || 74)),
+            waitPressure: 0,
+            checkoutBubble: true,
             
             // Add full customer database properties for CustomerInteractionScene
             ageGroup: customerData.ageGroup || '26-35',
@@ -4239,33 +4761,71 @@ class GameController {
         }
         if (!customer) return;
 
-        const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
-        const result = this.engine.processSale(customer.wantsItem, 1);
+        const cart = Array.isArray(customer.shoppingCart) && customer.shoppingCart.length > 0
+            ? customer.shoppingCart
+            : [{ recipeKey: customer.wantsItem, quantity: 1 }];
+        const soldLines = [];
+        let totalRevenue = 0;
+        let totalProfit = 0;
+        let totalQty = 0;
+        let weightedQuality = 0;
+        let topAppeal = null;
 
-        if (!result.success) {
+        cart.forEach(line => {
+            const recipeKey = line.recipeKey;
+            const desiredQty = Math.max(1, Number(line.quantity) || 1);
+            const availableQty = this.engine.getProductStock(recipeKey);
+            const saleQty = Math.min(desiredQty, availableQty);
+            if (saleQty <= 0) return;
+
+            const result = this.engine.processSale(recipeKey, saleQty);
+            if (!result.success) return;
+
+            soldLines.push({ recipeKey, quantity: saleQty, result });
+            totalRevenue += result.revenue || 0;
+            totalProfit += result.profit || 0;
+            totalQty += saleQty;
+            weightedQuality += (result.quality || 100) * saleQty;
+            if (!topAppeal || (result.appeal?.lift || 1) > (topAppeal?.lift || 1)) {
+                topAppeal = result.appeal;
+            }
+        });
+
+        if (soldLines.length === 0) {
             this.handleOutOfStock(customer);
             return;
+        }
+
+        // processSale increments customer counters per line; normalize to one customer checkout.
+        const extraCustomerHits = Math.max(0, soldLines.length - 1);
+        if (extraCustomerHits > 0) {
+            this.engine.dailyStats.customersServed = Math.max(0, this.engine.dailyStats.customersServed - extraCustomerHits);
+            this.engine.allTimeStats.totalCustomers = Math.max(0, this.engine.allTimeStats.totalCustomers - extraCustomerHits);
         }
 
         // Record purchase in customer database
         if (this.customerDB && customer.dbId) {
             const dbCustomer = this.customerDB.customers.get(customer.dbId);
             if (dbCustomer) {
-                const quality = result.quality || 100;
-                const price = result.revenue || 0;
-                this.customerDB.processPurchase(dbCustomer, customer.wantsItem, price, quality);
+                soldLines.forEach(line => {
+                    const quality = line.result.quality || 100;
+                    const price = line.result.revenue || 0;
+                    this.customerDB.processPurchase(dbCustomer, line.recipeKey, price, quality);
+                });
             }
         }
 
         const happyDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.happy;
+        const primaryRecipe = GAME_CONFIG.RECIPES[soldLines[0].recipeKey];
         const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)]
-            .replace('{item}', recipe?.name || customer.wantsItem);
-        const moodFace = result.appeal?.moodEmoji || '😊';
-        const moodLine = result.appeal?.moodMessage || msg;
+            .replace('{item}', primaryRecipe?.name || soldLines[0].recipeKey);
+        const moodFace = topAppeal?.moodEmoji || '😊';
+        const moodLine = topAppeal?.moodMessage || msg;
+        const avgQuality = totalQty > 0 ? (weightedQuality / totalQty) : 100;
 
         customer.state = 'success';
         customer.resultMessage = moodLine;
-        customer.resultRevenue = result.revenue;
+        customer.resultRevenue = totalRevenue;
         customer.resultFace = moodFace;
         window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
             detail: {
@@ -4274,16 +4834,34 @@ class GameController {
                 tone: 'happy'
             }
         }));
+        window.dispatchEvent(new CustomEvent('bakery:money-float', {
+            detail: {
+                amount: totalRevenue,
+                customerId: customer.id,
+                staffId: customer.assignedStaff?.id || 'owner',
+                label: `+$${totalRevenue.toFixed(2)}`
+            }
+        }));
+
+        this.updateFlowSatisfaction(Math.min(100, (customer.satisfactionNow || 70) + 10));
+
+        if (this.notificationSystem) {
+            this.notificationSystem.moneyEarned(totalRevenue);
+        }
+
         this.releaseAssignedStaff(customer);
         this.renderCustomerArea();
 
-        this.logAutomationEvent('sale', `${customer.name} bought ${recipe?.name || customer.wantsItem}`, {
-            product: recipe?.name,
-            amount: `$${result.revenue.toFixed(2)}`,
+        this.logAutomationEvent('sale', `${customer.name} checked out ${soldLines.length} item type(s)`, {
+            product: primaryRecipe?.name,
+            amount: `$${totalRevenue.toFixed(2)}`,
+            quality: `${avgQuality.toFixed(0)}%`,
             auto: !!options.auto
         });
 
         this.renderDisplayProducts();
+        this.updateSellingStats();
+        this.updateStats();
 
         setTimeout(() => {
             const stillPresent = this.getCustomerById(customer.id);
@@ -4342,68 +4920,98 @@ class GameController {
         // Update overlay time display
         const oTime = document.getElementById('overlay-sell-time');
         if (oTime) oTime.textContent = this.engine.getTimeString();
+
+        this.updateStats();
     }
 
     assignCustomerToStaff() {
-        if (!this.engine.staff || this.engine.staff.length === 0) return null;
-        
-        // Only servers and owners can serve customers
-        const available = this.engine.staff.filter(staff => 
-            !staff.currentCustomer && 
-            staff.fatigue < 95 &&
-            (staff.role === 'server' || staff.role === 'owner')
-        );
+        const pool = this.staffManager
+            ? this.staffManager.getAllStaff()
+            : (this.engine.staff || []);
+        if (!pool || pool.length === 0) return null;
+
+        // All staff are adaptable; role/trait only shifts efficiency.
+        const available = pool.filter(staff => {
+            const fatigue = Number.isFinite(staff.fatigue) ? staff.fatigue : 0;
+            const busy = !!staff.currentCustomer || !!staff.currentTask;
+            return !busy && fatigue < 95;
+        });
         
         if (available.length === 0) return null;
         
-        // Sort by skill level and fatigue
+        // Sort by checkout fitness so any staff can help at checkout.
         available.sort((a, b) => {
-            const skillDiff = b.skillLevel - a.skillLevel;
-            const fatigueDiff = a.fatigue - b.fatigue;
-            return skillDiff !== 0 ? skillDiff : fatigueDiff;
+            const aScore = this.getStaffCheckoutScore(a);
+            const bScore = this.getStaffCheckoutScore(b);
+            return bScore - aScore;
         });
         
         return available[0];
     }
 
+    getStaffCheckoutScore(staff) {
+        const skill = Number.isFinite(staff.skillLevel)
+            ? staff.skillLevel
+            : (Number.isFinite(staff.skill) ? staff.skill / 20 : 3);
+        const adaptability = Number.isFinite(staff.adaptability) ? staff.adaptability : 1;
+        const checkoutAptitude = Number.isFinite(staff.checkoutAptitude) ? staff.checkoutAptitude : 1;
+        const fatiguePenalty = 1 - ((staff.fatigue || 0) / 170);
+        const happinessBoost = 0.85 + ((staff.happiness || 100) / 250);
+        return skill * adaptability * checkoutAptitude * Math.max(0.35, fatiguePenalty) * happinessBoost;
+    }
+
     planCustomerService(customer, options = {}) {
         const silent = options.silent || false;
         if (!this.automationEnabled) {
-            customer.requiresManualService = true;
-            if (!silent) {
-                this.logAutomationEvent('service', `Automation paused — serve ${customer.name} manually`, { severity: 'warning' });
-            }
-            this.renderCustomerArea();
-            return;
+            customer.requiresManualService = false;
         }
 
         const staff = this.assignCustomerToStaff(customer);
         customer.assignedStaff = staff || null;
 
         if (!staff) {
-            customer.requiresManualService = true;
+            customer.requiresManualService = false;
+            customer.checkoutState = 'queued';
             if (!silent) {
-                this.logAutomationEvent('service', `All staff busy — ${customer.name} needs attention`, { severity: 'warning' });
+                this.logAutomationEvent('service', `Checkout queue building — ${customer.name} is waiting`, { severity: 'warning' });
             }
             this.renderCustomerArea();
             return;
         }
 
         customer.requiresManualService = false;
+        customer.checkoutState = 'processing';
         customer.serviceStart = performance.now();
 
-        const baseDuration = 3500;
-        const skillMod = Math.max(0.5, 1 - (staff.skillLevel - 3) * 0.12);
+        const cartItems = (customer.shoppingCart || []).reduce((sum, line) => sum + (line.quantity || 0), 0);
+        const baseDuration = 1400 + cartItems * 550;
+        const checkoutScore = this.getStaffCheckoutScore(staff);
+        const skillMod = Math.max(0.45, 1 - (checkoutScore - 3) * 0.09);
         const fatiguePenalty = (1 + staff.fatigue / 220);
         customer.serviceDuration = baseDuration * skillMod * fatiguePenalty;
         customer.serviceEndsAt = customer.serviceStart + customer.serviceDuration;
 
         staff.currentCustomer = customer;
-        const recipe = GAME_CONFIG.RECIPES[customer.wantsItem];
-        this.logAutomationEvent('service', `${staff.name} serving ${customer.name} (${recipe?.name || customer.wantsItem})`, {
+        this.emitStaffRoute(staff, 'counter', {
+            context: 'checkout',
+            customerId: customer.id,
+            taskSummary: customer.cartSummary
+        });
+        if (staff.id === 'owner') {
+            customer.checkoutLockIssued = true;
+            window.dispatchEvent(new CustomEvent('bakery:checkout-state', {
+                detail: {
+                    locked: true,
+                    staffId: 'owner',
+                    message: `Checking out ${customer.name}`,
+                    etaMs: Math.round(customer.serviceDuration)
+                }
+            }));
+        }
+        this.logAutomationEvent('service', `${staff.name} handling checkout for ${customer.name}`, {
             staff: staff.name,
             customer: customer.name,
-            product: recipe?.name
+            cartTotal: `$${(customer.cartTotal || 0).toFixed(2)}`
         });
         this.renderCustomerArea();
     }
@@ -4431,11 +5039,28 @@ class GameController {
     }
 
     releaseAssignedStaff(customer) {
-        if (customer && customer.assignedStaff && customer.assignedStaff.currentCustomer === customer) {
-            customer.assignedStaff.currentCustomer = null;
+        const assignedStaff = customer?.assignedStaff || null;
+        if (assignedStaff) {
+            this.emitStaffRoute(assignedStaff, 'floor', {
+                context: 'idle',
+                customerId: customer.id
+            });
+            if (assignedStaff.id === 'owner' || customer?.checkoutLockIssued) {
+                window.dispatchEvent(new CustomEvent('bakery:checkout-state', {
+                    detail: {
+                        locked: false,
+                        staffId: 'owner'
+                    }
+                }));
+            }
+            if (assignedStaff.currentCustomer === customer) {
+                assignedStaff.currentCustomer = null;
+            }
         }
         if (customer) {
+            customer.checkoutLockIssued = false;
             customer.assignedStaff = null;
+            customer.checkoutState = 'done';
         }
     }
 
@@ -5074,6 +5699,10 @@ class GameController {
                                 <div class="stat-row">
                                     <span>Training:</span>
                                     <strong>Level ${staff.trainingLevel}/5</strong>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Perk:</span>
+                                    <strong>${staff.perk?.label || 'Adaptive Worker'}</strong>
                                 </div>
                             </div>
                             <div class="staff-actions">

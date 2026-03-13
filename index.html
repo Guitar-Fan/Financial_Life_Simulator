@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Financial Life Simulator hub: learn money skills through games about business operations, stock investing, and long-term strategy.">
+  <title>Financial Life Simulator | Game Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07121f;
+      --bg-soft: #0e1f34;
+      --panel: rgba(255, 255, 255, 0.06);
+      --panel-strong: rgba(255, 255, 255, 0.1);
+      --text: #eaf2ff;
+      --muted: #b7c7de;
+      --line: rgba(186, 219, 255, 0.22);
+      --teal: #49dfc2;
+      --gold: #ffc86b;
+      --rose: #ff8d8d;
+      --ink: #0a1624;
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: radial-gradient(circle at 16% 12%, #1f3a5c 0%, transparent 42%),
+                  radial-gradient(circle at 84% 16%, #213b33 0%, transparent 38%),
+                  linear-gradient(140deg, var(--bg) 0%, #0c1b2e 44%, #10162b 100%);
+      color: var(--text);
+      font-family: Manrope, sans-serif;
+    }
+
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(210, 235, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(210, 235, 255, 0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 18px 56px;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(155deg, rgba(89, 152, 255, 0.17), rgba(73, 223, 194, 0.08) 55%, rgba(255, 200, 107, 0.08));
+      box-shadow: var(--shadow);
+      padding: 30px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero:after {
+      content: "";
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      top: -110px;
+      right: -80px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(73, 223, 194, 0.28), transparent 70%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #d5e8ff;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-family: "Space Grotesk", sans-serif;
+      margin: 0;
+      font-size: clamp(30px, 5vw, 52px);
+      line-height: 1.06;
+      max-width: 760px;
+    }
+
+    .lead {
+      margin: 14px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: clamp(15px, 2vw, 19px);
+      line-height: 1.6;
+    }
+
+    .pillars {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .pillar {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 14px;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .pillar strong { display: block; color: #fff; font-size: 14px; margin-bottom: 2px; }
+
+    .section {
+      margin-top: 26px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .section h2 {
+      font-family: "Space Grotesk", sans-serif;
+      margin: 0 0 6px;
+      font-size: 25px;
+    }
+
+    .section p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .games {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid rgba(186, 219, 255, 0.24);
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 280px;
+    }
+
+    .card .icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.12);
+      font-size: 24px;
+    }
+
+    .card h3 {
+      margin: 2px 0 0;
+      font-size: 20px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+      flex: 1;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: #d9ebff;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .cta {
+      display: inline-block;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 11px 14px;
+      color: var(--ink);
+      background: linear-gradient(135deg, var(--teal), #97f5e2);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      transition: transform .15s ease;
+      width: fit-content;
+    }
+
+    .cta:hover { transform: translateY(-2px); }
+
+    .cta.alt { background: linear-gradient(135deg, var(--gold), #ffdf9f); }
+    .cta.risk { background: linear-gradient(135deg, #ffc2c2, var(--rose)); }
+
+    .footer {
+      margin-top: 22px;
+      font-size: 13px;
+      color: #c3d0e3;
+      text-align: center;
+      opacity: 0.95;
+    }
+
+    .analytics {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel-strong);
+      padding: 14px;
+    }
+
+    .analytics-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .analytics-head h3 {
+      margin: 0;
+      font-size: 16px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .metric .label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .metric .value {
+      display: block;
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .analytics-note {
+      margin: 10px 0 0;
+      color: #ced9ea;
+      font-size: 12px;
+    }
+
+    .reset-btn {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.1);
+      color: #e8f3ff;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    @media (max-width: 980px) {
+      .games { grid-template-columns: 1fr; }
+      .pillar { font-size: 12px; }
+      .pillars { grid-template-columns: 1fr 1fr; }
+      .analytics-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .hero { padding: 20px; }
+      .section { padding: 16px; }
+      .pillars { grid-template-columns: 1fr; }
+      .analytics-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-overlay"></div>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Financial Life Simulator</span>
+      <h1>Play Through Money Decisions Across Business, Markets, And Long-Term Strategy</h1>
+      <p class="lead">
+        This project turns financial literacy into interactive practice: run operations, price risk, and build better money instincts through game loops instead of passive theory.
+      </p>
+      <div class="pillars" aria-label="Financial learning pillars">
+        <div class="pillar"><strong>Cash Flow</strong>Revenue vs costs, fixed vs variable pressure.</div>
+        <div class="pillar"><strong>Risk & Reward</strong>Volatility, uncertainty, and strategy tradeoffs.</div>
+        <div class="pillar"><strong>Compounding</strong>Long-term outcomes from repeated decisions.</div>
+        <div class="pillar"><strong>Capital Allocation</strong>Where to invest limited resources first.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Mission And Intent</h2>
+      <p>
+        The intention is to bridge real-world financial concepts with hands-on experimentation. Each game focuses on a different layer of money intelligence so players can connect daily operations, investment behavior, and strategic planning in one learning ecosystem.
+      </p>
+
+      <div class="games">
+        <article class="card">
+          <div class="icon" aria-hidden="true">🥐</div>
+          <h3>Bakery Game</h3>
+          <p>
+            Build and operate a bakery under pressure: staffing, pricing, inventory, service speed, and customer retention. It models unit economics and operational finance in motion.
+          </p>
+          <div class="tags">
+            <span class="tag">Operations</span>
+            <span class="tag">Margins</span>
+            <span class="tag">Demand</span>
+          </div>
+          <a class="cta" data-game="bakery" href="main.html">Launch Bakery Game</a>
+        </article>
+
+        <article class="card">
+          <div class="icon" aria-hidden="true">📈</div>
+          <h3>Stock Simulator</h3>
+          <p>
+            Practice market decision-making in a terminal-style simulator. Build confidence around entries, exits, portfolio behavior, and emotional discipline under changing price action.
+          </p>
+          <div class="tags">
+            <span class="tag">Markets</span>
+            <span class="tag">Volatility</span>
+            <span class="tag">Portfolio</span>
+          </div>
+          <a class="cta alt" data-game="stock" href="stock-simulator/dist/index.html">Launch Stock Simulator</a>
+        </article>
+
+        <article class="card">
+          <div class="icon" aria-hidden="true">🎲</div>
+          <h3>Investnopoly</h3>
+          <p>
+            Learn strategic capital growth through a board-game style format that blends timing, opportunity cost, and long-horizon planning into one competitive simulation.
+          </p>
+          <div class="tags">
+            <span class="tag">Strategy</span>
+            <span class="tag">Compounding</span>
+            <span class="tag">Allocation</span>
+          </div>
+          <a class="cta risk" data-game="investnopoly" href="INVESTORPOLY.html">Launch Investnopoly</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="analytics" aria-label="Page analytics">
+      <div class="analytics-head">
+        <h3>Hub Analytics (Local)</h3>
+        <button id="reset-analytics" class="reset-btn" type="button">Reset Metrics</button>
+      </div>
+      <div class="analytics-grid">
+        <div class="metric">
+          <span class="label">Page Views</span>
+          <span id="metric-page-views" class="value">0</span>
+        </div>
+        <div class="metric">
+          <span class="label">Total Launches</span>
+          <span id="metric-total-launches" class="value">0</span>
+        </div>
+        <div class="metric">
+          <span class="label">Bakery Launches</span>
+          <span id="metric-bakery" class="value">0</span>
+        </div>
+        <div class="metric">
+          <span class="label">Stock Launches</span>
+          <span id="metric-stock" class="value">0</span>
+        </div>
+        <div class="metric">
+          <span class="label">Investnopoly Launches</span>
+          <span id="metric-investnopoly" class="value">0</span>
+        </div>
+        <div class="metric">
+          <span class="label">Last Visit</span>
+          <span id="metric-last-visit" class="value">-</span>
+        </div>
+      </div>
+      <p class="analytics-note">Metrics are stored only in this browser via local storage. No external tracking service is used.</p>
+    </section>
+
+    <p class="footer">
+      Built to make finance more understandable, practical, and memorable through simulation-first learning.
+    </p>
+  </main>
+  <script>
+    (function () {
+      var storageKey = "fls_hub_analytics_v1";
+      var defaultState = {
+        pageViews: 0,
+        totalLaunches: 0,
+        launches: {
+          bakery: 0,
+          stock: 0,
+          investnopoly: 0
+        },
+        lastVisit: ""
+      };
+
+      function loadState() {
+        try {
+          var saved = localStorage.getItem(storageKey);
+          if (!saved) return JSON.parse(JSON.stringify(defaultState));
+          var parsed = JSON.parse(saved);
+          return {
+            pageViews: Number(parsed.pageViews) || 0,
+            totalLaunches: Number(parsed.totalLaunches) || 0,
+            launches: {
+              bakery: Number(parsed.launches && parsed.launches.bakery) || 0,
+              stock: Number(parsed.launches && parsed.launches.stock) || 0,
+              investnopoly: Number(parsed.launches && parsed.launches.investnopoly) || 0
+            },
+            lastVisit: typeof parsed.lastVisit === "string" ? parsed.lastVisit : ""
+          };
+        } catch (err) {
+          return JSON.parse(JSON.stringify(defaultState));
+        }
+      }
+
+      function saveState(state) {
+        localStorage.setItem(storageKey, JSON.stringify(state));
+      }
+
+      function formatDate(iso) {
+        if (!iso) return "-";
+        var date = new Date(iso);
+        if (Number.isNaN(date.getTime())) return "-";
+        return date.toLocaleString();
+      }
+
+      function setText(id, value) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+      }
+
+      function render(state) {
+        setText("metric-page-views", state.pageViews);
+        setText("metric-total-launches", state.totalLaunches);
+        setText("metric-bakery", state.launches.bakery);
+        setText("metric-stock", state.launches.stock);
+        setText("metric-investnopoly", state.launches.investnopoly);
+        setText("metric-last-visit", formatDate(state.lastVisit));
+      }
+
+      var state = loadState();
+      state.pageViews += 1;
+      state.lastVisit = new Date().toISOString();
+      saveState(state);
+      render(state);
+
+      var launchLinks = document.querySelectorAll("a[data-game]");
+      launchLinks.forEach(function (link) {
+        link.addEventListener("click", function () {
+          var game = link.getAttribute("data-game");
+          if (!game || !state.launches.hasOwnProperty(game)) return;
+          state.launches[game] += 1;
+          state.totalLaunches += 1;
+          saveState(state);
+          render(state);
+        });
+      });
+
+      var resetButton = document.getElementById("reset-analytics");
+      if (resetButton) {
+        resetButton.addEventListener("click", function () {
+          state = JSON.parse(JSON.stringify(defaultState));
+          state.pageViews = 1;
+          state.lastVisit = new Date().toISOString();
+          saveState(state);
+          render(state);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

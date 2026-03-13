@@ -528,6 +528,151 @@ const GAME_CONFIG = {
         ]
     },
 
+    // Realistic startup procedure choices (SBA-style flow + typical small bakery planning).
+    SETUP_PROCEDURES: {
+        entityTypes: [
+            {
+                id: 'sole_prop',
+                name: 'Sole Proprietorship + DBA',
+                filingFee: 120,
+                monthlyCompliance: 20,
+                liabilityProtection: 0.85,
+                description: 'Fast and low-cost to start, but least legal shielding.'
+            },
+            {
+                id: 'llc',
+                name: 'Single-Member LLC',
+                filingFee: 380,
+                monthlyCompliance: 35,
+                liabilityProtection: 1.0,
+                description: 'Most common for small bakeries. Better liability separation.'
+            },
+            {
+                id: 's_corp',
+                name: 'S-Corp Election',
+                filingFee: 780,
+                monthlyCompliance: 65,
+                liabilityProtection: 1.05,
+                description: 'Higher admin burden, can improve tax treatment at scale.'
+            }
+        ],
+        banking: [
+            {
+                id: 'community_bank',
+                name: 'Community Bank Business Checking',
+                openingCost: 100,
+                monthlyFee: 22,
+                creditAccess: 0.95
+            },
+            {
+                id: 'regional_bank',
+                name: 'Regional Bank + Treasury Bundle',
+                openingCost: 180,
+                monthlyFee: 45,
+                creditAccess: 1.0
+            },
+            {
+                id: 'online_fintech',
+                name: 'Online Fintech Account',
+                openingCost: 30,
+                monthlyFee: 12,
+                creditAccess: 0.9
+            }
+        ],
+        bookkeeping: [
+            {
+                id: 'diy_spreadsheet',
+                name: 'DIY Spreadsheet + Receipts',
+                monthlyCost: 0,
+                taxPenaltyRisk: 1.12,
+                description: 'No monthly software fees, highest error risk.'
+            },
+            {
+                id: 'software_basic',
+                name: 'Cloud Accounting Software',
+                monthlyCost: 40,
+                taxPenaltyRisk: 1.0,
+                description: 'Balanced choice for most solo founders.'
+            },
+            {
+                id: 'bookkeeper_service',
+                name: 'Bookkeeper + Monthly Close',
+                monthlyCost: 185,
+                taxPenaltyRisk: 0.9,
+                description: 'Higher cost, cleaner books and reporting discipline.'
+            }
+        ],
+        payroll: [
+            {
+                id: 'manual_payroll',
+                name: 'Manual Payroll Tracking',
+                monthlyCost: 0,
+                complianceRisk: 1.15
+            },
+            {
+                id: 'payroll_software',
+                name: 'Payroll Software',
+                monthlyCost: 55,
+                complianceRisk: 1.0
+            },
+            {
+                id: 'outsourced_payroll',
+                name: 'Outsourced Payroll Service',
+                monthlyCost: 130,
+                complianceRisk: 0.92
+            }
+        ],
+        leaseTerms: [
+            {
+                id: 'short_term',
+                name: 'Short Lease (24 months)',
+                months: 24,
+                securityDepositMonths: 2,
+                tiBudget: 2200,
+                rentMultiplier: 1.08
+            },
+            {
+                id: 'standard_term',
+                name: 'Standard Lease (36 months)',
+                months: 36,
+                securityDepositMonths: 2,
+                tiBudget: 1800,
+                rentMultiplier: 1.0
+            },
+            {
+                id: 'long_term',
+                name: 'Long Lease (60 months)',
+                months: 60,
+                securityDepositMonths: 3,
+                tiBudget: 1400,
+                rentMultiplier: 0.93
+            }
+        ],
+        inspectionPrep: [
+            {
+                id: 'minimal',
+                name: 'Minimal Prep',
+                upfrontCost: 120,
+                firstMonthTrafficMult: 0.94,
+                qualitySafetyMult: 0.96
+            },
+            {
+                id: 'standard',
+                name: 'Standard SOP + Staff Training',
+                upfrontCost: 480,
+                firstMonthTrafficMult: 1.0,
+                qualitySafetyMult: 1.0
+            },
+            {
+                id: 'consultant',
+                name: 'Consultant-Led Opening Audit',
+                upfrontCost: 1200,
+                firstMonthTrafficMult: 1.06,
+                qualitySafetyMult: 1.05
+            }
+        ]
+    },
+
     // Crisis events
     CRISIS_EVENTS: [
         {

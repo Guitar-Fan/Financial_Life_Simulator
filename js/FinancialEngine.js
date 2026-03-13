@@ -109,6 +109,10 @@ class FinancialEngine {
         this.monthlyInsurance = 0;
         this.monthlyUtilities = 0;
         this.monthlyStaffCost = 0;
+        this.monthlyPropertyTax = 0;
+        this.monthlyDebtService = 0;
+        this.monthlyAdminCosts = 0;
+        this.ingredientCostMultiplier = 1;
 
         // Strategy + automation defaults
         this.strategySettings = {
@@ -146,6 +150,15 @@ class FinancialEngine {
         // Assign a random face from available options
         const faces = ['👨‍🍳', '👩‍🍳', '🧑‍🍳', '👨', '👩', '🧑', '👨‍🦱', '👩‍🦰', '👨‍🦳', '👩‍🦳'];
         const randomFace = faces[Math.floor(Math.random() * faces.length)];
+        const perks = [
+            { key: 'queue_whisperer', label: 'Queue Whisperer', checkoutBonus: 1.2, prepBonus: 0.95, procurementBonus: 1.0 },
+            { key: 'prep_ace', label: 'Prep Ace', checkoutBonus: 0.95, prepBonus: 1.2, procurementBonus: 1.0 },
+            { key: 'deal_hunter', label: 'Deal Hunter', checkoutBonus: 1.0, prepBonus: 1.0, procurementBonus: 1.22 },
+            { key: 'steady_hands', label: 'Steady Hands', checkoutBonus: 1.08, prepBonus: 1.08, procurementBonus: 1.08 },
+            { key: 'all_rounder', label: 'All-Rounder', checkoutBonus: 1.12, prepBonus: 1.12, procurementBonus: 1.12 }
+        ];
+        const perk = perks[Math.floor(Math.random() * perks.length)];
+        const adaptability = Number((0.85 + Math.random() * 0.35).toFixed(2));
 
         const newStaff = {
             id: Date.now() + Math.random(),
@@ -163,7 +176,12 @@ class FinancialEngine {
             daysWorked: 0,
             trainingLevel: 0, // 0-5 levels
             trainingCost: 200, // Cost per training level
-            hireDate: this.day
+            hireDate: this.day,
+            adaptability,
+            checkoutAptitude: Number((adaptability * perk.checkoutBonus).toFixed(2)),
+            prepAptitude: Number((adaptability * perk.prepBonus).toFixed(2)),
+            procurementAptitude: Number((adaptability * perk.procurementBonus).toFixed(2)),
+            perk
         };
 
         this.staff.push(newStaff);
@@ -398,7 +416,7 @@ class FinancialEngine {
         const vendorData = GAME_CONFIG.VENDORS[vendor];
 
         // Use dynamic pricing from economy simulator
-        const unitPrice = this.economy.getIngredientPrice(ingredientKey, vendor, quantity, this.day);
+        const unitPrice = this.getCurrentIngredientPrice(ingredientKey, vendor, quantity);
         const totalCost = unitPrice * quantity;
 
         if (this.cash < totalCost) {
@@ -436,7 +454,8 @@ class FinancialEngine {
 
     // Get current dynamic price for an ingredient
     getCurrentIngredientPrice(ingredientKey, vendorKey, quantity = 1) {
-        return this.economy.getIngredientPrice(ingredientKey, vendorKey, quantity, this.day);
+        const marketPrice = this.economy.getIngredientPrice(ingredientKey, vendorKey, quantity, this.day);
+        return marketPrice * (this.ingredientCostMultiplier || 1);
     }
 
     setStrategySettings(settings = {}) {
@@ -1367,6 +1386,9 @@ class FinancialEngine {
         const monthlyExpenses = [
             { name: 'Insurance', amount: this.monthlyInsurance / 30, key: 'insurance' },
             { name: 'Utilities', amount: this.monthlyUtilities / 30, key: 'utilities' },
+            { name: 'Property Tax', amount: this.monthlyPropertyTax / 30, key: 'property_tax' },
+            { name: 'Debt Service', amount: this.monthlyDebtService / 30, key: 'debt_service' },
+            { name: 'Admin & Compliance', amount: this.monthlyAdminCosts / 30, key: 'admin' },
             { name: 'Staff Salaries', amount: this.monthlyStaffCost / 30, key: 'payroll' }
         ];
 
