@@ -1,6 +1,6 @@
 # Financial Life Simulator
 
-## https://db524b68.financial-life-simulator.pages.dev/
+## https://financial-life-simulator.pages.dev/
 
 Financial Life Simulator is a small universe of games built to make money decisions feel practical, not abstract.
 
