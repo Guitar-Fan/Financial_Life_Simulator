@@ -43,6 +43,17 @@ class GameController {
         this.timeManager = null;
         this.notificationSystem = null;
         this.staffManager = null;
+        this.loopCoachState = {
+            computerVisited: false,
+            staffHired: false,
+            strategyVisited: false,
+            ovenVisited: false,
+            registerVisited: false,
+            salesObserved: false
+        };
+        this.loopCoachPanel = null;
+        this.loopCoachBodyEl = null;
+        this.loopCoachDrag = null;
 
         this.init();
     }
@@ -84,8 +95,182 @@ class GameController {
         this.initializeStrategyLayer();
         this.updateAutomationAvailability();
         this.renderAutomationFeed();
+        this.initLoopCoach();
         this.setupWindowResizeHandler();
         this.showMainMenu();
+    }
+
+    initLoopCoach() {
+        if (typeof document === 'undefined' || this.loopCoachPanel) return;
+
+        const panel = document.createElement('aside');
+        panel.id = 'game-loop-coach';
+        panel.style.position = 'fixed';
+        panel.style.right = '24px';
+        panel.style.bottom = '24px';
+        panel.style.width = '340px';
+        panel.style.maxWidth = 'calc(100vw - 24px)';
+        panel.style.maxHeight = '44vh';
+        panel.style.display = 'none';
+        panel.style.zIndex = '4600';
+        panel.style.borderRadius = '14px';
+        panel.style.border = '1px solid rgba(255, 214, 153, 0.42)';
+        panel.style.background = 'linear-gradient(165deg, rgba(28,19,13,0.96), rgba(18,13,9,0.96))';
+        panel.style.boxShadow = '0 16px 35px rgba(0,0,0,0.5)';
+        panel.style.color = '#f8e6c9';
+        panel.style.fontFamily = 'Inter, sans-serif';
+        panel.style.userSelect = 'none';
+        panel.style.overflow = 'hidden';
+
+        const header = document.createElement('div');
+        header.textContent = 'Gameplay Coach';
+        header.style.padding = '10px 12px';
+        header.style.fontSize = '13px';
+        header.style.fontWeight = '700';
+        header.style.letterSpacing = '0.04em';
+        header.style.textTransform = 'uppercase';
+        header.style.background = 'rgba(255, 214, 153, 0.1)';
+        header.style.borderBottom = '1px solid rgba(255, 214, 153, 0.25)';
+        header.style.cursor = 'grab';
+
+        const body = document.createElement('div');
+        body.style.padding = '12px 12px 13px';
+        body.style.fontSize = '13px';
+        body.style.lineHeight = '1.45';
+        body.style.overflowY = 'auto';
+        body.style.maxHeight = 'calc(44vh - 42px)';
+
+        panel.appendChild(header);
+        panel.appendChild(body);
+        document.body.appendChild(panel);
+
+        this.loopCoachPanel = panel;
+        this.loopCoachBodyEl = body;
+
+        const setGrab = (isDragging) => {
+            header.style.cursor = isDragging ? 'grabbing' : 'grab';
+        };
+
+        const startDrag = (clientX, clientY) => {
+            const rect = panel.getBoundingClientRect();
+            panel.style.left = `${rect.left}px`;
+            panel.style.top = `${rect.top}px`;
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+            this.loopCoachDrag = {
+                offsetX: clientX - rect.left,
+                offsetY: clientY - rect.top
+            };
+            setGrab(true);
+        };
+
+        const moveDrag = (clientX, clientY) => {
+            if (!this.loopCoachDrag) return;
+            const panelRect = panel.getBoundingClientRect();
+            const width = panelRect.width;
+            const height = panelRect.height;
+            const nextLeft = Math.min(
+                window.innerWidth - width - 8,
+                Math.max(8, clientX - this.loopCoachDrag.offsetX)
+            );
+            const nextTop = Math.min(
+                window.innerHeight - height - 8,
+                Math.max(8, clientY - this.loopCoachDrag.offsetY)
+            );
+            panel.style.left = `${nextLeft}px`;
+            panel.style.top = `${nextTop}px`;
+        };
+
+        const endDrag = () => {
+            this.loopCoachDrag = null;
+            setGrab(false);
+        };
+
+        header.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startDrag(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!this.loopCoachDrag) return;
+            moveDrag(e.clientX, e.clientY);
+        });
+        document.addEventListener('mouseup', endDrag);
+
+        header.addEventListener('touchstart', (e) => {
+            if (!e.touches || e.touches.length === 0) return;
+            const t = e.touches[0];
+            startDrag(t.clientX, t.clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!this.loopCoachDrag || !e.touches || e.touches.length === 0) return;
+            const t = e.touches[0];
+            moveDrag(t.clientX, t.clientY);
+        }, { passive: true });
+        document.addEventListener('touchend', endDrag, { passive: true });
+
+        this.refreshLoopCoach();
+    }
+
+    markLoopCoachProgress(key, value = true) {
+        if (!this.loopCoachState || !Object.prototype.hasOwnProperty.call(this.loopCoachState, key)) return;
+        this.loopCoachState[key] = value;
+        this.refreshLoopCoach();
+    }
+
+    refreshLoopCoach() {
+        if (!this.loopCoachPanel || !this.loopCoachBodyEl) return;
+
+        const inOperationPhase = this.currentPhase === 'hub' && document.body.classList.contains('in-bakery-env');
+        if (!inOperationPhase) {
+            this.loopCoachPanel.style.display = 'none';
+            return;
+        }
+
+        this.loopCoachPanel.style.display = 'block';
+
+        if ((this.engine?.staff || []).length > 0) {
+            this.loopCoachState.staffHired = true;
+        }
+        if ((this.engine?.dailyStats?.customersServed || 0) > 0 || (this.engine?.dailyStats?.revenue || 0) > 0) {
+            this.loopCoachState.salesObserved = true;
+        }
+
+        const s = this.loopCoachState;
+        let focusText = '1) Go to computer.';
+
+        if (s.computerVisited && !s.staffHired) {
+            focusText = '2) Hire employee (if you do not, shopping automation feature will crash).';
+        } else if (s.computerVisited && s.staffHired && !s.strategyVisited) {
+            focusText = '3) In computer, open Strategy panel. Suggested: Growth Push + max inventory coverage.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && !s.ovenVisited) {
+            focusText = '4) Go to oven to bake or observe baking automation.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && s.ovenVisited && !s.registerVisited) {
+            focusText = '5) Go to cash register and press E.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && s.ovenVisited && s.registerVisited && !s.salesObserved) {
+            focusText = '6) Observe sales and walk around to watch employees work autonomously.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && s.ovenVisited && s.registerVisited && s.salesObserved) {
+            focusText = '7) End day and repeat the loop.';
+        }
+
+        const done = 'color:#6fe8a2;';
+        const todo = 'color:#ffd8a8;';
+        this.loopCoachBodyEl.innerHTML = `
+            <div style="font-weight:700; color:#fff1d8; margin-bottom:8px;">Current guidance</div>
+            <div style="padding:10px; border-radius:10px; border:1px solid rgba(255,214,153,0.24); background:rgba(255,214,153,0.08); margin-bottom:10px; color:#ffe8c4;">
+                ${focusText}
+            </div>
+            <div style="font-size:12px; opacity:0.95;">
+                <div style="${s.computerVisited ? done : todo}">• Go to computer</div>
+                <div style="${s.staffHired ? done : todo}">• Hire employee (required for stable shopping automation)</div>
+                <div style="${s.strategyVisited ? done : todo}">• Modify Strategy: Growth Push + max inventory coverage</div>
+                <div style="${s.ovenVisited ? done : todo}">• Go to oven to bake / observe automation</div>
+                <div style="${s.registerVisited ? done : todo}">• Go to cash register and press E</div>
+                <div style="${s.salesObserved ? done : todo}">• Observe autonomous sales and staff movement</div>
+                <div style="${s.salesObserved ? done : todo}">• End day and repeat</div>
+            </div>
+        `;
     }
     
     setupWindowResizeHandler() {
@@ -1045,6 +1230,7 @@ class GameController {
         this.stopSellingLoop();
         this.closeOverlayPanel();
         this.currentPhase = 'menu';
+        this.refreshLoopCoach();
 
         // Remove bakery environment mode
         document.body.classList.remove('in-bakery-env');
@@ -1101,16 +1287,6 @@ class GameController {
                         </div>
                     </button>
 
-                    <button class="menu-btn group relative overflow-hidden bg-stone-800 hover:bg-stone-700 text-white p-1 rounded-xl shadow-lg transform transition-all hover:scale-105" 
-                            id="btn-tutorial" role="button" tabindex="0" aria-label="Open tutorial">
-                        <div class="bg-stone-900/80 rounded-lg p-4 flex items-center gap-4 border border-stone-600 group-hover:border-stone-500 transition-colors">
-                            <span class="text-3xl group-hover:scale-110 transition-transform">📖</span>
-                            <div class="text-left">
-                                <div class="text-xl font-bold text-stone-200">How to Play</div>
-                                <div class="text-xs text-stone-500 uppercase tracking-wider">Mechanics & Tips</div>
-                            </div>
-                        </div>
-                    </button>
                 </div>
                 
                 <div class="menu-info relative z-10 mt-12 text-center opacity-60 hover:opacity-100 transition-opacity">
@@ -1221,7 +1397,6 @@ class GameController {
 
         const btnNew = wireButton('btn-new-game', () => this.startNewGame());
         const btnContinue = wireButton('btn-continue', () => this.loadAndStart());
-        const btnTut = wireButton('btn-tutorial', () => this.showTutorial());
 
         // Reveal continue when a save exists
         const save = localStorage.getItem('bakery_save');
@@ -2097,6 +2272,7 @@ class GameController {
         this.startHUDLoop();
         this.checkForScenarios();
         this.updateBakeryHUD();
+        this.refreshLoopCoach();
     }
 
     // -- HUD sync loop --
@@ -2251,6 +2427,7 @@ class GameController {
         bodyEl.innerHTML = bodyHtml;
         panel.classList.add('open');
         window.dispatchEvent(new Event('bakery:overlay-opened'));
+        this.refreshLoopCoach();
     }
 
     closeOverlayPanel() {
@@ -2266,6 +2443,7 @@ class GameController {
         }
         window.dispatchEvent(new Event('bakery:overlay-closed'));
         this.updateBakeryHUD();
+        this.refreshLoopCoach();
     }
 
     // -- Interaction router --
@@ -2304,6 +2482,7 @@ class GameController {
 
     // ---- COMPUTER PANEL (Buying / Finances / Upgrades / Market / Staff / Strategy) ----
     showComputerPanel() {
+        this.markLoopCoachProgress('computerVisited', true);
         const tabs = [
             { id: 'buy',       label: '📦 Buy Supplies' },
             { id: 'finance',   label: '📊 Finances' },
@@ -2339,6 +2518,10 @@ class GameController {
     renderComputerTab(tab) {
         const el = document.getElementById(`computer-tab-${tab}`);
         if (!el) return;
+
+        if (tab === 'strategy') {
+            this.markLoopCoachProgress('strategyVisited', true);
+        }
 
         switch (tab) {
             case 'buy': this.renderBuyingTab(el); break;
@@ -2611,6 +2794,7 @@ class GameController {
 
     // ---- OVEN / BAKING PANEL ----
     showOvenPanel() {
+        this.markLoopCoachProgress('ovenVisited', true);
         const bodyHtml = `
             <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <span style="color:rgba(255,255,255,0.6); font-size:13px;">Time Speed:</span>
@@ -2756,6 +2940,7 @@ class GameController {
 
     // ---- REGISTER / SELLING PANEL ----
     showRegisterPanel() {
+        this.markLoopCoachProgress('registerVisited', true);
         this.engine.isPaused = false;
         this.activeCustomers = [];
 
@@ -4921,6 +5106,10 @@ class GameController {
         const oTime = document.getElementById('overlay-sell-time');
         if (oTime) oTime.textContent = this.engine.getTimeString();
 
+        if ((this.engine.dailyStats?.customersServed || 0) > 0 || (this.engine.dailyStats?.revenue || 0) > 0) {
+            this.markLoopCoachProgress('salesObserved', true);
+        }
+
         this.updateStats();
     }
 
@@ -5876,6 +6065,7 @@ class GameController {
 
         const result = this.engine.hireStaff(staffConfig);
         if (result.success) {
+            this.markLoopCoachProgress('staffHired', true);
             this.updateAutomationAvailability();
             
             // Phase 1: Labor cost consequence - warn if labor costs are getting high
