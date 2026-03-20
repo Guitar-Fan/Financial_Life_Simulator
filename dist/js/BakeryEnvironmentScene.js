@@ -547,7 +547,7 @@ class BakeryEnvironmentScene extends Phaser.Scene {
         this.add.tileSprite(scX, scY, 300, 28, 'service_counter').setDepth(scY);
         this.addCollider(scX, scY, 300, 20);
         this.add.image(scX + 80, scY - 18, 'register').setDepth(scY - 1);
-        this.addInteractable(scX + 80, scY + 26, 'Cash Register', 'register', '💰 Open shop & serve customers');
+        this.addInteractable(scX + 80, scY + 26, 'Cash Register', 'register', '💰 Start autonomous checkout');
 
         // Bread shelves
         const shelfY = R.y + 30;

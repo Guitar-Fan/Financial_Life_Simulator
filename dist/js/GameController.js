@@ -2275,7 +2275,7 @@ class GameController {
             case 'computer':   this.showComputerPanel(); break;
             case 'oven':
             case 'prep':       this.showOvenPanel(); break;
-            case 'register':   this.showRegisterPanel(); break;
+            case 'register':   this.triggerAutonomousRegisterCheckout(); break;
             case 'display':
             case 'display2':
             case 'bread_shelf':
@@ -2286,6 +2286,41 @@ class GameController {
             case 'recipes':    this.showRecipesPanel(); break;
             default:
                 console.log('[Bakery] Unknown interaction:', actionId);
+        }
+    }
+
+    triggerAutonomousRegisterCheckout() {
+        this.markLoopCoachProgress('registerVisited', true);
+        this.engine.isPaused = false;
+
+        if (!Array.isArray(this.activeCustomers)) {
+            this.activeCustomers = [];
+        }
+
+        if (!this.sellingLoopId) {
+            this.startSellingLoop();
+        }
+
+        const waiting = this.activeCustomers.filter(c => c && c.state === 'waiting' && !c.assignedStaff);
+        waiting.forEach(customer => this.planCustomerService(customer, { silent: true }));
+
+        const nextCustomer = waiting[0] || null;
+        window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+            detail: {
+                target: 'player',
+                emoji: '🧑‍🍳',
+                message: nextCustomer?.name
+                    ? `I got you, ${nextCustomer.name}. Checkout is running.`
+                    : 'Register is live. I am ready for the next customer.',
+                tone: nextCustomer ? 'happy' : 'neutral'
+            }
+        }));
+
+        if (this.notificationSystem) {
+            this.notificationSystem.info('Autonomous checkout started', {
+                icon: '🤖',
+                title: 'Cash Register'
+            });
         }
     }
 
@@ -4842,6 +4877,14 @@ class GameController {
                 label: `+$${totalRevenue.toFixed(2)}`
             }
         }));
+        window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+            detail: {
+                target: 'player',
+                emoji: '✅',
+                message: `${customer?.name || 'Customer'} checked out. Thank you!`,
+                tone: 'happy'
+            }
+        }));
 
         this.updateFlowSatisfaction(Math.min(100, (customer.satisfactionNow || 70) + 10));
 
@@ -5005,6 +5048,14 @@ class GameController {
                     staffId: 'owner',
                     message: `Checking out ${customer.name}`,
                     etaMs: Math.round(customer.serviceDuration)
+                }
+            }));
+            window.dispatchEvent(new CustomEvent('bakery:customer-expression', {
+                detail: {
+                    target: 'player',
+                    emoji: '🧾',
+                    message: `${customer?.name || 'Customer'}, I will ring this up now.`,
+                    tone: 'neutral'
                 }
             }));
         }
