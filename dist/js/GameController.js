@@ -944,16 +944,22 @@ class GameController {
         this.updateRecipePreview();
     }
 
+    startNewRecipeDraft() {
+        this.renderRecipeCreationSpread();
+        this.setupRecipeBookEvents();
+
+        const nameInput = document.getElementById('recipe-name');
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
     renderCustomRecipeLibrary() {
         const library = document.getElementById('custom-recipe-library');
         if (!library) return;
 
-        if (this.customRecipes.length === 0) {
-            library.innerHTML = '<div class="custom-recipe-empty">No custom recipes yet. Your creations will appear here.</div>';
-            return;
-        }
-
-        library.innerHTML = this.customRecipes.map(entry => {
+        const recipeCards = this.customRecipes.map(entry => {
             const typeInfo = GAME_CONFIG.PASTRY_TYPES?.[entry.pastryType];
             return `
                 <div class="custom-recipe-card">
@@ -965,6 +971,27 @@ class GameController {
                 </div>
             `;
         }).join('');
+
+        const addTile = `
+            <button type="button" class="custom-recipe-card custom-recipe-card-add" id="btn-new-recipe-tile" aria-label="Create a new recipe">
+                <div class="custom-recipe-icon">➕</div>
+                <div>
+                    <div class="custom-recipe-name">Create New Recipe</div>
+                    <div class="custom-recipe-type">Open Recipe Builder</div>
+                </div>
+            </button>
+        `;
+
+        if (this.customRecipes.length === 0) {
+            library.innerHTML = `<div class="custom-recipe-empty">No custom recipes yet. Your creations will appear here.</div>${addTile}`;
+        } else {
+            library.innerHTML = `${recipeCards}${addTile}`;
+        }
+
+        const addButton = document.getElementById('btn-new-recipe-tile');
+        if (addButton) {
+            addButton.onclick = () => this.startNewRecipeDraft();
+        }
     }
 
     enforceInventoryPlan() {
@@ -1031,10 +1058,26 @@ class GameController {
         const oInput = document.getElementById('overlay-markup-input');
         if (oSlider) oSlider.value = markup;
         if (oInput) oInput.value = markup;
+
+        // Update baking overlay elements
+        const bSlider = document.getElementById('overlay-bake-markup-slider');
+        const bInput = document.getElementById('overlay-bake-markup-input');
+        const bFactor = document.getElementById('overlay-bake-markup-factor');
+        if (bSlider) bSlider.value = markup;
+        if (bInput) bInput.value = markup;
+        if (bFactor) bFactor.textContent = (1 + markup / 100).toFixed(2);
         
         // Refresh display products to show new prices
         this.renderDisplayProducts();
         this.renderOverlayDisplayProducts();
+        this.renderOverlayRecipes();
+        this.renderRecipes();
+
+        const overlayPanel = document.getElementById('overlay-panel');
+        const overlayTitle = document.getElementById('overlay-panel-title');
+        if (overlayPanel?.classList.contains('open') && overlayTitle?.textContent?.includes('Recipe Book')) {
+            this.showRecipesPanel();
+        }
     }
 
     // ==================== MAIN MENU ====================
@@ -2656,6 +2699,12 @@ class GameController {
                 <span id="overlay-speed-val" style="font-size:13px; font-weight:bold; color:#2ecc71;">1x</span>
                 <button id="btn-overlay-auto-baking" class="overlay-auto-btn" style="margin-left:auto; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">🤖 Deploy Baking Automation</button>
             </div>
+            <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:13px; color:rgba(255,255,255,0.7);">Markup %:</label>
+                <input type="range" id="overlay-bake-markup-slider" min="0" max="600" value="${this.engine.markupPercentage || 100}" style="flex:1; max-width:220px;" oninput="window.game.updateMarkup(this.value)">
+                <input type="number" id="overlay-bake-markup-input" min="0" max="600" value="${this.engine.markupPercentage || 100}" style="width:70px; padding:4px; border-radius:4px; border:1px solid #555; background:#222; color:white; font-size:12px;" oninput="window.game.updateMarkup(this.value)">
+                <span style="font-size:12px; color:rgba(255,255,255,0.5);">(Sell price = Cost × <strong id="overlay-bake-markup-factor">${(1 + (this.engine.markupPercentage || 100) / 100).toFixed(2)}</strong>)</span>
+            </div>
             <div style="display:grid; grid-template-columns:1fr 300px; gap:16px; max-height:58vh;">
                 <div style="overflow-y:auto;">
                     <h4 style="color:#ffd700; font-family:'Fredoka',cursive; margin-bottom:10px;">📋 Recipes</h4>
@@ -2973,8 +3022,62 @@ class GameController {
                 </div>
             `;
         }).join('');
+
+        if (this.customRecipes.length > 0) {
+            html += this.customRecipes.map(entry => {
+                const recipe = GAME_CONFIG.RECIPES?.[entry.key] || {};
+                const cost = this.engine.calculateProductCost(entry.key);
+                const price = this.engine.getRecipeBasePrice(entry.key);
+                const ings = recipe.ingredients ? Object.entries(recipe.ingredients).map(([ik, amt]) => {
+                    const ing = (GAME_CONFIG.INGREDIENTS || {})[ik] || {};
+                    return `${ing.icon || ''} ${ing.name || ik}: ${amt}`;
+                }).join(', ') : '';
+
+                return `
+                    <div style="background:rgba(255,215,102,0.08); border:1px solid rgba(255,215,102,0.28); border-radius:10px; padding:12px;">
+                        <div style="font-size:24px; float:left; margin-right:10px;">${entry.icon || '🧁'}</div>
+                        <div style="font-weight:600; font-size:14px;">${entry.name}</div>
+                        <div style="font-size:11px; color:rgba(255,255,255,0.55); margin-top:4px;">${ings || 'Custom signature blend'}</div>
+                        <div style="font-size:12px; margin-top:6px;">
+                            Cost: <strong style="color:#f39c12;">$${cost.toFixed(2)}</strong>
+                            → Sells: <strong style="color:#2ecc71;">$${price.toFixed(2)}</strong>
+                        </div>
+                        <div style="font-size:11px; color:rgba(255,255,255,0.45); margin-top:2px;">
+                            ⭐ Custom recipe
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        html += `
+            <button id="overlay-create-recipe-tile" type="button" style="
+                background:linear-gradient(135deg, rgba(255,214,102,0.14), rgba(255,255,255,0.06));
+                border:1px dashed rgba(255,214,102,0.5);
+                border-radius:10px;
+                padding:12px;
+                color:#fff;
+                text-align:left;
+                cursor:pointer;
+                min-height:120px;
+                transition:transform 0.15s ease, border-color 0.15s ease;
+            ">
+                <div style="font-size:26px; margin-bottom:4px;">➕</div>
+                <div style="font-weight:700; font-size:14px;">Create New Recipe</div>
+                <div style="font-size:11px; color:rgba(255,255,255,0.65); margin-top:4px;">Open Recipe Lab and start a new draft</div>
+            </button>
+        `;
+
         html += '</div>';
         this.openOverlayPanel('📖 Recipe Book', html);
+
+        const createTile = document.getElementById('overlay-create-recipe-tile');
+        if (createTile) {
+            createTile.onclick = () => {
+                this.closeOverlayPanel();
+                this.goToPhase('recipes');
+            };
+        }
     }
 
     // ---- SUMMARY OVERLAY (End of Day) ----

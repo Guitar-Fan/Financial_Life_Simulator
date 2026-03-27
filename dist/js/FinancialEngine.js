@@ -42,7 +42,8 @@ class FinancialEngine {
         this.rentAmount = GAME_CONFIG.DAILY_EXPENSES.rent.amount;
 
         // Pricing system - markup percentage
-        this.markupPercentage = 100; // Default 100% markup (2x cost)
+        // Raised baseline to better match cafe ticket expectations before manual tuning.
+        this.markupPercentage = 300; // Default 300% markup (4x cost)
 
         // Prepared items (par-baked, frozen dough)
         this.preparedItems = [];
@@ -517,16 +518,20 @@ class FinancialEngine {
     }
 
     getRecipeBasePrice(recipeKey) {
-        if (this.pricingOverrides?.[recipeKey]) {
-            return this.pricingOverrides[recipeKey];
-        }
-        // Get cost and apply markup percentage
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
         if (!recipe) return 0;
-        
+
+        const markupFactor = 1 + ((this.markupPercentage || 100) / 100);
+
+        // If a strategy/custom override exists, treat it as the baseline sell price
+        // at default markup and scale it with the live markup slider.
+        if (this.pricingOverrides?.[recipeKey]) {
+            const defaultMarkupFactor = 1 + (300 / 100);
+            return this.pricingOverrides[recipeKey] * (markupFactor / defaultMarkupFactor);
+        }
+
         const cost = this.calculateRecipeCost(recipeKey);
-        const markup = (this.markupPercentage || 100) / 100;
-        return cost * (1 + markup);
+        return cost * markupFactor;
     }
 
     calculateRecipeCost(recipeKey) {

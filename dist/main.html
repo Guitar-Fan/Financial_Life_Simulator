@@ -1610,6 +1610,25 @@
                 overflow: hidden;
             }
 
+            .custom-recipe-card-add {
+                width: 100%;
+                text-align: left;
+                cursor: pointer;
+                transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+                color: inherit;
+            }
+
+            .custom-recipe-card-add:hover {
+                transform: translateY(-2px);
+                border-color: rgba(255, 214, 102, 0.55);
+                box-shadow: 0 18px 30px rgba(0, 0, 0, 0.5);
+            }
+
+            .custom-recipe-card-add:focus-visible {
+                outline: 2px solid rgba(255, 214, 102, 0.8);
+                outline-offset: 2px;
+            }
+
             .custom-recipe-card::before {
                 content: '';
                 position: absolute;

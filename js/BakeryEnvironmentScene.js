@@ -996,7 +996,7 @@ class BakeryEnvironmentScene extends Phaser.Scene {
             wordWrap: { width: 220 }
         }).setOrigin(0.5, 1).setDepth(10002);
 
-        this.add.circle(target.x, target.y - 58, 4, 0xffffff, 0.95).setDepth(10001);
+        const tailDot = this.add.circle(target.x, target.y - 58, 4, 0xffffff, 0.95).setDepth(10001);
 
         this.tweens.add({
             targets: bubble,
@@ -1004,7 +1004,10 @@ class BakeryEnvironmentScene extends Phaser.Scene {
             alpha: 0,
             duration: 2200,
             ease: 'Sine.easeInOut',
-            onComplete: () => bubble.destroy()
+            onComplete: () => {
+                bubble.destroy();
+                tailDot.destroy();
+            }
         });
     }
 

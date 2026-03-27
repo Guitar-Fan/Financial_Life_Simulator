@@ -42,7 +42,8 @@ class FinancialEngine {
         this.rentAmount = GAME_CONFIG.DAILY_EXPENSES.rent.amount;
 
         // Pricing system - markup percentage
-        this.markupPercentage = 100; // Default 100% markup (2x cost)
+        // Raised baseline to better match cafe ticket expectations before manual tuning.
+        this.markupPercentage = 300; // Default 300% markup (4x cost)
 
         // Prepared items (par-baked, frozen dough)
         this.preparedItems = [];
@@ -517,16 +518,20 @@ class FinancialEngine {
     }
 
     getRecipeBasePrice(recipeKey) {
-        if (this.pricingOverrides?.[recipeKey]) {
-            return this.pricingOverrides[recipeKey];
-        }
-        // Get cost and apply markup percentage
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
         if (!recipe) return 0;
-        
+
+        const markupFactor = 1 + ((this.markupPercentage || 100) / 100);
+
+        // If a strategy/custom override exists, treat it as the baseline sell price
+        // at default markup and scale it with the live markup slider.
+        if (this.pricingOverrides?.[recipeKey]) {
+            const defaultMarkupFactor = 1 + (300 / 100);
+            return this.pricingOverrides[recipeKey] * (markupFactor / defaultMarkupFactor);
+        }
+
         const cost = this.calculateRecipeCost(recipeKey);
-        const markup = (this.markupPercentage || 100) / 100;
-        return cost * (1 + markup);
+        return cost * markupFactor;
     }
 
     calculateRecipeCost(recipeKey) {
@@ -660,18 +665,27 @@ class FinancialEngine {
         // Check ingredient preferences based on mood
         let ingredientAppeal = 1.0;
         if (customerPreferences && recipe.ingredients) {
+            const explicitPreference = customerPreferences.ingredientPreference;
+            const preferredIngredientKey = explicitPreference?.active ? explicitPreference.ingredientKey : null;
+            if (preferredIngredientKey) {
+                const hasExplicitPreferredIngredient = !!recipe.ingredients[preferredIngredientKey];
+                const buyBoost = Number(explicitPreference.buyBoost) || 1.2;
+                ingredientAppeal *= hasExplicitPreferredIngredient ? buyBoost : 0.92;
+            }
+
             // Customers in good mood prefer sweet ingredients
             // Customers in bad mood prefer comfort/savory ingredients
             const wantsSweetness = customerMood > 60;
             const hasPreferredIngredient = Object.keys(recipe.ingredients).some(ing => {
+                const ingKey = String(ing).toLowerCase();
                 if (wantsSweetness) {
-                    return ing.includes('chocolate') || ing.includes('sugar') || ing.includes('berry');
+                    return ingKey.includes('chocolate') || ingKey.includes('sugar') || ingKey.includes('berry');
                 } else {
-                    return ing.includes('butter') || ing.includes('cheese') || ing.includes('bread');
+                    return ingKey.includes('butter') || ingKey.includes('cheese') || ingKey.includes('bread');
                 }
             });
-            
-            ingredientAppeal = hasPreferredIngredient ? 1.3 : 0.8;
+
+            ingredientAppeal *= hasPreferredIngredient ? 1.3 : 0.8;
         }
 
         // Maximum price this customer segment will pay
