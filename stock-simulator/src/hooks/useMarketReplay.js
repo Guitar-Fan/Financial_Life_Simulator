@@ -264,30 +264,116 @@ function generateDemoIntradayTicks(symbol) {
   
   for (const day of recentDays) {
     const { date, open, high, low, close, volume } = day;
+    const totalMinutes = 390;
+    const dayRange = Math.max(high - low, open * 0.008);
+    const patternProfile = pickIntradayPattern(open, close);
     let currentPrice = open;
     
-    for (let minute = 0; minute < 390; minute++) {
-      const progress = minute / 390;
-      const targetPrice = open + (close - open) * progress;
-      const noise = (Math.random() - 0.5) * (high - low) * 0.1;
-      
-      currentPrice = currentPrice * 0.7 + targetPrice * 0.3 + noise;
-      currentPrice = Math.max(low, Math.min(high, currentPrice));
-      
-      const hour = Math.floor(minute / 60) + 9;
-      const min = (minute % 60) + 30;
-      const adjustedHour = min >= 60 ? hour + 1 : hour;
-      const adjustedMin = min % 60;
+    for (let minute = 0; minute < totalMinutes; minute++) {
+      const progress = minute / (totalMinutes - 1);
+      const anchorPrice = patternProfile(open, close, dayRange, progress);
+      const volatilityCurve = 0.7 + Math.abs(progress - 0.5) * 1.8;
+      const drift = (anchorPrice - currentPrice) * (0.24 + Math.random() * 0.12);
+      const noise = randomNormal() * dayRange * (0.018 + volatilityCurve * 0.05);
+      const shock = Math.random() < 0.035
+        ? randomNormal() * dayRange * (0.09 + volatilityCurve * 0.12)
+        : 0;
+
+      currentPrice = Math.max(1, currentPrice + drift + noise + shock);
+
+      // Softly pull the stream toward day's broad range while still allowing noisy excursions.
+      const softTop = high + dayRange * 0.2;
+      const softBottom = Math.max(1, low - dayRange * 0.2);
+      currentPrice = Math.max(softBottom, Math.min(softTop, currentPrice));
+
+      const wickSpan = Math.abs(randomNormal()) * dayRange * (0.008 + volatilityCurve * 0.03);
+      const tickHigh = Math.max(currentPrice, currentPrice + wickSpan * (0.6 + Math.random() * 0.9));
+      const tickLow = Math.max(0.01, Math.min(currentPrice, currentPrice - wickSpan * (0.6 + Math.random() * 0.9)));
+
+      const volumeBase = (volume / totalMinutes) * (1 + Math.abs(progress - 0.5) * 2.2);
+      const volumeSpike = Math.random() < 0.04 ? 1.3 + Math.random() * 1.9 : 0;
+      const minuteVolume = Math.round(volumeBase * (0.75 + Math.random() * 0.95 + volumeSpike));
       
       ticks.push({
-        timestamp: `${date}T${String(adjustedHour).padStart(2, '0')}:${String(adjustedMin).padStart(2, '0')}:00`,
+        timestamp: `${date}T${formatMarketTime(minute)}`,
         price: Math.round(currentPrice * 100) / 100,
-        volume: Math.round((volume / 390) * (1 + Math.abs(progress - 0.5) * 2))
+        high: Math.round(tickHigh * 100) / 100,
+        low: Math.round(tickLow * 100) / 100,
+        volume: minuteVolume
       });
+
+      // Mean reversion pressure after sharp moves keeps paths believable.
+      currentPrice += (anchorPrice - currentPrice) * 0.08;
     }
   }
   
   return ticks;
+}
+
+function formatMarketTime(minutesSinceOpen) {
+  const hour = Math.floor(minutesSinceOpen / 60) + 9;
+  const minute = (minutesSinceOpen % 60) + 30;
+  const adjustedHour = minute >= 60 ? hour + 1 : hour;
+  const adjustedMinute = minute % 60;
+  return `${String(adjustedHour).padStart(2, '0')}:${String(adjustedMinute).padStart(2, '0')}:00`;
+}
+
+function pickIntradayPattern(open, close) {
+  const direction = close >= open ? 1 : -1;
+  const rand = Math.random();
+
+  if (rand < 0.26) {
+    // Trend day: broad directional move with shallow pullbacks.
+    return (o, c, range, p) => o + (c - o) * p + direction * Math.sin(p * Math.PI * 1.6) * range * 0.08;
+  }
+
+  if (rand < 0.48) {
+    // Mean-reversion day: overshoots in both directions around a fair value.
+    return (o, c, range, p) => {
+      const center = o + (c - o) * p;
+      return center + Math.sin(p * Math.PI * 3.4) * range * 0.22 - direction * Math.sin(p * Math.PI) * range * 0.07;
+    };
+  }
+
+  if (rand < 0.7) {
+    // Breakout day: compression then directional expansion.
+    return (o, c, range, p) => {
+      const preBreakout = o + (c - o) * Math.min(p, 0.45) * 0.35;
+      if (p < 0.45) {
+        return preBreakout + Math.sin(p * Math.PI * 6) * range * 0.04;
+      }
+      const post = (p - 0.45) / 0.55;
+      return preBreakout + (c - preBreakout) * post + direction * Math.sin(post * Math.PI * 2.1) * range * 0.1;
+    };
+  }
+
+  if (rand < 0.86) {
+    // Opening drive then afternoon fade/continuation.
+    return (o, c, range, p) => {
+      const drive = o + direction * range * 0.28 * Math.sin(p * Math.PI * 1.15);
+      return drive + (c - drive) * Math.pow(p, 1.35);
+    };
+  }
+
+  // Choppy rotational session.
+  return (o, c, range, p) => {
+    const mid = o + (c - o) * p;
+    return mid + Math.sin(p * Math.PI * 7.5) * range * 0.16 + Math.sin(p * Math.PI * 1.4) * range * 0.05;
+  };
+}
+
+function randomNormal() {
+  let u = 0;
+  let v = 0;
+
+  while (u === 0) {
+    u = Math.random();
+  }
+  while (v === 0) {
+    v = Math.random();
+  }
+
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
 export default useMarketReplay;

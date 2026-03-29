@@ -31,11 +31,15 @@ export function ChartPanel() {
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
+  const baseHistoryRef = useRef([]);
+  const baseVolumeRef = useRef([]);
   
   const [chartType, setChartType] = useState('candle'); // candle, line, area
+  const [displayCandle, setDisplayCandle] = useState(null);
   
-  const { selectedTicker, historicalData, tickers } = useMarketStore();
+  const { selectedTicker, historicalData, intradayData, tickers, replayIndex } = useMarketStore();
   const tickerData = selectedTicker ? historicalData[selectedTicker] : null;
+  const tickerIntraday = selectedTicker ? intradayData[selectedTicker] : null;
   const currentPrice = tickers[selectedTicker]?.price;
 
   /**
@@ -152,47 +156,100 @@ export function ChartPanel() {
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current || !tickerData) return;
 
-    // Transform data to Lightweight Charts format
-    const candleData = tickerData.map(d => ({
-      time: d.date,
+    const firstReplayDate = tickerIntraday?.[0]?.timestamp?.split('T')[0] || null;
+    const baseHistory = firstReplayDate
+      ? tickerData.filter((d) => d.date < firstReplayDate)
+      : tickerData;
+
+    const candleData = baseHistory.map((d) => ({
+      time: toUnixTimestamp(`${d.date}T16:00:00`),
       open: d.open,
       high: d.high,
       low: d.low,
       close: d.close
     }));
 
-    const volumeData = tickerData.map(d => ({
-      time: d.date,
+    const volumeData = baseHistory.map((d) => ({
+      time: toUnixTimestamp(`${d.date}T16:00:00`),
       value: d.volume,
       color: d.close >= d.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
     }));
 
+    baseHistoryRef.current = candleData;
+    baseVolumeRef.current = volumeData;
+
     candleSeriesRef.current.setData(candleData);
     volumeSeriesRef.current.setData(volumeData);
 
-    // Fit content to view
+    const lastBase = candleData[candleData.length - 1] || null;
+    setDisplayCandle(lastBase ? { ...lastBase, volume: volumeData[volumeData.length - 1]?.value || null } : null);
+
+    // Fit content to view when base data changes (ticker switch / fresh load).
     chartRef.current?.timeScale().fitContent();
-  }, [tickerData]);
+  }, [tickerData, tickerIntraday]);
 
   /**
    * Update last candle with real-time price
    * This creates the "live" effect as prices tick
    */
   useEffect(() => {
-    if (!candleSeriesRef.current || !tickerData || !currentPrice) return;
+    if (!candleSeriesRef.current || !volumeSeriesRef.current || !tickerIntraday || replayIndex < 0) {
+      return;
+    }
 
-    const lastCandle = tickerData[tickerData.length - 1];
-    if (!lastCandle) return;
+    const cappedIndex = Math.min(replayIndex, tickerIntraday.length - 1);
+    if (cappedIndex < 0) {
+      return;
+    }
 
-    // Update the last candle with current price
-    candleSeriesRef.current.update({
-      time: lastCandle.date,
-      open: lastCandle.open,
-      high: Math.max(lastCandle.high, currentPrice),
-      low: Math.min(lastCandle.low, currentPrice),
-      close: currentPrice
-    });
-  }, [currentPrice, tickerData]);
+    const barsByTime = new Map();
+
+    for (let i = 0; i <= cappedIndex; i++) {
+      const tick = tickerIntraday[i];
+      if (!tick?.timestamp) continue;
+
+      const tickTime = toUnixTimestamp(tick.timestamp);
+      const bucketTime = Math.floor(tickTime / LIVE_CANDLE_INTERVAL_SECONDS) * LIVE_CANDLE_INTERVAL_SECONDS;
+      const tickPrice = Number(tick.price) || 0;
+      const tickHigh = Number.isFinite(tick.high) ? tick.high : tickPrice;
+      const tickLow = Number.isFinite(tick.low) ? tick.low : tickPrice;
+      const tickVolume = Number(tick.volume) || 0;
+
+      const existing = barsByTime.get(bucketTime);
+
+      if (!existing) {
+        barsByTime.set(bucketTime, {
+          time: bucketTime,
+          open: tickPrice,
+          high: Math.max(tickPrice, tickHigh),
+          low: Math.min(tickPrice, tickLow),
+          close: tickPrice,
+          volume: tickVolume
+        });
+      } else {
+        existing.high = Math.max(existing.high, tickPrice, tickHigh);
+        existing.low = Math.min(existing.low, tickPrice, tickLow);
+        existing.close = tickPrice;
+        existing.volume += tickVolume;
+      }
+    }
+
+    const liveCandles = Array.from(barsByTime.values()).sort((a, b) => a.time - b.time);
+    const liveVolumes = liveCandles.map((bar) => ({
+      time: bar.time,
+      value: bar.volume,
+      color: bar.close >= bar.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+    }));
+
+    const combinedCandles = [...baseHistoryRef.current, ...liveCandles];
+    const combinedVolumes = [...baseVolumeRef.current, ...liveVolumes];
+
+    candleSeriesRef.current.setData(combinedCandles);
+    volumeSeriesRef.current.setData(combinedVolumes);
+
+    const latestCandle = liveCandles[liveCandles.length - 1] || combinedCandles[combinedCandles.length - 1] || null;
+    setDisplayCandle(latestCandle);
+  }, [tickerIntraday, replayIndex, currentPrice]);
 
   return (
     <div className="h-full flex flex-col">
@@ -269,22 +326,40 @@ export function ChartPanel() {
       </div>
       
       {/* Price Legend / OHLC Display */}
-      {selectedTicker && tickerData && tickerData.length > 0 && (
+      {selectedTicker && (displayCandle || (tickerData && tickerData.length > 0)) && (
         <div className="px-3 py-2 border-t border-terminal-border flex items-center gap-4 text-xs font-mono">
           <span className="text-terminal-muted">O:</span>
-          <span>{tickerData[tickerData.length - 1]?.open.toFixed(2)}</span>
+          <span>{displayValue(displayCandle?.open ?? tickerData[tickerData.length - 1]?.open)}</span>
           <span className="text-terminal-muted">H:</span>
-          <span className="text-gain">{tickerData[tickerData.length - 1]?.high.toFixed(2)}</span>
+          <span className="text-gain">{displayValue(displayCandle?.high ?? tickerData[tickerData.length - 1]?.high)}</span>
           <span className="text-terminal-muted">L:</span>
-          <span className="text-loss">{tickerData[tickerData.length - 1]?.low.toFixed(2)}</span>
+          <span className="text-loss">{displayValue(displayCandle?.low ?? tickerData[tickerData.length - 1]?.low)}</span>
           <span className="text-terminal-muted">C:</span>
-          <span>{currentPrice?.toFixed(2) || tickerData[tickerData.length - 1]?.close.toFixed(2)}</span>
+          <span>{displayValue(currentPrice ?? displayCandle?.close ?? tickerData[tickerData.length - 1]?.close)}</span>
           <span className="text-terminal-muted">V:</span>
-          <span>{formatVolume(tickerData[tickerData.length - 1]?.volume)}</span>
+          <span>{formatVolume(displayCandle?.volume ?? tickerData[tickerData.length - 1]?.volume)}</span>
         </div>
       )}
     </div>
   );
+}
+
+const LIVE_CANDLE_INTERVAL_SECONDS = 5 * 60;
+
+function toUnixTimestamp(value) {
+  if (!value) return 0;
+
+  const normalized = value.includes('T')
+    ? (value.endsWith('Z') ? value : `${value}Z`)
+    : `${value}T00:00:00Z`;
+
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : 0;
+}
+
+function displayValue(value) {
+  if (!Number.isFinite(value)) return '--';
+  return value.toFixed(2);
 }
 
 function formatVolume(value) {
