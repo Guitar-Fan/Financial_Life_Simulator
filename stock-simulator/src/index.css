@@ -158,3 +158,19 @@
 .flash-loss {
   animation: ticker-flash-red 0.3s ease-out;
 }
+
+@keyframes market-notice-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.market-notice-popup {
+  animation: market-notice-in 180ms ease-out;
+}

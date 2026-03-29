@@ -7,7 +7,7 @@
  * professional terminals. Every pixel serves a purpose.
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Play, 
   Pause, 
@@ -17,7 +17,8 @@ import {
   Bell,
   TrendingUp,
   Landmark,
-  Receipt
+  Receipt,
+  AlertTriangle
 } from 'lucide-react';
 import { useMarketStore } from '../../stores/marketStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -25,8 +26,6 @@ import { usePlayerStore } from '../../stores/playerStore';
 export function Header({ currentDate, currentTime, isPlaying, cash, mode, onModeChange }) {
   const { 
     play, 
-    pause, 
-    togglePlayback, 
     playbackSpeed, 
     setPlaybackSpeed,
     reset 
@@ -46,8 +45,40 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
   const totalGain = totalValue - startingCash;
   const totalGainPercent = ((totalGain / startingCash) * 100).toFixed(2);
   const isPositive = totalGain >= 0;
+  const [showNoPauseNotice, setShowNoPauseNotice] = useState(false);
+  const noticeTimerRef = useRef(null);
 
   const speedOptions = [1, 5, 10, 50];
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) {
+        clearTimeout(noticeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showNoPausePopup = () => {
+    setShowNoPauseNotice(true);
+
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+    }
+
+    noticeTimerRef.current = setTimeout(() => {
+      setShowNoPauseNotice(false);
+      noticeTimerRef.current = null;
+    }, 3200);
+  };
+
+  const handlePlaybackClick = () => {
+    if (isPlaying) {
+      showNoPausePopup();
+      return;
+    }
+
+    play();
+  };
 
   return (
     <header className="h-12 px-4 flex items-center justify-between bg-terminal-surface border-b border-terminal-border">
@@ -120,18 +151,33 @@ export function Header({ currentDate, currentTime, isPlaying, cash, mode, onMode
         </div>
         
         {/* Playback Controls */}
-        <div className="flex items-center gap-1 pl-4 border-l border-terminal-border">
+        <div className="relative flex items-center gap-1 pl-4 border-l border-terminal-border">
           <button
-            onClick={togglePlayback}
+            onClick={handlePlaybackClick}
             className="p-2 hover:bg-terminal-border rounded transition-colors"
-            title={isPlaying ? 'Pause' : 'Play'}
+            title={isPlaying ? 'Pause Disabled' : 'Start Market'}
           >
             {isPlaying ? (
-              <Pause className="w-4 h-4 text-terminal-text" />
+              <Pause className="w-4 h-4 text-amber-300" />
             ) : (
               <Play className="w-4 h-4 text-gain" />
             )}
           </button>
+
+          {showNoPauseNotice && (
+            <div className="market-notice-popup absolute left-0 top-12 z-30 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-terminal-accent/50 bg-terminal-surface/95 shadow-2xl backdrop-blur-sm">
+              <div className="h-1 bg-gradient-to-r from-terminal-accent via-gain to-terminal-accent" />
+              <div className="flex items-start gap-2.5 px-3 py-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-terminal-text">Market Reminder</div>
+                  <div className="mt-1 text-xs leading-relaxed text-terminal-muted">
+                    In the real world, the stock market does not stop for you. Adapt and keep trading.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Speed Selector */}
           <div className="flex items-center gap-1 ml-2">

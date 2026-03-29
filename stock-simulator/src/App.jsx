@@ -519,7 +519,7 @@ function StatusBar({ mode }) {
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1">
           <span className={`status-dot ${isPlaying ? 'status-live' : 'status-paused'}`} />
-          {isPlaying ? 'LIVE' : 'PAUSED'}
+          {isPlaying ? 'LIVE' : 'READY'}
         </span>
         <span>Speed: {playbackSpeed}x</span>
         <span>Tick: {replayIndex}</span>

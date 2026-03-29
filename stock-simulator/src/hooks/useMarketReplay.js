@@ -31,6 +31,7 @@ export function useMarketReplay() {
     setHistoricalData,
     setIntradayData,
     updateTicker,
+    setReplayIndex,
     incrementReplayIndex,
     setCurrentDateTime,
     generateQuote
@@ -145,8 +146,13 @@ export function useMarketReplay() {
       const currentIndex = useMarketStore.getState().replayIndex;
       
       if (currentIndex >= ticks.length) {
-        // End of data - loop or stop
-        useMarketStore.getState().pause();
+        // Loop instead of pausing to mimic a market that keeps moving.
+        setReplayIndex(0);
+        const firstTick = ticks[0];
+        if (firstTick) {
+          processTick(selectedTicker, firstTick);
+          incrementReplayIndex();
+        }
         return;
       }
       
@@ -160,7 +166,7 @@ export function useMarketReplay() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, playbackSpeed, selectedTicker, processTick, incrementReplayIndex]);
+  }, [isPlaying, playbackSpeed, selectedTicker, processTick, setReplayIndex, incrementReplayIndex]);
 
   /**
    * Initialize market data

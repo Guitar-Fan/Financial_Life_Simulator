@@ -48,10 +48,10 @@ export const useMarketStore = create(
       }
     })),
     
-    // Playback controls
+    // Playback controls (pause is intentionally disabled)
     play: () => set({ isPlaying: true }),
-    pause: () => set({ isPlaying: false }),
-    togglePlayback: () => set((state) => ({ isPlaying: !state.isPlaying })),
+    pause: () => set((state) => ({ isPlaying: state.isPlaying })),
+    togglePlayback: () => set({ isPlaying: true }),
     
     setPlaybackSpeed: (speed) => set({ playbackSpeed: speed }),
     
