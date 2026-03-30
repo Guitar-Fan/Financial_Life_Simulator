@@ -595,13 +595,20 @@
       const slot = document.getElementById('coin-slot');
       const note = document.getElementById('machine-note');
       const buttons = Array.from(document.querySelectorAll('.teleport-btn'));
-      let busy = false;
+      let activeLaunchId = 0;
+      let noteTimer = null;
+      let redirectTimer = null;
 
-      function setBusyState(state) {
-        busy = state;
-        buttons.forEach((btn) => {
-          btn.disabled = state;
-        });
+      function clearPendingLaunch() {
+        if (noteTimer) {
+          clearTimeout(noteTimer);
+          noteTimer = null;
+        }
+        if (redirectTimer) {
+          clearTimeout(redirectTimer);
+          redirectTimer = null;
+        }
+        machine.classList.remove('active');
       }
 
       function coinFlight(startX, startY, endX, endY, onDone) {
@@ -638,8 +645,8 @@
       }
 
       function launchSequence(button) {
-        if (busy) return;
-        setBusyState(true);
+        const launchId = ++activeLaunchId;
+        clearPendingLaunch();
 
         const target = button.dataset.target;
         const name = button.dataset.name || 'project';
@@ -653,15 +660,17 @@
         note.textContent = `Minting teleport coin for ${name}...`;
 
         coinFlight(startX, startY, endX, endY, () => {
+          if (launchId !== activeLaunchId) return;
+
           machine.classList.add('active');
           note.textContent = `Coin accepted. Charging portal for ${name}...`;
 
-          setTimeout(() => {
+          noteTimer = setTimeout(() => {
             note.textContent = `Warping to ${name} now.`;
           }, 500);
 
-          setTimeout(() => {
-            window.location.href = target;
+          redirectTimer = setTimeout(() => {
+            window.location.assign(target);
           }, 1200);
         });
       }

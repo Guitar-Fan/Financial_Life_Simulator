@@ -3,556 +3,672 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Financial Life Simulator hub: learn money skills through games about business operations, stock investing, and long-term strategy.">
-  <title>Financial Life Simulator | Game Hub</title>
+  <meta name="description" content="Financial Life Simulator teleport deck. Insert a coin into the sketch-machine to jump into money-themed projects.">
+  <title>Financial Life Simulator | Teleport Sketch Deck</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Patrick+Hand&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #07121f;
-      --bg-soft: #0e1f34;
-      --panel: rgba(255, 255, 255, 0.06);
-      --panel-strong: rgba(255, 255, 255, 0.1);
-      --text: #eaf2ff;
-      --muted: #b7c7de;
-      --line: rgba(186, 219, 255, 0.22);
-      --teal: #49dfc2;
-      --gold: #ffc86b;
-      --rose: #ff8d8d;
-      --ink: #0a1624;
-      --shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+      --paper-black: #08080b;
+      --paper-deep: #0f1016;
+      --ink-soft: #f4f7ff;
+      --edge: rgba(255, 255, 255, 0.25);
+      --rainbow-a: #ff4f7f;
+      --rainbow-b: #ffcf58;
+      --rainbow-c: #6eff95;
+      --rainbow-d: #4bd0ff;
+      --rainbow-e: #9a6fff;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       min-height: 100%;
-      background: radial-gradient(circle at 16% 12%, #1f3a5c 0%, transparent 42%),
-                  radial-gradient(circle at 84% 16%, #213b33 0%, transparent 38%),
-                  linear-gradient(140deg, var(--bg) 0%, #0c1b2e 44%, #10162b 100%);
-      color: var(--text);
-      font-family: Manrope, sans-serif;
+      font-family: "Patrick Hand", cursive;
+      color: var(--ink-soft);
+      background:
+        radial-gradient(circle at 18% 20%, rgba(255, 79, 127, 0.12), transparent 32%),
+        radial-gradient(circle at 85% 14%, rgba(75, 208, 255, 0.11), transparent 36%),
+        radial-gradient(circle at 22% 85%, rgba(110, 255, 149, 0.12), transparent 32%),
+        linear-gradient(160deg, var(--paper-black), #0b0c11 40%, var(--paper-deep));
+      overflow-x: hidden;
     }
 
-    .grid-overlay {
+    body:before {
+      content: "";
       position: fixed;
       inset: 0;
-      background-image:
-        linear-gradient(to right, rgba(210, 235, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(210, 235, 255, 0.05) 1px, transparent 1px);
-      background-size: 40px 40px;
-      mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
       pointer-events: none;
+      background:
+        repeating-linear-gradient(35deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 7px),
+        repeating-linear-gradient(-20deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 5px);
+      mix-blend-mode: screen;
+      opacity: 0.55;
       z-index: 0;
     }
 
-    .wrap {
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 16px 44px;
       position: relative;
       z-index: 1;
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 28px 18px 56px;
     }
 
-    .hero {
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      background: linear-gradient(155deg, rgba(89, 152, 255, 0.17), rgba(73, 223, 194, 0.08) 55%, rgba(255, 200, 107, 0.08));
-      box-shadow: var(--shadow);
-      padding: 30px;
-      overflow: hidden;
+    .doodle {
+      position: fixed;
+      pointer-events: none;
+      font-family: "Permanent Marker", cursive;
+      z-index: 0;
+      opacity: 0.78;
+      animation: drift 7s ease-in-out infinite;
+      color: transparent;
+      background: linear-gradient(110deg, var(--rainbow-a), var(--rainbow-b), var(--rainbow-c), var(--rainbow-d), var(--rainbow-e));
+      background-size: 220% 220%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.12);
+      animation-name: drift, rainbowShift;
+      animation-duration: 7s, 6s;
+      animation-timing-function: ease-in-out, linear;
+      animation-iteration-count: infinite, infinite;
+    }
+
+    .doodle.d1 { top: 4%; left: 4%; font-size: 48px; }
+    .doodle.d2 { top: 14%; right: 7%; font-size: 40px; animation-delay: 1.5s, 0s; }
+    .doodle.d3 { bottom: 8%; left: 5%; font-size: 42px; animation-delay: 0.8s, 0s; }
+    .doodle.d4 { bottom: 12%; right: 5%; font-size: 46px; animation-delay: 2.2s, 0s; }
+
+    @keyframes drift {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(-10px) rotate(2deg); }
+    }
+
+    @keyframes rainbowShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
+    }
+
+    .poster {
       position: relative;
+      border: 3px solid var(--edge);
+      border-radius: 16px 20px 18px 14px;
+      background: rgba(8, 10, 16, 0.86);
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 18px 34px rgba(0, 0, 0, 0.45);
+      padding: 16px;
+      transform: rotate(-0.25deg);
+      overflow: hidden;
     }
 
-    .hero:after {
+    .poster:before {
       content: "";
       position: absolute;
-      width: 280px;
-      height: 280px;
-      top: -110px;
-      right: -80px;
-      border-radius: 50%;
-      background: radial-gradient(circle at center, rgba(73, 223, 194, 0.28), transparent 70%);
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(255, 79, 127, 0.22), rgba(255, 207, 88, 0.2), rgba(110, 255, 149, 0.2), rgba(75, 208, 255, 0.22), rgba(154, 111, 255, 0.22));
+      mask-image: repeating-radial-gradient(circle at 10% 10%, transparent 0 14px, black 14px 16px);
+      opacity: 0.55;
+      animation: scratchScroll 8s linear infinite;
+    }
+
+    @keyframes scratchScroll {
+      from { transform: translateX(-15px); }
+      to { transform: translateX(15px); }
+    }
+
+    .title {
+      margin: 0;
+      font-family: "Permanent Marker", cursive;
+      font-size: clamp(30px, 5.8vw, 62px);
+      line-height: 0.98;
+      letter-spacing: 0.02em;
+      color: transparent;
+      background: linear-gradient(100deg, var(--rainbow-a), var(--rainbow-b), var(--rainbow-c), var(--rainbow-d), var(--rainbow-e));
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: rainbowShift 5s linear infinite;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+      position: relative;
+      z-index: 1;
+    }
+
+    .sub {
+      margin: 10px 0 0;
+      font-size: clamp(18px, 2.6vw, 28px);
+      color: #eaf2ff;
+      position: relative;
+      z-index: 1;
+    }
+
+    .deck {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 18px;
+      margin-top: 16px;
+    }
+
+    .panel {
+      background: rgba(8, 10, 16, 0.86);
+      border: 3px solid var(--edge);
+      border-radius: 18px 12px 22px 14px;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 14px 26px rgba(0, 0, 0, 0.45);
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel:before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 2px dashed rgba(255, 255, 255, 0.22);
+      border-radius: 14px;
       pointer-events: none;
     }
 
-    .eyebrow {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #d5e8ff;
-      margin-bottom: 12px;
+    .panel:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(125deg, rgba(255, 79, 127, 0.14), rgba(255, 207, 88, 0.13), rgba(110, 255, 149, 0.11), rgba(75, 208, 255, 0.13), rgba(154, 111, 255, 0.13));
+      mask-image: repeating-linear-gradient(-28deg, transparent 0 18px, black 18px 22px);
+      opacity: 0.5;
+      animation: scratchScroll 9s linear infinite reverse;
     }
 
-    h1 {
-      font-family: "Space Grotesk", sans-serif;
+    .panel h2 {
+      font-family: "Permanent Marker", cursive;
+      margin: 0 0 8px;
+      font-size: clamp(22px, 3.1vw, 34px);
+      color: #f8fbff;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 0 9px rgba(255, 255, 255, 0.14);
+    }
+
+    .panel p {
       margin: 0;
-      font-size: clamp(30px, 5vw, 52px);
-      line-height: 1.06;
-      max-width: 760px;
+      font-size: 23px;
+      color: #d8e7ff;
+      position: relative;
+      z-index: 1;
     }
 
-    .lead {
-      margin: 14px 0 0;
-      max-width: 760px;
-      color: var(--muted);
-      font-size: clamp(15px, 2vw, 19px);
-      line-height: 1.6;
-    }
-
-    .pillars {
-      margin-top: 22px;
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .pillar {
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 14px;
-      padding: 10px;
-      font-size: 13px;
-    }
-
-    .pillar strong { display: block; color: #fff; font-size: 14px; margin-bottom: 2px; }
-
-    .section {
-      margin-top: 26px;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      background: var(--panel);
-      padding: 20px;
-      box-shadow: var(--shadow);
-    }
-
-    .section h2 {
-      font-family: "Space Grotesk", sans-serif;
-      margin: 0 0 6px;
-      font-size: 25px;
-    }
-
-    .section p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .games {
-      margin-top: 18px;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .card {
-      border: 1px solid rgba(186, 219, 255, 0.24);
-      border-radius: 16px;
-      background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 280px;
-    }
-
-    .card .icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+    .machine {
+      margin-top: 12px;
+      min-height: 360px;
       display: grid;
       place-items: center;
-      background: rgba(255, 255, 255, 0.12);
-      font-size: 24px;
+      position: relative;
+      z-index: 1;
     }
 
-    .card h3 {
-      margin: 2px 0 0;
-      font-size: 20px;
-      font-family: "Space Grotesk", sans-serif;
+    .machine-body {
+      width: min(420px, 92%);
+      aspect-ratio: 1 / 0.9;
+      border: 4px solid rgba(255, 255, 255, 0.72);
+      border-radius: 34px 28px 40px 26px;
+      background: linear-gradient(160deg, #141726, #1b2140 50%, #12172f);
+      position: relative;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7), 0 16px 30px rgba(0, 0, 0, 0.55);
+      transform: rotate(-1deg);
+      transition: transform 0.25s ease;
+      overflow: hidden;
     }
 
-    .card p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: 14px;
-      flex: 1;
+    .machine-body:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(125deg, rgba(255, 79, 127, 0.2), rgba(255, 207, 88, 0.18), rgba(110, 255, 149, 0.16), rgba(75, 208, 255, 0.18), rgba(154, 111, 255, 0.18));
+      mask-image: repeating-linear-gradient(-30deg, transparent 0 12px, black 12px 14px);
+      opacity: 0.45;
+      animation: scratchScroll 6s linear infinite;
     }
 
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+    .machine-body.active {
+      animation: wiggle 0.65s ease-in-out infinite;
     }
 
-    .tag {
-      font-size: 11px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 999px;
-      padding: 4px 8px;
-      color: #d9ebff;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(-1deg) translateY(0); }
+      25% { transform: rotate(0.3deg) translateY(-1px); }
+      50% { transform: rotate(-0.7deg) translateY(-2px); }
+      75% { transform: rotate(0.4deg) translateY(-1px); }
     }
 
-    .cta {
-      display: inline-block;
-      text-decoration: none;
-      border-radius: 10px;
-      font-weight: 800;
-      font-size: 14px;
-      padding: 11px 14px;
-      color: var(--ink);
-      background: linear-gradient(135deg, var(--teal), #97f5e2);
-      border: 1px solid rgba(255, 255, 255, 0.28);
-      transition: transform .15s ease;
-      width: fit-content;
-    }
-
-    .cta:hover { transform: translateY(-2px); }
-
-    .cta.alt { background: linear-gradient(135deg, var(--gold), #ffdf9f); }
-    .cta.risk { background: linear-gradient(135deg, #ffc2c2, var(--rose)); }
-
-    .footer {
-      margin-top: 22px;
-      font-size: 13px;
-      color: #c3d0e3;
-      text-align: center;
-      opacity: 0.95;
-    }
-
-    .analytics {
-      margin-top: 18px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: var(--panel-strong);
-      padding: 14px;
-    }
-
-    .analytics-head {
+    .machine-top {
+      position: absolute;
+      left: 10%;
+      right: 10%;
+      top: 12px;
+      height: 54px;
+      border: 3px solid rgba(255, 255, 255, 0.7);
+      border-radius: 18px 14px 20px 15px;
+      background: #121620;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
+      justify-content: space-evenly;
+      z-index: 1;
     }
 
-    .analytics-head h3 {
-      margin: 0;
-      font-size: 16px;
-      font-family: "Space Grotesk", sans-serif;
+    .light {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.74);
+      background: #1e2538;
+      box-shadow: 0 0 0 rgba(255, 255, 255, 0);
     }
 
-    .analytics-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
+    .machine-body.active .light {
+      animation: pulse 0.45s ease-in-out infinite;
     }
 
-    .metric {
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .machine-body.active .light:nth-child(2) { animation-delay: 0.1s; }
+    .machine-body.active .light:nth-child(3) { animation-delay: 0.2s; }
+    .machine-body.active .light:nth-child(4) { animation-delay: 0.3s; }
+
+    @keyframes pulse {
+      0%, 100% { background: #2a3250; box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+      50% { background: #f8ff87; box-shadow: 0 0 16px rgba(255, 249, 157, 0.95); }
+    }
+
+    .portal {
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      left: 50%;
+      top: 54%;
+      transform: translate(-50%, -50%);
+      border: 5px solid rgba(255, 255, 255, 0.8);
+      border-radius: 46% 54% 52% 48% / 55% 47% 53% 45%;
+      background: radial-gradient(circle at 28% 22%, #ffe866, #ff4f7f 30%, #9a6fff 58%, #4bd0ff 82%, #6eff95);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .portal:before,
+    .portal:after {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border: 3px dashed rgba(255, 255, 255, 0.75);
+      border-radius: 48% 52% 56% 44% / 44% 58% 42% 56%;
+      animation: spin 2.5s linear infinite;
+    }
+
+    .portal:after {
+      inset: 24%;
+      animation-duration: 3.5s;
+      animation-direction: reverse;
+      border-style: dotted;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .slot {
+      position: absolute;
+      width: 94px;
+      height: 20px;
+      right: 20px;
+      top: 95px;
+      border: 3px solid rgba(255, 255, 255, 0.8);
       border-radius: 10px;
-      padding: 8px;
-      background: rgba(0, 0, 0, 0.18);
+      background: #171d2f;
+      z-index: 1;
     }
 
-    .metric .label {
-      display: block;
-      color: var(--muted);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 4px;
+    .slot:after {
+      content: "COIN";
+      position: absolute;
+      right: 4px;
+      top: -23px;
+      font-family: "Permanent Marker", cursive;
+      color: #f6fbff;
+      font-size: 13px;
+      transform: rotate(-6deg);
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
     }
 
-    .metric .value {
-      display: block;
-      font-size: 17px;
-      font-weight: 800;
-      color: #fff;
+    .machine-note {
+      margin-top: 12px;
+      font-size: clamp(20px, 2.7vw, 28px);
+      text-align: center;
+      color: #f0f7ff;
+      min-height: 40px;
+      position: relative;
+      z-index: 1;
     }
 
-    .analytics-note {
-      margin: 10px 0 0;
-      color: #ced9ea;
-      font-size: 12px;
+    .projects {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
     }
 
-    .reset-btn {
-      border: 1px solid rgba(255, 255, 255, 0.35);
-      background: rgba(255, 255, 255, 0.1);
-      color: #e8f3ff;
-      border-radius: 8px;
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 700;
+    .project {
+      border: 3px solid rgba(255, 255, 255, 0.65);
+      border-radius: 16px 11px 17px 13px;
+      background: rgba(9, 12, 21, 0.86);
+      padding: 12px;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.44), 0 12px 20px rgba(0, 0, 0, 0.45);
+      transition: transform 0.2s ease;
+      animation: bob 4.5s ease-in-out infinite;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .project:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(255, 79, 127, 0.16), rgba(255, 207, 88, 0.14), rgba(110, 255, 149, 0.12), rgba(75, 208, 255, 0.14), rgba(154, 111, 255, 0.14));
+      mask-image: repeating-linear-gradient(-24deg, transparent 0 14px, black 14px 17px);
+      opacity: 0.62;
+      pointer-events: none;
+    }
+
+    .project:nth-child(2n) { animation-delay: 0.4s; }
+
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(-0.4deg); }
+      50% { transform: translateY(-5px) rotate(0.4deg); }
+    }
+
+    .project:hover {
+      transform: translateY(-4px) rotate(-0.5deg);
+    }
+
+    .project h3,
+    .project p,
+    .teleport-btn {
+      position: relative;
+      z-index: 1;
+    }
+
+    .project h3 {
+      margin: 0;
+      font-family: "Permanent Marker", cursive;
+      font-size: 25px;
+      line-height: 1;
+      color: #f7fbff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+    }
+
+    .project p {
+      margin: 7px 0 12px;
+      font-size: 20px;
+      color: #d6e8ff;
+      line-height: 1.15;
+      min-height: 46px;
+    }
+
+    .teleport-btn {
+      border: 3px solid rgba(255, 255, 255, 0.75);
+      border-radius: 14px 16px 11px 15px;
+      font-family: "Permanent Marker", cursive;
+      font-size: 20px;
+      color: #ffffff;
+      background: linear-gradient(120deg, rgba(255, 79, 127, 0.88), rgba(255, 207, 88, 0.9), rgba(110, 255, 149, 0.9), rgba(75, 208, 255, 0.92), rgba(154, 111, 255, 0.9));
+      background-size: 220% 220%;
+      padding: 8px 10px;
+      width: 100%;
       cursor: pointer;
+      transition: transform 0.15s ease;
+      text-shadow: 0 0 9px rgba(0, 0, 0, 0.45);
+      animation: rainbowShift 6s linear infinite;
     }
 
-    .reset-btn:hover {
-      background: rgba(255, 255, 255, 0.18);
+    .teleport-btn:hover {
+      transform: translateY(-2px) scale(1.01);
+    }
+
+    .teleport-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .legend {
+      margin-top: 14px;
+      border: 3px solid rgba(255, 255, 255, 0.58);
+      border-radius: 14px;
+      background: rgba(8, 10, 16, 0.9);
+      padding: 10px 12px;
+      font-size: clamp(18px, 2vw, 24px);
+      color: #edf6ff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .legend:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(255, 79, 127, 0.2), rgba(255, 207, 88, 0.18), rgba(110, 255, 149, 0.16), rgba(75, 208, 255, 0.18), rgba(154, 111, 255, 0.18));
+      mask-image: repeating-linear-gradient(-22deg, transparent 0 15px, black 15px 18px);
+      opacity: 0.55;
+    }
+
+    .coin {
+      position: fixed;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.7);
+      background: conic-gradient(from 0deg, #ff4f7f, #ffcf58, #6eff95, #4bd0ff, #9a6fff, #ff4f7f);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      z-index: 60;
+      transform: translate(-50%, -50%);
     }
 
     @media (max-width: 980px) {
-      .games { grid-template-columns: 1fr; }
-      .pillar { font-size: 12px; }
-      .pillars { grid-template-columns: 1fr 1fr; }
-      .analytics-grid { grid-template-columns: 1fr 1fr; }
+      .deck {
+        grid-template-columns: 1fr;
+      }
+
+      .projects {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 640px) {
-      .hero { padding: 20px; }
-      .section { padding: 16px; }
-      .pillars { grid-template-columns: 1fr; }
-      .analytics-grid { grid-template-columns: 1fr; }
+      .page {
+        padding: 14px 12px 26px;
+      }
+
+      .panel p {
+        font-size: 20px;
+      }
+
+      .project h3 {
+        font-size: 22px;
+      }
+
+      .project p {
+        font-size: 18px;
+      }
+
+      .teleport-btn {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="grid-overlay"></div>
-  <main class="wrap">
-    <section class="hero">
-      <span class="eyebrow">Financial Life Simulator</span>
-      <h1>Play Through Money Decisions Across Business, Markets, And Long-Term Strategy</h1>
-      <p class="lead">
-        This project turns financial literacy into interactive practice: run operations, price risk, and build better money instincts through game loops instead of passive theory.
-      </p>
-      <div class="pillars" aria-label="Financial learning pillars">
-        <div class="pillar"><strong>Cash Flow</strong>Revenue vs costs, fixed vs variable pressure.</div>
-        <div class="pillar"><strong>Risk & Reward</strong>Volatility, uncertainty, and strategy tradeoffs.</div>
-        <div class="pillar"><strong>Compounding</strong>Long-term outcomes from repeated decisions.</div>
-        <div class="pillar"><strong>Capital Allocation</strong>Where to invest limited resources first.</div>
-      </div>
+  <div class="doodle d1">$</div>
+  <div class="doodle d2">BANKROLL</div>
+  <div class="doodle d3">$$</div>
+  <div class="doodle d4">LEVEL UP</div>
+
+  <main class="page">
+    <header class="poster">
+      <h1 class="title">FINANCIAL LIFE SIMULATOR</h1>
+      <p class="sub">A hand-drawn money lab. Pick a project, feed the teleport machine a coin, and jump.</p>
+    </header>
+
+    <section class="deck">
+      <article class="panel">
+        <h2>Teleport Sketch Machine</h2>
+        <p>Every jump is coin-powered. Click any launch button to inject a coin into the slot, charge the portal, then redirect.</p>
+
+        <div class="machine">
+          <div id="teleport-machine" class="machine-body" aria-hidden="true">
+            <div class="machine-top">
+              <span class="light"></span>
+              <span class="light"></span>
+              <span class="light"></span>
+              <span class="light"></span>
+            </div>
+            <div id="coin-slot" class="slot"></div>
+            <div class="portal"></div>
+          </div>
+        </div>
+
+        <div id="machine-note" class="machine-note">Choose a project to begin teleport prep.</div>
+      </article>
+
+      <article class="panel">
+        <h2>Project Launch Deck</h2>
+        <div class="projects">
+          <section class="project">
+            <h3>Bakery Ops</h3>
+            <p>Operate staffing, inventory, and daily cash flow pressure.</p>
+            <button class="teleport-btn" data-target="main.html" data-name="Bakery Operations">Teleport To Bakery</button>
+          </section>
+
+          <section class="project">
+            <h3>Stock Terminal</h3>
+            <p>Train entries, exits, risk handling, and portfolio discipline.</p>
+            <button class="teleport-btn" data-target="stock-simulator/index.html" data-name="Stock Simulator">Teleport To Stocks</button>
+          </section>
+
+          <section class="project">
+            <h3>Investnopoly</h3>
+            <p>Long-horizon strategy with compounding and tradeoff choices.</p>
+            <button class="teleport-btn" data-target="INVESTORPOLY.html" data-name="Investnopoly">Teleport To Board</button>
+          </section>
+
+          <section class="project">
+            <h3>Tax Policy</h3>
+            <p>Simulate policy levers and macro incentive shifts.</p>
+            <button class="teleport-btn" data-target="tax_policy_simulator.html" data-name="Tax Policy Simulator">Teleport To Policy</button>
+          </section>
+
+          <section class="project">
+            <h3>Tax Life Journey</h3>
+            <p>Explore life-stage finance pathways and tax outcomes.</p>
+            <button class="teleport-btn" data-target="tax_life_journey.html" data-name="Tax Life Journey">Teleport To Journey</button>
+          </section>
+
+          <section class="project">
+            <h3>Map Lab</h3>
+            <p>Navigate map-mode exploration and simulation pathways.</p>
+            <button class="teleport-btn" data-target="Map.html" data-name="Map Scene">Teleport To Map</button>
+          </section>
+        </div>
+      </article>
     </section>
 
-    <section class="section">
-      <h2>Mission And Intent</h2>
-      <p>
-        The intention is to bridge real-world financial concepts with hands-on experimentation. Each game focuses on a different layer of money intelligence so players can connect daily operations, investment behavior, and strategic planning in one learning ecosystem.
-      </p>
-
-      <div class="games">
-        <article class="card">
-          <div class="icon" aria-hidden="true">🥐</div>
-          <h3>Bakery Game</h3>
-          <p>
-            Build and operate a bakery under pressure: staffing, pricing, inventory, service speed, and customer retention. It models unit economics and operational finance in motion.
-          </p>
-          <div class="tags">
-            <span class="tag">Operations</span>
-            <span class="tag">Margins</span>
-            <span class="tag">Demand</span>
-          </div>
-          <a class="cta" data-game="bakery" href="main.html">Launch Bakery Game</a>
-        </article>
-
-        <article class="card">
-          <div class="icon" aria-hidden="true">📈</div>
-          <h3>Stock Simulator</h3>
-          <p>
-            Practice market decision-making in a terminal-style simulator. Build confidence around entries, exits, portfolio behavior, and emotional discipline under changing price action.
-          </p>
-          <div class="tags">
-            <span class="tag">Markets</span>
-            <span class="tag">Volatility</span>
-            <span class="tag">Portfolio</span>
-          </div>
-          <a class="cta alt" data-game="stock" href="stock-simulator/index.html">Launch Stock Simulator</a>
-        </article>
-
-        <article class="card">
-          <div class="icon" aria-hidden="true">🎲</div>
-          <h3>Investnopoly</h3>
-          <p>
-            Learn strategic capital growth through a board-game style format that blends timing, opportunity cost, and long-horizon planning into one competitive simulation.
-          </p>
-          <div class="tags">
-            <span class="tag">Strategy</span>
-            <span class="tag">Compounding</span>
-            <span class="tag">Allocation</span>
-          </div>
-          <a class="cta risk" data-game="investnopoly" href="INVESTORPOLY.html">Launch Investnopoly</a>
-        </article>
-      </div>
+    <section class="legend">
+      Marker-style UI note: if motion feels intense, wait one second after click and redirect still proceeds automatically.
     </section>
-
-    <section class="section">
-      <h2>More Simulations In This Repo</h2>
-      <p>
-        Want more financial scenarios? These extra pages are included in deployment output too, so you can launch every simulation from one domain.
-      </p>
-
-      <div class="games">
-        <article class="card">
-          <div class="icon" aria-hidden="true">🧭</div>
-          <h3>Map Scene</h3>
-          <p>Explore the map-based simulation view and navigation flow used across the finance world experiments.</p>
-          <div class="tags">
-            <span class="tag">World</span>
-            <span class="tag">Navigation</span>
-          </div>
-          <a class="cta" href="Map.html">Open Map Scene</a>
-        </article>
-
-        <article class="card">
-          <div class="icon" aria-hidden="true">💼</div>
-          <h3>Tax Policy Simulator</h3>
-          <p>Test how changes in tax policy can affect growth, incentives, and long-term economic behavior.</p>
-          <div class="tags">
-            <span class="tag">Policy</span>
-            <span class="tag">Macro</span>
-          </div>
-          <a class="cta alt" href="tax_policy_simulator.html">Open Tax Policy Simulator</a>
-        </article>
-
-        <article class="card">
-          <div class="icon" aria-hidden="true">🏙️</div>
-          <h3>Tax Life Journey</h3>
-          <p>Walk through life-stage financial decisions and compare outcomes under different tax and income paths.</p>
-          <div class="tags">
-            <span class="tag">Lifecycle</span>
-            <span class="tag">Planning</span>
-          </div>
-          <a class="cta risk" href="tax_life_journey.html">Open Tax Life Journey</a>
-        </article>
-      </div>
-    </section>
-
-    <section class="analytics" aria-label="Page analytics">
-      <div class="analytics-head">
-        <h3>Hub Analytics (Local)</h3>
-        <button id="reset-analytics" class="reset-btn" type="button">Reset Metrics</button>
-      </div>
-      <div class="analytics-grid">
-        <div class="metric">
-          <span class="label">Page Views</span>
-          <span id="metric-page-views" class="value">0</span>
-        </div>
-        <div class="metric">
-          <span class="label">Total Launches</span>
-          <span id="metric-total-launches" class="value">0</span>
-        </div>
-        <div class="metric">
-          <span class="label">Bakery Launches</span>
-          <span id="metric-bakery" class="value">0</span>
-        </div>
-        <div class="metric">
-          <span class="label">Stock Launches</span>
-          <span id="metric-stock" class="value">0</span>
-        </div>
-        <div class="metric">
-          <span class="label">Investnopoly Launches</span>
-          <span id="metric-investnopoly" class="value">0</span>
-        </div>
-        <div class="metric">
-          <span class="label">Last Visit</span>
-          <span id="metric-last-visit" class="value">-</span>
-        </div>
-      </div>
-      <p class="analytics-note">Metrics are stored only in this browser via local storage. No external tracking service is used.</p>
-    </section>
-
-    <p class="footer">
-      Built to make finance more understandable, practical, and memorable through simulation-first learning.
-    </p>
   </main>
+
   <script>
     (function () {
-      var storageKey = "fls_hub_analytics_v1";
-      var defaultState = {
-        pageViews: 0,
-        totalLaunches: 0,
-        launches: {
-          bakery: 0,
-          stock: 0,
-          investnopoly: 0
-        },
-        lastVisit: ""
-      };
+      const machine = document.getElementById('teleport-machine');
+      const slot = document.getElementById('coin-slot');
+      const note = document.getElementById('machine-note');
+      const buttons = Array.from(document.querySelectorAll('.teleport-btn'));
+      let busy = false;
 
-      function loadState() {
-        try {
-          var saved = localStorage.getItem(storageKey);
-          if (!saved) return JSON.parse(JSON.stringify(defaultState));
-          var parsed = JSON.parse(saved);
-          return {
-            pageViews: Number(parsed.pageViews) || 0,
-            totalLaunches: Number(parsed.totalLaunches) || 0,
-            launches: {
-              bakery: Number(parsed.launches && parsed.launches.bakery) || 0,
-              stock: Number(parsed.launches && parsed.launches.stock) || 0,
-              investnopoly: Number(parsed.launches && parsed.launches.investnopoly) || 0
-            },
-            lastVisit: typeof parsed.lastVisit === "string" ? parsed.lastVisit : ""
-          };
-        } catch (err) {
-          return JSON.parse(JSON.stringify(defaultState));
+      function setBusyState(state) {
+        busy = state;
+        buttons.forEach((btn) => {
+          btn.disabled = state;
+        });
+      }
+
+      function coinFlight(startX, startY, endX, endY, onDone) {
+        const coin = document.createElement('div');
+        coin.className = 'coin';
+        document.body.appendChild(coin);
+
+        const controlX = (startX + endX) / 2;
+        const controlY = Math.min(startY, endY) - 180;
+        const start = performance.now();
+        const duration = 900;
+
+        function frame(now) {
+          const elapsed = now - start;
+          const t = Math.min(1, elapsed / duration);
+          const inv = 1 - t;
+          const x = (inv * inv * startX) + (2 * inv * t * controlX) + (t * t * endX);
+          const y = (inv * inv * startY) + (2 * inv * t * controlY) + (t * t * endY);
+          const spin = 720 * t;
+          const squash = 1 - Math.abs(0.5 - t) * 0.25;
+          coin.style.left = `${x}px`;
+          coin.style.top = `${y}px`;
+          coin.style.transform = `translate(-50%, -50%) rotate(${spin}deg) scale(${squash})`;
+
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            coin.remove();
+            onDone();
+          }
         }
+
+        requestAnimationFrame(frame);
       }
 
-      function saveState(state) {
-        localStorage.setItem(storageKey, JSON.stringify(state));
-      }
+      function launchSequence(button) {
+        if (busy) return;
+        setBusyState(true);
 
-      function formatDate(iso) {
-        if (!iso) return "-";
-        var date = new Date(iso);
-        if (Number.isNaN(date.getTime())) return "-";
-        return date.toLocaleString();
-      }
+        const target = button.dataset.target;
+        const name = button.dataset.name || 'project';
+        const btnRect = button.getBoundingClientRect();
+        const slotRect = slot.getBoundingClientRect();
+        const startX = btnRect.left + (btnRect.width / 2);
+        const startY = btnRect.top + (btnRect.height / 2);
+        const endX = slotRect.left + (slotRect.width / 2);
+        const endY = slotRect.top + (slotRect.height / 2);
 
-      function setText(id, value) {
-        var el = document.getElementById(id);
-        if (el) el.textContent = String(value);
-      }
+        note.textContent = `Minting teleport coin for ${name}...`;
 
-      function render(state) {
-        setText("metric-page-views", state.pageViews);
-        setText("metric-total-launches", state.totalLaunches);
-        setText("metric-bakery", state.launches.bakery);
-        setText("metric-stock", state.launches.stock);
-        setText("metric-investnopoly", state.launches.investnopoly);
-        setText("metric-last-visit", formatDate(state.lastVisit));
-      }
+        coinFlight(startX, startY, endX, endY, () => {
+          machine.classList.add('active');
+          note.textContent = `Coin accepted. Charging portal for ${name}...`;
 
-      var state = loadState();
-      state.pageViews += 1;
-      state.lastVisit = new Date().toISOString();
-      saveState(state);
-      render(state);
+          setTimeout(() => {
+            note.textContent = `Warping to ${name} now.`;
+          }, 500);
 
-      var launchLinks = document.querySelectorAll("a[data-game]");
-      launchLinks.forEach(function (link) {
-        link.addEventListener("click", function () {
-          var game = link.getAttribute("data-game");
-          if (!game || !state.launches.hasOwnProperty(game)) return;
-          state.launches[game] += 1;
-          state.totalLaunches += 1;
-          saveState(state);
-          render(state);
+          setTimeout(() => {
+            window.location.href = target;
+          }, 1200);
         });
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => launchSequence(button));
       });
-
-      var resetButton = document.getElementById("reset-analytics");
-      if (resetButton) {
-        resetButton.addEventListener("click", function () {
-          state = JSON.parse(JSON.stringify(defaultState));
-          state.pageViews = 1;
-          state.lastVisit = new Date().toISOString();
-          saveState(state);
-          render(state);
-        });
-      }
     })();
   </script>
 </body>

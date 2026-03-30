@@ -1502,6 +1502,7 @@ class CityRenderer {
         this.treeLayer = new PIXI.Container();
         this.furnitureLayer = new PIXI.Container();
         this.motorcycleLayer = new PIXI.Container();
+        this.pointerLayer = new PIXI.Container();
         
         // Main container
         this.world = new PIXI.Container();
@@ -1515,11 +1516,13 @@ class CityRenderer {
         this.world.addChild(this.treeLayer);
         this.world.addChild(this.furnitureLayer);
         this.world.addChild(this.motorcycleLayer);
+        this.world.addChild(this.pointerLayer);
         
         this.app.stage.addChild(this.world);
         
         // Interaction state
         this.buildingSprites = [];
+        this.setupPointerHitAreas = [];
     }
     
     render() {
@@ -1551,28 +1554,47 @@ class CityRenderer {
             g.endFill();
 
             if (MAP_MODE === 'setup') {
+                const pointerScale = 10;
                 const cx = lot.x + lot.width / 2;
-                const pointerY = lot.y - 36;
+                const pointerY = lot.y - (36 + 18 * (pointerScale - 1));
 
-                // Red pointer pin to highlight selectable locations.
-                g.beginFill(0xff2d2d, 0.95);
-                g.drawCircle(cx, pointerY, 18);
-                g.endFill();
-                g.beginFill(0xff2d2d, 0.9);
-                g.drawPolygon([
-                    cx - 10, pointerY + 10,
-                    cx + 10, pointerY + 10,
-                    cx, pointerY + 34
+                // Render pointer on the top-most world layer so it is never visually hidden.
+                const pointerVisual = new PIXI.Graphics();
+                pointerVisual.beginFill(0xff2d2d, 0.95);
+                pointerVisual.drawCircle(cx, pointerY, 18 * pointerScale);
+                pointerVisual.endFill();
+                pointerVisual.beginFill(0xff2d2d, 0.9);
+                pointerVisual.drawPolygon([
+                    cx - 10 * pointerScale, pointerY + 10 * pointerScale,
+                    cx + 10 * pointerScale, pointerY + 10 * pointerScale,
+                    cx, pointerY + 34 * pointerScale
                 ]);
-                g.endFill();
+                pointerVisual.endFill();
 
-                g.lineStyle(4, 0xff6a6a, 0.85);
-                g.drawCircle(cx, pointerY, 30);
-                g.lineStyle(3, 0xff9a9a, 0.7);
-                g.drawCircle(cx, pointerY, 44);
-                g.lineStyle(2, 0xffb0b0, 0.55);
-                g.drawCircle(cx, pointerY, 58);
-                g.lineStyle(0);
+                pointerVisual.lineStyle(4 * pointerScale, 0xff6a6a, 0.85);
+                pointerVisual.drawCircle(cx, pointerY, 30 * pointerScale);
+                pointerVisual.lineStyle(3 * pointerScale, 0xff9a9a, 0.7);
+                pointerVisual.drawCircle(cx, pointerY, 44 * pointerScale);
+                pointerVisual.lineStyle(2 * pointerScale, 0xffb0b0, 0.55);
+                pointerVisual.drawCircle(cx, pointerY, 58 * pointerScale);
+                pointerVisual.lineStyle(0);
+                this.pointerLayer.addChild(pointerVisual);
+
+                // Dedicated pointer click area so clicks on the pointer always select the lot.
+                const pointerHitArea = new PIXI.Graphics();
+                pointerHitArea.beginFill(0xffffff, 0.001);
+                pointerHitArea.drawCircle(cx, pointerY, 58 * pointerScale);
+                pointerHitArea.drawPolygon([
+                    cx - 10 * pointerScale, pointerY + 10 * pointerScale,
+                    cx + 10 * pointerScale, pointerY + 10 * pointerScale,
+                    cx, pointerY + 34 * pointerScale
+                ]);
+                pointerHitArea.endFill();
+                pointerHitArea.eventMode = 'static';
+                pointerHitArea.cursor = 'pointer';
+                pointerHitArea.buildingData = lot;
+                this.pointerLayer.addChild(pointerHitArea);
+                this.setupPointerHitAreas.push(pointerHitArea);
             }
 
             this.lotLayer.addChild(g);
@@ -2944,6 +2966,21 @@ class CityMapApp {
     }
 
     findObjectAtPosition(worldX, worldY, screenX = null, screenY = null) {
+        if (screenX !== null && screenY !== null && this.setupMode && this.renderer?.setupPointerHitAreas?.length) {
+            for (let i = this.renderer.setupPointerHitAreas.length - 1; i >= 0; i--) {
+                const sprite = this.renderer.setupPointerHitAreas[i];
+                const bounds = sprite.getBounds();
+                if (
+                    screenX >= bounds.x &&
+                    screenX <= bounds.x + bounds.width &&
+                    screenY >= bounds.y &&
+                    screenY <= bounds.y + bounds.height
+                ) {
+                    return sprite.buildingData;
+                }
+            }
+        }
+
         if (this.cityGenerator?.openLots?.length) {
             for (let i = this.cityGenerator.openLots.length - 1; i >= 0; i--) {
                 const lot = this.cityGenerator.openLots[i];

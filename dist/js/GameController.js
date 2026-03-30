@@ -43,6 +43,17 @@ class GameController {
         this.timeManager = null;
         this.notificationSystem = null;
         this.staffManager = null;
+        this.loopCoachState = {
+            computerVisited: false,
+            staffHired: false,
+            strategyVisited: false,
+            ovenVisited: false,
+            registerVisited: false,
+            salesObserved: false
+        };
+        this.loopCoachPanel = null;
+        this.loopCoachBodyEl = null;
+        this.loopCoachDrag = null;
 
         this.init();
     }
@@ -84,8 +95,182 @@ class GameController {
         this.initializeStrategyLayer();
         this.updateAutomationAvailability();
         this.renderAutomationFeed();
+        this.initLoopCoach();
         this.setupWindowResizeHandler();
         this.showMainMenu();
+    }
+
+    initLoopCoach() {
+        if (typeof document === 'undefined' || this.loopCoachPanel) return;
+
+        const panel = document.createElement('aside');
+        panel.id = 'game-loop-coach';
+        panel.style.position = 'fixed';
+        panel.style.right = '24px';
+        panel.style.bottom = '24px';
+        panel.style.width = '340px';
+        panel.style.maxWidth = 'calc(100vw - 24px)';
+        panel.style.maxHeight = '44vh';
+        panel.style.display = 'none';
+        panel.style.zIndex = '4600';
+        panel.style.borderRadius = '14px';
+        panel.style.border = '1px solid rgba(255, 214, 153, 0.42)';
+        panel.style.background = 'linear-gradient(165deg, rgba(28,19,13,0.96), rgba(18,13,9,0.96))';
+        panel.style.boxShadow = '0 16px 35px rgba(0,0,0,0.5)';
+        panel.style.color = '#f8e6c9';
+        panel.style.fontFamily = 'Inter, sans-serif';
+        panel.style.userSelect = 'none';
+        panel.style.overflow = 'hidden';
+
+        const header = document.createElement('div');
+        header.textContent = 'Gameplay Coach';
+        header.style.padding = '10px 12px';
+        header.style.fontSize = '13px';
+        header.style.fontWeight = '700';
+        header.style.letterSpacing = '0.04em';
+        header.style.textTransform = 'uppercase';
+        header.style.background = 'rgba(255, 214, 153, 0.1)';
+        header.style.borderBottom = '1px solid rgba(255, 214, 153, 0.25)';
+        header.style.cursor = 'grab';
+
+        const body = document.createElement('div');
+        body.style.padding = '12px 12px 13px';
+        body.style.fontSize = '13px';
+        body.style.lineHeight = '1.45';
+        body.style.overflowY = 'auto';
+        body.style.maxHeight = 'calc(44vh - 42px)';
+
+        panel.appendChild(header);
+        panel.appendChild(body);
+        document.body.appendChild(panel);
+
+        this.loopCoachPanel = panel;
+        this.loopCoachBodyEl = body;
+
+        const setGrab = (isDragging) => {
+            header.style.cursor = isDragging ? 'grabbing' : 'grab';
+        };
+
+        const startDrag = (clientX, clientY) => {
+            const rect = panel.getBoundingClientRect();
+            panel.style.left = `${rect.left}px`;
+            panel.style.top = `${rect.top}px`;
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+            this.loopCoachDrag = {
+                offsetX: clientX - rect.left,
+                offsetY: clientY - rect.top
+            };
+            setGrab(true);
+        };
+
+        const moveDrag = (clientX, clientY) => {
+            if (!this.loopCoachDrag) return;
+            const panelRect = panel.getBoundingClientRect();
+            const width = panelRect.width;
+            const height = panelRect.height;
+            const nextLeft = Math.min(
+                window.innerWidth - width - 8,
+                Math.max(8, clientX - this.loopCoachDrag.offsetX)
+            );
+            const nextTop = Math.min(
+                window.innerHeight - height - 8,
+                Math.max(8, clientY - this.loopCoachDrag.offsetY)
+            );
+            panel.style.left = `${nextLeft}px`;
+            panel.style.top = `${nextTop}px`;
+        };
+
+        const endDrag = () => {
+            this.loopCoachDrag = null;
+            setGrab(false);
+        };
+
+        header.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startDrag(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!this.loopCoachDrag) return;
+            moveDrag(e.clientX, e.clientY);
+        });
+        document.addEventListener('mouseup', endDrag);
+
+        header.addEventListener('touchstart', (e) => {
+            if (!e.touches || e.touches.length === 0) return;
+            const t = e.touches[0];
+            startDrag(t.clientX, t.clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!this.loopCoachDrag || !e.touches || e.touches.length === 0) return;
+            const t = e.touches[0];
+            moveDrag(t.clientX, t.clientY);
+        }, { passive: true });
+        document.addEventListener('touchend', endDrag, { passive: true });
+
+        this.refreshLoopCoach();
+    }
+
+    markLoopCoachProgress(key, value = true) {
+        if (!this.loopCoachState || !Object.prototype.hasOwnProperty.call(this.loopCoachState, key)) return;
+        this.loopCoachState[key] = value;
+        this.refreshLoopCoach();
+    }
+
+    refreshLoopCoach() {
+        if (!this.loopCoachPanel || !this.loopCoachBodyEl) return;
+
+        const inOperationPhase = this.currentPhase === 'hub' && document.body.classList.contains('in-bakery-env');
+        if (!inOperationPhase) {
+            this.loopCoachPanel.style.display = 'none';
+            return;
+        }
+
+        this.loopCoachPanel.style.display = 'block';
+
+        if ((this.engine?.staff || []).length > 0) {
+            this.loopCoachState.staffHired = true;
+        }
+        if ((this.engine?.dailyStats?.customersServed || 0) > 0 || (this.engine?.dailyStats?.revenue || 0) > 0) {
+            this.loopCoachState.salesObserved = true;
+        }
+
+        const s = this.loopCoachState;
+        let focusText = '1) Go to computer.';
+
+        if (s.computerVisited && !s.staffHired) {
+            focusText = '2) Hire employee so automation can assist with operations.';
+        } else if (s.computerVisited && s.staffHired && !s.strategyVisited) {
+            focusText = '3) In computer, open Strategy panel. Suggested: Growth Push + max inventory coverage.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && !s.ovenVisited) {
+            focusText = '4) Go to oven to bake or observe baking automation.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && s.ovenVisited && !s.registerVisited) {
+            focusText = '5) Go to cash register and press E.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && s.ovenVisited && s.registerVisited && !s.salesObserved) {
+            focusText = '6) Observe sales and walk around to watch employees work autonomously.';
+        } else if (s.computerVisited && s.staffHired && s.strategyVisited && s.ovenVisited && s.registerVisited && s.salesObserved) {
+            focusText = '7) End day and repeat the loop.';
+        }
+
+        const done = 'color:#6fe8a2;';
+        const todo = 'color:#ffd8a8;';
+        this.loopCoachBodyEl.innerHTML = `
+            <div style="font-weight:700; color:#fff1d8; margin-bottom:8px;">Current guidance</div>
+            <div style="padding:10px; border-radius:10px; border:1px solid rgba(255,214,153,0.24); background:rgba(255,214,153,0.08); margin-bottom:10px; color:#ffe8c4;">
+                ${focusText}
+            </div>
+            <div style="font-size:12px; opacity:0.95;">
+                <div style="${s.computerVisited ? done : todo}">• Go to computer</div>
+                <div style="${s.staffHired ? done : todo}">• Hire employee to unlock automation support</div>
+                <div style="${s.strategyVisited ? done : todo}">• Modify Strategy: Growth Push + max inventory coverage</div>
+                <div style="${s.ovenVisited ? done : todo}">• Go to oven to bake / observe automation</div>
+                <div style="${s.registerVisited ? done : todo}">• Go to cash register and press E</div>
+                <div style="${s.salesObserved ? done : todo}">• Observe autonomous sales and staff movement</div>
+                <div style="${s.salesObserved ? done : todo}">• End day and repeat</div>
+            </div>
+        `;
     }
     
     setupWindowResizeHandler() {
@@ -1088,6 +1273,7 @@ class GameController {
         this.stopSellingLoop();
         this.closeOverlayPanel();
         this.currentPhase = 'menu';
+        this.refreshLoopCoach();
 
         // Remove bakery environment mode
         document.body.classList.remove('in-bakery-env');
@@ -1121,6 +1307,15 @@ class GameController {
                 </div>
                 
                 <div class="menu-buttons relative z-10 flex flex-col gap-4 w-full max-w-md">
+                    <div id="input-mode-panel" style="background:rgba(12,12,12,0.55); border:1px solid rgba(255,206,120,0.28); border-radius:12px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="font-size:12px; color:rgba(255,236,198,0.85); letter-spacing:0.04em; text-transform:uppercase; margin-bottom:8px;">Choose Controls</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <button id="btn-mode-computer" type="button" style="padding:10px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.22); background:rgba(255,255,255,0.06); color:#fff3dd; font-size:13px; font-weight:600; cursor:pointer;">🖥️ Computer</button>
+                            <button id="btn-mode-mobile" type="button" style="padding:10px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.22); background:rgba(255,255,255,0.06); color:#fff3dd; font-size:13px; font-weight:600; cursor:pointer;">📱 Mobile</button>
+                        </div>
+                        <div id="input-mode-hint" style="font-size:11px; color:rgba(255,236,198,0.65); margin-top:8px;">Select a control mode before starting.</div>
+                    </div>
+
                     <button class="menu-btn group relative overflow-hidden bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white p-1 rounded-xl shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl" 
                             id="btn-new-game" role="button" tabindex="0" aria-label="Start a new game">
                         <div class="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
@@ -1144,16 +1339,6 @@ class GameController {
                         </div>
                     </button>
 
-                    <button class="menu-btn group relative overflow-hidden bg-stone-800 hover:bg-stone-700 text-white p-1 rounded-xl shadow-lg transform transition-all hover:scale-105" 
-                            id="btn-tutorial" role="button" tabindex="0" aria-label="Open tutorial">
-                        <div class="bg-stone-900/80 rounded-lg p-4 flex items-center gap-4 border border-stone-600 group-hover:border-stone-500 transition-colors">
-                            <span class="text-3xl group-hover:scale-110 transition-transform">📖</span>
-                            <div class="text-left">
-                                <div class="text-xl font-bold text-stone-200">How to Play</div>
-                                <div class="text-xs text-stone-500 uppercase tracking-wider">Mechanics & Tips</div>
-                            </div>
-                        </div>
-                    </button>
                 </div>
                 
                 <div class="menu-info relative z-10 mt-12 text-center opacity-60 hover:opacity-100 transition-opacity">
@@ -1264,7 +1449,78 @@ class GameController {
 
         const btnNew = wireButton('btn-new-game', () => this.startNewGame());
         const btnContinue = wireButton('btn-continue', () => this.loadAndStart());
-        const btnTut = wireButton('btn-tutorial', () => this.showTutorial());
+
+        const modeComputerBtn = document.getElementById('btn-mode-computer');
+        const modeMobileBtn = document.getElementById('btn-mode-mobile');
+        const modeHint = document.getElementById('input-mode-hint');
+        const defaultMode = localStorage.getItem('bakery_input_mode');
+        let selectedMode = (defaultMode === 'mobile' || defaultMode === 'computer') ? defaultMode : null;
+
+        const setButtonEnabled = (btn, enabled) => {
+            if (!btn) return;
+            btn.style.pointerEvents = enabled ? 'auto' : 'none';
+            btn.style.opacity = enabled ? '1' : '0.55';
+            btn.style.filter = enabled ? 'none' : 'grayscale(0.25)';
+        };
+
+        const applyModeUi = () => {
+            if (modeComputerBtn) {
+                const active = selectedMode === 'computer';
+                modeComputerBtn.style.borderColor = active ? 'rgba(250, 215, 120, 0.9)' : 'rgba(255,255,255,0.22)';
+                modeComputerBtn.style.background = active ? 'rgba(255,195,90,0.22)' : 'rgba(255,255,255,0.06)';
+            }
+            if (modeMobileBtn) {
+                const active = selectedMode === 'mobile';
+                modeMobileBtn.style.borderColor = active ? 'rgba(250, 215, 120, 0.9)' : 'rgba(255,255,255,0.22)';
+                modeMobileBtn.style.background = active ? 'rgba(255,195,90,0.22)' : 'rgba(255,255,255,0.06)';
+            }
+
+            const ready = !!selectedMode;
+            setButtonEnabled(btnNew, ready);
+            setButtonEnabled(btnContinue, ready);
+
+            if (modeHint) {
+                modeHint.textContent = ready
+                    ? `Selected: ${selectedMode === 'mobile' ? 'Mobile' : 'Computer'} controls.`
+                    : 'Select a control mode before starting.';
+            }
+        };
+
+        const setInputMode = (mode) => {
+            selectedMode = mode;
+            if (window._setInputMode) {
+                window._setInputMode(mode);
+            } else {
+                localStorage.setItem('bakery_input_mode', mode);
+                document.body.classList.toggle('is-touch-device', mode === 'mobile');
+            }
+            applyModeUi();
+        };
+
+        if (modeComputerBtn) modeComputerBtn.onclick = () => setInputMode('computer');
+        if (modeMobileBtn) modeMobileBtn.onclick = () => setInputMode('mobile');
+
+        if (btnNew) {
+            const original = btnNew.onclick;
+            btnNew.onclick = (e) => {
+                if (!selectedMode) return;
+                original(e);
+            };
+        }
+        if (btnContinue) {
+            const original = btnContinue.onclick;
+            btnContinue.onclick = (e) => {
+                if (!selectedMode) return;
+                original(e);
+            };
+        }
+
+        if (selectedMode) {
+            if (window._setInputMode) {
+                window._setInputMode(selectedMode);
+            }
+        }
+        applyModeUi();
 
         // Reveal continue when a save exists
         const save = localStorage.getItem('bakery_save');
@@ -2140,6 +2396,7 @@ class GameController {
         this.startHUDLoop();
         this.checkForScenarios();
         this.updateBakeryHUD();
+        this.refreshLoopCoach();
     }
 
     // -- HUD sync loop --
@@ -2294,6 +2551,7 @@ class GameController {
         bodyEl.innerHTML = bodyHtml;
         panel.classList.add('open');
         window.dispatchEvent(new Event('bakery:overlay-opened'));
+        this.refreshLoopCoach();
     }
 
     closeOverlayPanel() {
@@ -2309,6 +2567,7 @@ class GameController {
         }
         window.dispatchEvent(new Event('bakery:overlay-closed'));
         this.updateBakeryHUD();
+        this.refreshLoopCoach();
     }
 
     // -- Interaction router --
@@ -2382,6 +2641,7 @@ class GameController {
 
     // ---- COMPUTER PANEL (Buying / Finances / Upgrades / Market / Staff / Strategy) ----
     showComputerPanel() {
+        this.markLoopCoachProgress('computerVisited', true);
         const tabs = [
             { id: 'buy',       label: '📦 Buy Supplies' },
             { id: 'finance',   label: '📊 Finances' },
@@ -2417,6 +2677,10 @@ class GameController {
     renderComputerTab(tab) {
         const el = document.getElementById(`computer-tab-${tab}`);
         if (!el) return;
+
+        if (tab === 'strategy') {
+            this.markLoopCoachProgress('strategyVisited', true);
+        }
 
         switch (tab) {
             case 'buy': this.renderBuyingTab(el); break;
@@ -2689,6 +2953,7 @@ class GameController {
 
     // ---- OVEN / BAKING PANEL ----
     showOvenPanel() {
+        this.markLoopCoachProgress('ovenVisited', true);
         const bodyHtml = `
             <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <span style="color:rgba(255,255,255,0.6); font-size:13px;">Time Speed:</span>
@@ -2840,6 +3105,7 @@ class GameController {
 
     // ---- REGISTER / SELLING PANEL ----
     showRegisterPanel() {
+        this.markLoopCoachProgress('registerVisited', true);
         this.engine.isPaused = false;
         this.activeCustomers = [];
 
@@ -4271,17 +4537,27 @@ class GameController {
         return 'Frustrated';
     }
 
-    createCustomerCart(availableItems, customerMood, segment, customerPreferences = null, budgetCap = null, primaryItem = null) {
+    createCustomerCart(availableItems, customerMood, segment, customerPreferences = null, budgetCap = null, primaryItem = null, ingredientPreference = null) {
         if (!Array.isArray(availableItems) || availableItems.length === 0) return [];
 
         const aestheticBoost = Math.max(0.75, Math.min(1.35, this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1));
         const segmentBoost = segment?.icon === '⭐' ? 1 : 0;
+        const preferredIngredientKey = ingredientPreference?.active ? ingredientPreference.ingredientKey : null;
+        const itemHasPreferredIngredient = (itemKey) => {
+            if (!preferredIngredientKey) return false;
+            return !!GAME_CONFIG.RECIPES[itemKey]?.ingredients?.[preferredIngredientKey];
+        };
         const preferredCount = Math.max(1, Math.min(4, Math.round(1 + (aestheticBoost - 0.75) * 2 + segmentBoost + Math.random() * 1.4)));
 
         const pool = [...availableItems].sort(() => Math.random() - 0.5);
         const selectedSet = new Set(pool.slice(0, Math.min(preferredCount, pool.length)));
         if (primaryItem && availableItems.includes(primaryItem)) {
             selectedSet.add(primaryItem);
+        }
+        const preferredPool = preferredIngredientKey ? availableItems.filter(itemHasPreferredIngredient) : [];
+        const hasPreferredItem = Array.from(selectedSet).some(itemHasPreferredIngredient);
+        if (!hasPreferredItem && preferredPool.length > 0 && Math.random() < 0.82) {
+            selectedSet.add(preferredPool[Math.floor(Math.random() * preferredPool.length)]);
         }
 
         const draftedCart = Array.from(selectedSet).map(itemKey => {
@@ -4292,13 +4568,17 @@ class GameController {
 
             const baseQty = 1 + Math.floor(Math.random() * 2);
             const quantitySegmentBoost = segment?.icon === '⭐' ? 1 : 0;
-            const quantity = Math.max(1, Math.min(stock, baseQty + quantitySegmentBoost));
+            const preferenceQtyBoost = itemHasPreferredIngredient(itemKey)
+                ? Math.max(0, Math.round((ingredientPreference?.cartBoost || 0.25) * (0.6 + Math.random())))
+                : 0;
+            const quantity = Math.max(1, Math.min(stock, baseQty + quantitySegmentBoost + preferenceQtyBoost));
 
             return {
                 recipeKey: itemKey,
                 quantity,
                 unitPrice,
-                quality
+                quality,
+                preferenceMatch: itemHasPreferredIngredient(itemKey)
             };
         }).filter(line => line.quantity > 0);
 
@@ -4309,6 +4589,8 @@ class GameController {
         let remainingBudget = budgetCap;
         const affordableCart = [];
         const prioritized = [...draftedCart].sort((a, b) => {
+            if (a.preferenceMatch && !b.preferenceMatch) return -1;
+            if (b.preferenceMatch && !a.preferenceMatch) return 1;
             if (a.recipeKey === primaryItem) return -1;
             if (b.recipeKey === primaryItem) return 1;
             return a.unitPrice - b.unitPrice;
@@ -4499,6 +4781,9 @@ class GameController {
         const segmentDesc = customer.segment?.description || '';
         const state = customer.state || 'waiting';
         const orderLine = customer.orderMessage || (recipe ? `I'll take the ${recipe.name}!` : 'Looking around...');
+        const preferenceLine = customer?.ingredientPreference?.active
+            ? `${customer.ingredientPreference.icon || '🧂'} prefers ${customer.ingredientPreference.ingredientName}`
+            : '';
 
         if (state === 'success') {
             return `
@@ -4542,6 +4827,7 @@ class GameController {
                 </div>
                 <div class="customer-dialogue">"${customer.greeting || 'Hello!'}"</div>
                 <div class="customer-order">"${orderLine}"</div>
+                ${preferenceLine ? `<div style="margin-bottom:8px; font-size:11px; color:#ffe6a7; letter-spacing:0.03em;">${preferenceLine}</div>` : ''}
                 <div style="background:rgba(255,255,255,0.12); border-radius:16px; padding:10px 12px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.25);">
                     <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; opacity:0.8; margin-bottom:6px;">💬 Cart Bubble</div>
                     <div style="font-size:12px; display:flex; flex-direction:column; gap:4px;">${cartLines}</div>
@@ -4725,6 +5011,13 @@ class GameController {
         // Get customer mood for preference filtering
         const customerMood = customerData.currentMood || 50;
         const customerPreferences = customerData.preferences || null;
+        const ingredientPreference = customerData?.ingredientPreference?.active
+            ? customerData.ingredientPreference
+            : null;
+        const customerPurchaseProfile = {
+            ...(customerPreferences || {}),
+            ingredientPreference
+        };
 
         // Find available products that this customer segment is willing to buy
         const available = Object.entries(this.engine.products)
@@ -4737,7 +5030,7 @@ class GameController {
                 const priceMultiplier = this.engine.getQualityPriceMultiplier(quality);
                 const currentPrice = this.engine.getRecipeBasePrice(key) * priceMultiplier;
 
-                return this.engine.willCustomerBuy(key, segment, currentPrice, customerMood, customerPreferences);
+                return this.engine.willCustomerBuy(key, segment, currentPrice, customerMood, customerPurchaseProfile);
             })
             .map(([key]) => key);
 
@@ -4753,13 +5046,20 @@ class GameController {
         }
         
         if (!wantsItem && available.length > 0) {
+            const preferredMatches = ingredientPreference?.ingredientKey
+                ? available.filter(itemKey => !!GAME_CONFIG.RECIPES[itemKey]?.ingredients?.[ingredientPreference.ingredientKey])
+                : [];
+            if (preferredMatches.length > 0 && Math.random() < 0.74) {
+                wantsItem = preferredMatches[Math.floor(Math.random() * preferredMatches.length)];
+            }
+
             const toppingFriendly = this.engine.getToppingScore
                 ? available.filter(key => this.engine.getToppingScore(key) > 0)
                 : [];
             const appeal = this.engine.getMenuAppealMultiplier ? this.engine.getMenuAppealMultiplier() : 1;
-            if (toppingFriendly.length > 0 && Math.random() < Math.min(0.8, Math.max(0, appeal - 0.8))) {
+            if (!wantsItem && toppingFriendly.length > 0 && Math.random() < Math.min(0.8, Math.max(0, appeal - 0.8))) {
                 wantsItem = toppingFriendly[Math.floor(Math.random() * toppingFriendly.length)];
-            } else {
+            } else if (!wantsItem) {
                 wantsItem = available[Math.floor(Math.random() * available.length)];
             }
         } else if (!wantsItem) {
@@ -4821,11 +5121,15 @@ class GameController {
         }
 
         const orderDialogues = GAME_CONFIG.CUSTOMER_DIALOGUES.ordering;
-        const orderMsg = orderDialogues[Math.floor(Math.random() * orderDialogues.length)]
+        const orderMsgBase = orderDialogues[Math.floor(Math.random() * orderDialogues.length)]
             .replace('{item}', GAME_CONFIG.RECIPES[wantsItem]?.name || wantsItem);
+        const preferencePrompt = ingredientPreference
+            ? `${ingredientPreference.icon || '🧂'} Anything with ${ingredientPreference.ingredientName} today?`
+            : '';
+        const orderMsg = preferencePrompt ? `${preferencePrompt} ${orderMsgBase}` : orderMsgBase;
 
         const budgetCap = Number(customerData?.willingnessToPay?.base) || Number(customerData?.willingnessToPay?.priceRange?.[1]) || null;
-        const cart = this.createCustomerCart(available, customerMood, segment, customerPreferences, budgetCap, wantsItem);
+        const cart = this.createCustomerCart(available, customerMood, segment, customerPreferences, budgetCap, wantsItem, ingredientPreference);
         if (!cart.length) {
             this.engine.missedCustomer();
             this.customerFlowSignals.recentWalkouts++;
@@ -4854,6 +5158,7 @@ class GameController {
             shoppingCart: cart,
             cartTotal,
             cartSummary: this.summarizeCart(cart),
+            ingredientPreference,
             queueStartedAt: performance.now(),
             maxWaitMs: queuePatienceSeconds * 1000,
             satisfactionNow: Math.max(35, Math.min(100, customerData.satisfaction || 74)),
@@ -4948,7 +5253,7 @@ class GameController {
                 soldLines.forEach(line => {
                     const quality = line.result.quality || 100;
                     const price = line.result.revenue || 0;
-                    this.customerDB.processPurchase(dbCustomer, line.recipeKey, price, quality);
+                    this.customerDB.processPurchase(dbCustomer, line.recipeKey, price, quality, line.quantity || 1);
                 });
             }
         }
@@ -4957,8 +5262,17 @@ class GameController {
         const primaryRecipe = GAME_CONFIG.RECIPES[soldLines[0].recipeKey];
         const msg = happyDialogues[Math.floor(Math.random() * happyDialogues.length)]
             .replace('{item}', primaryRecipe?.name || soldLines[0].recipeKey);
-        const moodFace = topAppeal?.moodEmoji || '😊';
-        const moodLine = topAppeal?.moodMessage || msg;
+        let moodFace = topAppeal?.moodEmoji || '😊';
+        let moodLine = topAppeal?.moodMessage || msg;
+        const preferredKey = customer?.ingredientPreference?.active ? customer.ingredientPreference.ingredientKey : null;
+        if (preferredKey) {
+            const preferenceFulfilled = soldLines.some(line => !!GAME_CONFIG.RECIPES[line.recipeKey]?.ingredients?.[preferredKey]);
+            if (preferenceFulfilled) {
+                const prefName = customer.ingredientPreference.ingredientName || 'that ingredient';
+                moodFace = '😍';
+                moodLine = `Perfect, that ${prefName} flavor was exactly what I wanted!`;
+            }
+        }
         const avgQuality = totalQty > 0 ? (weightedQuality / totalQty) : 100;
 
         customer.state = 'success';
@@ -5066,6 +5380,10 @@ class GameController {
         // Update overlay time display
         const oTime = document.getElementById('overlay-sell-time');
         if (oTime) oTime.textContent = this.engine.getTimeString();
+
+        if ((this.engine.dailyStats?.customersServed || 0) > 0 || (this.engine.dailyStats?.revenue || 0) > 0) {
+            this.markLoopCoachProgress('salesObserved', true);
+        }
 
         this.updateStats();
     }
@@ -5553,10 +5871,15 @@ class GameController {
         const popup = document.createElement('div');
         popup.className = `game-popup ${options.type || 'info'}`;
 
+        const defaultButtons = (!options.buttons && !options.autoClose)
+            ? [{ text: 'Dismiss', action: 'close', style: 'primary' }]
+            : null;
+        const popupButtons = options.buttons || defaultButtons;
+
         let buttonsHtml = '';
-        if (options.buttons) {
+        if (popupButtons) {
             buttonsHtml = `<div class="popup-buttons">
-                ${options.buttons.map(btn => `
+                ${popupButtons.map(btn => `
                     <button class="popup-btn ${btn.style || 'primary'}" data-action="${btn.text}">
                         ${btn.text}
                     </button>
@@ -5583,6 +5906,30 @@ class GameController {
             { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: 'elastic.out(1, 0.75)' }
         );
 
+        const closePopup = (callback) => {
+            gsap.to(popup, {
+                scale: 0.8,
+                opacity: 0,
+                duration: 0.2,
+                onComplete: () => {
+                    overlay.remove();
+                    if (typeof callback === 'function') callback();
+                }
+            });
+        };
+
+        const escHandler = (e) => {
+            if (e.key !== 'Escape') return;
+            document.removeEventListener('keydown', escHandler);
+            closePopup();
+        };
+        document.addEventListener('keydown', escHandler);
+        overlay.addEventListener('click', (e) => {
+            if (e.target !== overlay) return;
+            document.removeEventListener('keydown', escHandler);
+            closePopup();
+        });
+
         // Typing effect
         if (options.typingEffect && window.gsap && window.TextPlugin) {
             gsap.to(popup.querySelector('.popup-message'), {
@@ -5594,17 +5941,13 @@ class GameController {
         }
 
         // Button handlers
-        if (options.buttons) {
+        if (popupButtons) {
             popup.querySelectorAll('.popup-btn').forEach((btn, i) => {
                 btn.onclick = () => {
-                    const action = options.buttons[i].action;
-                    // Animate out
-                    gsap.to(popup, {
-                        scale: 0.8, opacity: 0, duration: 0.2,
-                        onComplete: () => {
-                            overlay.remove();
-                            if (typeof action === 'function') action();
-                        }
+                    const action = popupButtons[i].action;
+                    document.removeEventListener('keydown', escHandler);
+                    closePopup(() => {
+                        if (typeof action === 'function') action();
                     });
                 };
             });
@@ -5616,7 +5959,10 @@ class GameController {
                 if (overlay.parentNode) {
                     gsap.to(popup, {
                         scale: 0.5, opacity: 0, duration: 0.2,
-                        onComplete: () => overlay.remove()
+                        onComplete: () => {
+                            document.removeEventListener('keydown', escHandler);
+                            overlay.remove();
+                        }
                     });
                 }
             }, options.autoClose);
@@ -6030,6 +6376,7 @@ class GameController {
 
         const result = this.engine.hireStaff(staffConfig);
         if (result.success) {
+            this.markLoopCoachProgress('staffHired', true);
             this.updateAutomationAvailability();
             
             // Phase 1: Labor cost consequence - warn if labor costs are getting high
@@ -6654,6 +7001,7 @@ class GameController {
         const analytics = this.customerDB.getAnalytics();
         const topCustomers = this.customerDB.getTopCustomers(10);
         const atRisk = this.customerDB.getAtRiskCustomers();
+        const ingredientInsights = this.customerDB.getIngredientInsights(10);
         
         const panel = document.createElement('div');
         panel.className = 'modal-overlay';
@@ -6691,7 +7039,7 @@ class GameController {
                             <div style="font-size: 32px; font-weight: bold;">${analytics.churnRate}</div>
                             <div style="font-size: 11px; opacity: 0.8;">At risk: ${atRisk.length}</div>
                         </div>
-                        <div class="analytics-card" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); padding: 20px; border-radius: 12px; color: #333;">
+                        <div class="analytics-card" style="background: linear-gradient(135deg, #4b2d17 0%, #7a3f1b 100%); padding: 20px; border-radius: 12px; color: #fff; border: 1px solid rgba(255,255,255,0.22);">
                             <div style="font-size: 12px; opacity: 0.9;">Loyalty Members</div>
                             <div style="font-size: 24px; font-weight: bold;">
                                 🥇${analytics.loyaltyDistribution.gold || 0} 
@@ -6764,7 +7112,7 @@ class GameController {
                                             <td style="padding: 12px; text-align: center;">${cust.visits}</td>
                                             <td style="padding: 12px; text-align: center; font-weight: 600;">$${cust.totalSpent.toFixed(2)}</td>
                                             <td style="padding: 12px; text-align: center;">
-                                                <div style="display: inline-block; padding: 4px 8px; border-radius: 12px; background: ${cust.satisfaction >= 80 ? '#d4edda' : cust.satisfaction >= 60 ? '#fff3cd' : '#f8d7da'}; color: ${cust.satisfaction >= 80 ? '#155724' : cust.satisfaction >= 60 ? '#856404' : '#721c24'};">
+                                                <div style="display: inline-block; padding: 4px 8px; border-radius: 12px; background: ${cust.satisfaction >= 80 ? '#1f6b43' : cust.satisfaction >= 60 ? '#7a5a08' : '#7d1f2b'}; color: #ffffff; font-weight: 600;">
                                                     ${cust.satisfaction.toFixed(0)}%
                                                 </div>
                                             </td>
@@ -6775,6 +7123,42 @@ class GameController {
                                     `).join('')}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- Ingredient Demand Trends -->
+                    <div class="ingredient-trend-section" style="margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">🧪 Ingredient Preference Trends</h3>
+                        <div style="background: #111827; color: #f9fafb; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead style="background: #1f2937;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left;">Ingredient</th>
+                                        <th style="padding: 12px; text-align: center;">Units Sold</th>
+                                        <th style="padding: 12px; text-align: center;">Preference Share</th>
+                                        <th style="padding: 12px; text-align: center;">Revenue Signal</th>
+                                        <th style="padding: 12px; text-align: center;">Pricing Hint</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ingredientInsights.map(insight => `
+                                        <tr style="border-top: 1px solid #334155;">
+                                            <td style="padding: 12px;">${insight.icon} ${insight.ingredientName}</td>
+                                            <td style="padding: 12px; text-align: center; font-weight: 600;">${insight.unitsSold.toFixed(1)}</td>
+                                            <td style="padding: 12px; text-align: center;">${(insight.preferenceShare * 100).toFixed(1)}%</td>
+                                            <td style="padding: 12px; text-align: center;">$${insight.revenue.toFixed(2)}</td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <span style="display:inline-block; padding:4px 8px; border-radius:999px; background:${insight.guidance.includes('+5%') ? '#14532d' : insight.guidance.includes('low') ? '#7f1d1d' : '#1e3a8a'}; color:#fff;">
+                                                    ${insight.guidance}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 8px;">
+                            Customers with ingredient preferences are sampled automatically, so these trends can guide pricing on both default and custom recipes.
                         </div>
                     </div>
                     
@@ -6849,6 +7233,14 @@ class GameController {
                         <p><strong>Current Satisfaction:</strong> ${customer.satisfaction.toFixed(0)}%</p>
                         <p><strong>Return Probability:</strong> ${(customer.returnProbability * 100).toFixed(0)}%</p>
                         <p><strong>Churn Risk:</strong> ${(customer.churnRisk * 100).toFixed(0)}%</p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <h4>🧪 Ingredient Preference</h4>
+                        ${customer?.ingredientPreference?.active
+                ? `<p><strong>Likes:</strong> ${customer.ingredientPreference.icon || '🧂'} ${customer.ingredientPreference.ingredientName}</p>
+                               <p><strong>Buying Boost:</strong> x${customer.ingredientPreference.buyBoost || 1}</p>`
+                : '<p style="opacity:0.75;">No specific ingredient preference recorded.</p>'}
                     </div>
                     
                     ${customer.favoriteItems.length > 0 ? `

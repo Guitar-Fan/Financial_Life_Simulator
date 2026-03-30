@@ -665,18 +665,27 @@ class FinancialEngine {
         // Check ingredient preferences based on mood
         let ingredientAppeal = 1.0;
         if (customerPreferences && recipe.ingredients) {
+            const explicitPreference = customerPreferences.ingredientPreference;
+            const preferredIngredientKey = explicitPreference?.active ? explicitPreference.ingredientKey : null;
+            if (preferredIngredientKey) {
+                const hasExplicitPreferredIngredient = !!recipe.ingredients[preferredIngredientKey];
+                const buyBoost = Number(explicitPreference.buyBoost) || 1.2;
+                ingredientAppeal *= hasExplicitPreferredIngredient ? buyBoost : 0.92;
+            }
+
             // Customers in good mood prefer sweet ingredients
             // Customers in bad mood prefer comfort/savory ingredients
             const wantsSweetness = customerMood > 60;
             const hasPreferredIngredient = Object.keys(recipe.ingredients).some(ing => {
+                const ingKey = String(ing).toLowerCase();
                 if (wantsSweetness) {
-                    return ing.includes('chocolate') || ing.includes('sugar') || ing.includes('berry');
+                    return ingKey.includes('chocolate') || ingKey.includes('sugar') || ingKey.includes('berry');
                 } else {
-                    return ing.includes('butter') || ing.includes('cheese') || ing.includes('bread');
+                    return ingKey.includes('butter') || ingKey.includes('cheese') || ingKey.includes('bread');
                 }
             });
-            
-            ingredientAppeal = hasPreferredIngredient ? 1.3 : 0.8;
+
+            ingredientAppeal *= hasPreferredIngredient ? 1.3 : 0.8;
         }
 
         // Maximum price this customer segment will pay

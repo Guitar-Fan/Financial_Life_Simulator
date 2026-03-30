@@ -4655,6 +4655,22 @@
             .hud-pill { padding: 3px 8px !important; font-size: 11px !important; }
             #hud-room-label { font-size: 13px !important; }
         }
+
+        /* Force consistent dark dropdowns for readability across all menus */
+        select,
+        .form-select,
+        .modal-content select,
+        .builder-field select {
+            background: #0f172a !important;
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
+        }
+
+        select option,
+        select optgroup {
+            background: #0f172a !important;
+            color: #ffffff !important;
+        }
     </style>
 </head>
 
@@ -4765,14 +4781,34 @@
     <!-- Mobile device detection + touch input wiring -->
     <script>
     (function () {
-        // Detect touch capability
-        var IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        document.body.classList.toggle('is-touch-device', IS_TOUCH);
+        // Input mode can be forced from the start screen: 'mobile' or 'computer'
+        function computeInputMode(forcedMode) {
+            var touchCapable = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (forcedMode === 'mobile') return 'mobile';
+            if (forcedMode === 'computer') return 'computer';
+            return touchCapable ? 'mobile' : 'computer';
+        }
+
+        function applyInputMode(mode) {
+            var resolved = computeInputMode(mode);
+            window._inputMode = resolved;
+            document.body.classList.toggle('is-touch-device', resolved === 'mobile');
+            return resolved;
+        }
+
+        window._setInputMode = function (mode) {
+            if (mode === 'mobile' || mode === 'computer') {
+                localStorage.setItem('bakery_input_mode', mode);
+            } else {
+                localStorage.removeItem('bakery_input_mode');
+            }
+            return applyInputMode(mode);
+        };
+
+        applyInputMode(localStorage.getItem('bakery_input_mode'));
 
         // Global mobile input state read by BakeryEnvironmentScene
         window._mobileInput = { left: false, right: false, up: false, down: false, interact: false };
-
-        if (!IS_TOUCH) return;
 
         function setupMobileControls() {
             var dpad = document.getElementById('mobile-dpad');

@@ -97,6 +97,21 @@ class CustomerDatabase {
             npsScore: 0 // Net Promoter Score
         };
 
+        // Ingredient preference adoption + demand tracking
+        this.preferenceSampleRate = 0.38;
+        this.ingredientDemandMetrics = {};
+        Object.entries(GAME_CONFIG.INGREDIENTS || {}).forEach(([key, ingredient]) => {
+            this.ingredientDemandMetrics[key] = {
+                ingredientKey: key,
+                ingredientName: ingredient.name || key,
+                icon: ingredient.icon || '🧂',
+                unitsSold: 0,
+                orders: 0,
+                revenue: 0,
+                preferenceMatches: 0
+            };
+        });
+
         // Initialize some seed customers for existing businesses
         this.generateSeedCustomers(5);
     }
@@ -121,6 +136,7 @@ class CustomerDatabase {
         const personality = this.generatePersonality(ageGroup, segment);
         const preferences = this.generatePreferences(ageGroup, segment, personality);
         const willingnessToPay = this.generateWillingnessToPay(ageGroup, segment);
+        const ingredientPreference = this.generateIngredientPreference(segment, personality);
 
         const customer = {
             id: this.nextCustomerId++,
@@ -143,6 +159,9 @@ class CustomerDatabase {
 
             // NEW: Detailed Preferences
             preferences: preferences,
+
+            // Ingredient preference can influence demand and cart size
+            ingredientPreference: ingredientPreference,
 
             // NEW: Willingness to Pay
             willingnessToPay: willingnessToPay,
@@ -425,6 +444,36 @@ class CustomerDatabase {
         };
     }
 
+    generateIngredientPreference(segment, personality) {
+        const ingredients = Object.entries(GAME_CONFIG.INGREDIENTS || {});
+        if (ingredients.length === 0) {
+            return { active: false };
+        }
+
+        let chance = this.preferenceSampleRate;
+        const segmentKey = segment?.key || 'REGULAR';
+        if (segmentKey === 'TRENDY' || segmentKey === 'PREMIUM') chance += 0.12;
+        if (segmentKey === 'BUDGET') chance -= 0.06;
+        if ((personality?.impulsiveness || 50) > 65) chance += 0.05;
+        chance = Math.max(0.15, Math.min(0.72, chance));
+
+        if (Math.random() > chance) {
+            return { active: false };
+        }
+
+        const [ingredientKey, ingredient] = ingredients[Math.floor(Math.random() * ingredients.length)];
+        const strength = Number((0.18 + Math.random() * 0.28).toFixed(2));
+
+        return {
+            active: true,
+            ingredientKey,
+            ingredientName: ingredient.name || ingredientKey,
+            icon: ingredient.icon || '🧂',
+            buyBoost: Number((1 + strength).toFixed(2)),
+            cartBoost: Number((0.25 + strength).toFixed(2))
+        };
+    }
+
     // ==================== CUSTOMER VISITS ====================
 
     generateDailyCustomers(baseTraffic = 20) {
@@ -505,7 +554,7 @@ class CustomerDatabase {
 
     // ==================== PURCHASE BEHAVIOR ====================
 
-    processPurchase(customer, recipeKey, price, quality) {
+    processPurchase(customer, recipeKey, price, quality, quantity = 1) {
         const recipe = GAME_CONFIG.RECIPES[recipeKey];
 
         // Record purchase
@@ -513,6 +562,7 @@ class CustomerDatabase {
             date: this.engine.day,
             item: recipeKey,
             itemName: recipe.name,
+            quantity: Math.max(1, Number(quantity) || 1),
             price: price,
             quality: quality,
             satisfaction: this.calculateSatisfaction(customer, price, quality, recipeKey)
@@ -544,10 +594,49 @@ class CustomerDatabase {
         // Check for incidents
         this.checkForIncidents(customer, purchase);
 
+        this.trackIngredientSignals(customer, recipeKey, purchase.price, purchase.quantity);
+
         // Update metrics
         this.updateMetrics();
 
         return purchase;
+    }
+
+    trackIngredientSignals(customer, recipeKey, revenue, quantity = 1) {
+        const recipe = GAME_CONFIG.RECIPES[recipeKey];
+        if (!recipe || !recipe.ingredients) return;
+
+        const pref = customer?.ingredientPreference;
+        const preferredKey = pref?.active ? pref.ingredientKey : null;
+        const qty = Math.max(1, Number(quantity) || 1);
+        const totalRecipeWeight = Math.max(1, Object.values(recipe.ingredients).reduce((sum, amount) => sum + amount, 0));
+
+        Object.entries(recipe.ingredients).forEach(([ingredientKey, amount]) => {
+            if (!this.ingredientDemandMetrics[ingredientKey]) {
+                const ing = GAME_CONFIG.INGREDIENTS?.[ingredientKey] || {};
+                this.ingredientDemandMetrics[ingredientKey] = {
+                    ingredientKey,
+                    ingredientName: ing.name || ingredientKey,
+                    icon: ing.icon || '🧂',
+                    unitsSold: 0,
+                    orders: 0,
+                    revenue: 0,
+                    preferenceMatches: 0
+                };
+            }
+
+            const metric = this.ingredientDemandMetrics[ingredientKey];
+            const units = qty * amount;
+            const revenueShare = (revenue || 0) * (amount / totalRecipeWeight);
+
+            metric.unitsSold += units;
+            metric.orders += 1;
+            metric.revenue += revenueShare;
+
+            if (preferredKey && ingredientKey === preferredKey) {
+                metric.preferenceMatches += qty;
+            }
+        });
     }
 
     /**
@@ -1016,6 +1105,47 @@ class CustomerDatabase {
         return dist;
     }
 
+    getIngredientInsights(limit = 8) {
+        const activeCustomers = Array.from(this.customers.values()).filter(c => c.isActive);
+        const totalActive = Math.max(1, activeCustomers.length);
+        const preferenceCounts = {};
+
+        activeCustomers.forEach(customer => {
+            const pref = customer?.ingredientPreference;
+            if (pref?.active && pref.ingredientKey) {
+                preferenceCounts[pref.ingredientKey] = (preferenceCounts[pref.ingredientKey] || 0) + 1;
+            }
+        });
+
+        const insights = Object.entries(this.ingredientDemandMetrics || {}).map(([ingredientKey, metric]) => {
+            const preferenceShare = (preferenceCounts[ingredientKey] || 0) / totalActive;
+            const units = Number(metric.unitsSold) || 0;
+            const matches = Number(metric.preferenceMatches) || 0;
+            const score = (units * 0.6) + (matches * 1.6) + (preferenceShare * 80);
+
+            let guidance = 'Hold';
+            if (score >= 28) guidance = 'Test +5% price';
+            else if (score <= 8) guidance = 'Keep price low';
+
+            return {
+                ingredientKey,
+                ingredientName: metric.ingredientName,
+                icon: metric.icon,
+                unitsSold: units,
+                orders: Number(metric.orders) || 0,
+                revenue: Number(metric.revenue) || 0,
+                preferenceMatches: matches,
+                preferenceShare,
+                score,
+                guidance
+            };
+        });
+
+        return insights
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit);
+    }
+
     getTopCustomers(limit = 10) {
         return Array.from(this.customers.values())
             .sort((a, b) => b.totalSpent - a.totalSpent)
@@ -1063,7 +1193,8 @@ class CustomerDatabase {
             nextCustomerId: this.nextCustomerId,
             loyaltyProgram: this.loyaltyProgram,
             marketingChannels: this.marketingChannels,
-            metrics: this.metrics
+            metrics: this.metrics,
+            ingredientDemandMetrics: this.ingredientDemandMetrics
         };
     }
 
@@ -1075,6 +1206,16 @@ class CustomerDatabase {
         this.loyaltyProgram = data.loyaltyProgram || this.loyaltyProgram;
         this.marketingChannels = data.marketingChannels || this.marketingChannels;
         this.metrics = data.metrics || this.metrics;
+
+        if (data.ingredientDemandMetrics) {
+            this.ingredientDemandMetrics = data.ingredientDemandMetrics;
+        }
+
+        this.customers.forEach(customer => {
+            if (!customer.ingredientPreference) {
+                customer.ingredientPreference = { active: false };
+            }
+        });
     }
 }
 
